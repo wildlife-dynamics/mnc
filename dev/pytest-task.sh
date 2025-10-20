@@ -3,9 +3,9 @@
 python_version=$1
 
 command="pixi run \
---manifest-path src/ecoscope-workflows-ext-kbopt/pyproject.toml \
+--manifest-path src/ecoscope-workflows-ext-mnc/pyproject.toml \
 --environment test-py${python_version} \
-pytest src/ecoscope-workflows-ext-kbopt/tests -vv"
+pytest src/ecoscope-workflows-ext-mnc/tests -vv"
 
 shift 1
 if [ -n "$*" ]; then

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 RECIPES=(
-    "release/ecoscope-workflows-ext-kbopt"
+    "release/ecoscope-workflows-ext-mnc"
 )
-project_root=$(pwd)/src/ecoscope-workflows-ext-kbopt
+project_root=$(pwd)/src/ecoscope-workflows-ext-mnc
 export HATCH_VCS_VERSION=$(cd $project_root && hatch version)
 echo "HATCH_VCS_VERSION=$HATCH_VCS_VERSION"
 

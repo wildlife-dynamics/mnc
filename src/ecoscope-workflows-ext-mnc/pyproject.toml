@@ -1,5 +1,5 @@
 [project]
-name = "ecoscope-workflows-ext-kbopt"
+name = "ecoscope-workflows-ext-mnc"
 dynamic = ["version"]
 requires-python = ">=3.10"
 description = "Extension tasks and connections for the template repo."
@@ -14,21 +14,21 @@ classifiers = [
 ]
 license = { text = "BSD-3-Clause" }
 [project.entry-points."ecoscope_workflows"]
-tasks = "ecoscope_workflows_ext_kbopt.tasks"
+tasks = "ecoscope_workflows_ext_mnc.tasks"
 
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
-packages = ["ecoscope_workflows_ext_kbopt"]
+packages = ["ecoscope_workflows_ext_mnc"]
 exclude = ["vendor"]
 only-packages = true
 [tool.hatch.build.targets.sdist]
-include = ["ecoscope_workflows_ext_kbopt"]
+include = ["ecoscope_workflows_ext_mnc"]
 exclude = ["vendor"]
 [tool.hatch.build.hooks.vcs]
-version-file = "ecoscope_workflows_ext_kbopt/_version.py"
+version-file = "ecoscope_workflows_ext_mnc/_version.py"
 [tool.hatch.version]
 source = "vcs"
 fallback-version = "9999"
@@ -46,7 +46,7 @@ channels = [
 platforms = ["linux-64", "osx-arm64"]
 
 [tool.pixi.pypi-dependencies]
-ecoscope-workflows-ext-kbopt = { path = ".", editable = true }
+ecoscope-workflows-ext-mnc = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
 # restating dependencies from ecoscope-workflows.core to ensure they are included
@@ -71,7 +71,7 @@ plugins = ["pandera.mypy", "pydantic.mypy"]
 [tool.pixi.feature.mypy]
 dependencies = { mypy = "*", pandas-stubs = "*", pandera-mypy = "*" }
 pypi-dependencies = { types-shapely = "*" }
-tasks = { mypy = "mypy --package ecoscope_workflows_ext_kbopt --package tests --no-incremental" }
+tasks = { mypy = "mypy --package ecoscope_workflows_ext_mnc --package tests --no-incremental" }
 
 [tool.pixi.feature.py310.dependencies]
 python = "3.10.*"

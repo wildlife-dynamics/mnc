@@ -1,18 +1,18 @@
 # Workflow Custom Repository
 
-This repository contains custom tasks and workflows for kbopt. Follow the setup steps below to get started.
+This repository contains custom tasks and workflows for mnc. Follow the setup steps below to get started.
 
 
 ## Project Structure
 
-- `src/ecoscope-workflows-ext-kbopt`: Contains custom tasks
+- `src/ecoscope-workflows-ext-mnc`: Contains custom tasks
 - `workflows`: Contains all the workflows that are set up to use custom tasks
 - `pixi.toml`: Contains project configuration including dependencies
 - `dev`: Contains scripts required for development
 - `publish`: Contains scripts required to build and publish the task package
 
 ## Task Development
-The tasks are defined under `src/ecoscope-workflows-ext-kbopt/ecoscope_workflows_ext_kbopt/tasks`. Here's an example of a task
+The tasks are defined under `src/ecoscope-workflows-ext-mnc/ecoscope_workflows_ext_mnc/tasks`. Here's an example of a task
 
 ```python
 @task
@@ -25,9 +25,9 @@ Annotate your function with `@task` and input parameters with `Annotated[float, 
 
 Note: make sure to include your tasks to `__init__.py` to register it as a ecoscope-workflow task.
 
-You can also add other dependencies in `src/ecoscope-workflows-ext-kbopt/pyproject.toml` under [tool.pixi.dependencies] section
+You can also add other dependencies in `src/ecoscope-workflows-ext-mnc/pyproject.toml` under [tool.pixi.dependencies] section
 
-Unittests are under `src/ecoscope-workflows-ext-kbopt/tests` and can be tested it by
+Unittests are under `src/ecoscope-workflows-ext-mnc/tests` and can be tested it by
 ```bash
 pixi run pytest-310
 ```
@@ -52,7 +52,7 @@ or pytest-311/pytest-312 depending on your desired python version.
    ]
    ...
    [feature.compile.dependencies]
-   ecoscope-workflows-ext-kbopt = { version = "*", channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/" }
+   ecoscope-workflows-ext-mnc = { version = "*", channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/" }
    ```
 
 ## Workflow Development
@@ -75,15 +75,15 @@ or pytest-311/pytest-312 depending on your desired python version.
 
 3. Test your workflow. First set up your output directory by
    ```bash
-   mkdir -p /tmp/workflows/kbopt/nest-monitoring/output
-   export ECOSCOPE_WORKFLOWS_RESULTS=file:///tmp/workflows/kbopt/nest-monitoring/output
+   mkdir -p /tmp/workflows/mnc/nest-monitoring/output
+   export ECOSCOPE_WORKFLOWS_RESULTS=file:///tmp/workflows/mnc/nest-monitoring/output
    ```
    Then run your workflow by
    ```bash
    cd workflows/nest-monitoring/ecoscope-workflows-nest-monitoring-workflow
    pixi run ecoscope-workflows-nest-monitoring-workflow run --config-file ../param.yaml --execution-mode sequential --mock-io
    ```
-   You can find the results in your output folder in `/tmp/workflows/kbopt/nest-monitoring/output/result.json`
+   You can find the results in your output folder in `/tmp/workflows/mnc/nest-monitoring/output/result.json`
    
 ## Publish Your Changes
 
@@ -108,14 +108,14 @@ or pytest-311/pytest-312 depending on your desired python version.
 
 5. Update the version in pixi.toml
    ```toml
-   [dependencies.ecoscope-workflows-ext-kbopt]
+   [dependencies.ecoscope-workflows-ext-mnc]
    channel = 'https://repo.prefix.dev/ecoscope-workflows-custom/'
    version = '0.0.2'
    ```
 
 6. Update the version in spec.yaml
    ```yaml
-   - name: ecoscope-workflows-ext-kbopt
+   - name: ecoscope-workflows-ext-mnc
      version: '0.0.2'
      channel: https://repo.prefix.dev/ecoscope-workflows-custom/
    ```

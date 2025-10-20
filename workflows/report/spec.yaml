@@ -3,7 +3,7 @@ requirements:
   - name: ecoscope-workflows-core
     version: "*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
-  - name: ecoscope-workflows-ext-kbopt
+  - name: ecoscope-workflows-ext-mnc
     version: "*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
