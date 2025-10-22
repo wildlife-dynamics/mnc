@@ -135,8 +135,6 @@ workflow:
       category_column: weather_station
       line_kwargs:
         shape: "linear"
-        dash: None
-        color: None
       layout_kwargs:
         title: "Precipitation by Station"
         title_x: 0.01
@@ -191,8 +189,6 @@ workflow:
       category_column: weather_station
       line_kwargs:
         shape: "linear"
-        dash: None
-        color: None
       layout_kwargs:
         title: "Temperature by Station"
         title_x: 0.01

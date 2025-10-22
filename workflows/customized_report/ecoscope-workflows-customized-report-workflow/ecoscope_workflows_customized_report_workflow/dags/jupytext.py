@@ -353,7 +353,7 @@ precipitation_chart = (
         x_column="date",
         y_column="daily_precipitation",
         category_column="weather_station",
-        line_kwargs={"shape": "linear", "dash": "None", "color": "None"},
+        line_kwargs={"shape": "linear"},
         layout_kwargs={
             "title": "Precipitation by Station",
             "title_x": 0.01,
@@ -464,7 +464,7 @@ temperature_chart = (
         x_column="date",
         y_column="daily_temperature",
         category_column="weather_station",
-        line_kwargs={"shape": "linear", "dash": "None", "color": "None"},
+        line_kwargs={"shape": "linear"},
         layout_kwargs={
             "title": "Temperature by Station",
             "title_x": 0.01,
