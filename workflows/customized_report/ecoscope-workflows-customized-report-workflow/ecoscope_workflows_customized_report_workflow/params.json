@@ -441,25 +441,6 @@
       "type": "object",
       "title": "Get Patrol observations"
     },
-    "persist_relocs_df": {
-      "additionalProperties": false,
-      "properties": {
-        "filetype": {
-          "default": "csv",
-          "enum": [
-            "csv",
-            "gpkg",
-            "geoparquet"
-          ],
-          "title": "Filetype",
-          "type": "string",
-          "description": "The output format"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Persist relocs df"
-    },
     "convert_to_trajectories": {
       "additionalProperties": false,
       "properties": {
@@ -663,7 +644,6 @@
       "persist_tevents_df",
       "draw_events_chart",
       "patrol_observations",
-      "persist_relocs_df",
       "convert_to_trajectories",
       "persist_trajs_df"
     ]

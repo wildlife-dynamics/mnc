@@ -54,6 +54,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_color_map
 from ecoscope_workflows_ext_mnc.tasks import (
     classify_mnc_patrol,
     create_view_state_from_gdf,
+    view_df,
     zip_grouped_by_key,
 )
 
@@ -943,30 +944,6 @@ patrol_relocs = (
 
 
 # %% [markdown]
-# ## Persist relocs df
-
-# %%
-# parameters
-
-persist_relocs_df_params = dict(
-    filename=...,
-    filetype=...,
-)
-
-# %%
-# call the task
-
-
-persist_relocs_df = (
-    persist_df.handle_errors(task_instance_id="persist_relocs_df")
-    .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_relocs_df_params
-    )
-    .mapvalues(argnames=["df"], argvalues=patrol_relocs)
-)
-
-
-# %% [markdown]
 # ## Convert Relocations to Trajectories
 
 # %%
@@ -1074,30 +1051,6 @@ rename_traj_cols = (
 
 
 # %% [markdown]
-# ## Persist trajs df
-
-# %%
-# parameters
-
-persist_trajs_df_params = dict(
-    filename=...,
-    filetype=...,
-)
-
-# %%
-# call the task
-
-
-persist_trajs_df = (
-    persist_df.handle_errors(task_instance_id="persist_trajs_df")
-    .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_trajs_df_params
-    )
-    .mapvalues(argnames=["df"], argvalues=rename_traj_cols)
-)
-
-
-# %% [markdown]
 # ## Split Trajectories by Group
 
 # %%
@@ -1153,6 +1106,49 @@ split_traj_patrol_type = (
     split_groups.handle_errors(task_instance_id="split_traj_patrol_type")
     .partial(groupers=patrol_groupers, **split_traj_patrol_type_params)
     .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
+)
+
+
+# %% [markdown]
+# ## Print traj info
+
+# %%
+# parameters
+
+print_traj_info_params = dict()
+
+# %%
+# call the task
+
+
+print_traj_info = (
+    view_df.handle_errors(task_instance_id="print_traj_info")
+    .partial(name="split patrol type trajs", **print_traj_info_params)
+    .mapvalues(argnames=["gdf"], argvalues=split_traj_patrol_type)
+)
+
+
+# %% [markdown]
+# ## Persist trajs df
+
+# %%
+# parameters
+
+persist_trajs_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_trajs_df = (
+    persist_df.handle_errors(task_instance_id="persist_trajs_df")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_trajs_df_params
+    )
+    .mapvalues(argnames=["df"], argvalues=split_traj_patrol_type)
 )
 
 

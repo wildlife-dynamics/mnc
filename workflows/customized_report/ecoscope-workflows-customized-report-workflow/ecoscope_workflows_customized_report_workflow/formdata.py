@@ -306,15 +306,6 @@ class PatrolObservations(BaseModel):
     )
 
 
-class PersistRelocsDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
-    )
-
-
 class PersistTrajsDf(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -432,9 +423,6 @@ class FormData(BaseModel):
     )
     patrol_observations: Optional[PatrolObservations] = Field(
         None, title="Get Patrol observations"
-    )
-    persist_relocs_df: Optional[PersistRelocsDf] = Field(
-        None, title="Persist relocs df"
     )
     convert_to_trajectories: Optional[ConvertToTrajectories] = Field(
         None, title="Convert Relocations to Trajectories"

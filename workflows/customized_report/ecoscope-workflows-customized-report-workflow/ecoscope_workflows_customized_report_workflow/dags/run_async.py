@@ -45,6 +45,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_color_map
 from ecoscope_workflows_ext_mnc.tasks import (
     classify_mnc_patrol,
     create_view_state_from_gdf,
+    view_df,
     zip_grouped_by_key,
 )
 
@@ -88,15 +89,15 @@ def main(params: Params):
         "grouped_tevents_widget": ["tevents_chart_widget"],
         "patrol_observations": ["er_client_name", "time_range"],
         "patrol_relocs": ["patrol_observations"],
-        "persist_relocs_df": ["patrol_relocs"],
         "convert_to_trajectories": ["patrol_relocs"],
         "add_temporal_index_to_traj": ["convert_to_trajectories", "groupers"],
         "map_patrol_types": ["add_temporal_index_to_traj"],
         "rename_traj_cols": ["map_patrol_types"],
-        "persist_trajs_df": ["rename_traj_cols"],
         "split_trajectories_by_group": ["rename_traj_cols", "groupers"],
         "patrol_groupers": [],
         "split_traj_patrol_type": ["patrol_groupers", "split_trajectories_by_group"],
+        "print_traj_info": ["split_traj_patrol_type"],
+        "persist_trajs_df": ["split_traj_patrol_type"],
         "apply_patrol_colormap": ["split_traj_patrol_type"],
         "generate_patrol_layers": ["apply_patrol_colormap"],
         "zoom_patrol_traj_view": ["apply_patrol_colormap"],
@@ -630,20 +631,6 @@ def main(params: Params):
             | (params_dict.get("patrol_relocs") or {}),
             method="call",
         ),
-        "persist_relocs_df": Node(
-            async_task=persist_df.validate()
-            .handle_errors(task_instance_id="persist_relocs_df")
-            .set_executor("lithops"),
-            partial={
-                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            }
-            | (params_dict.get("persist_relocs_df") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("patrol_relocs"),
-            },
-        ),
         "convert_to_trajectories": Node(
             async_task=relocations_to_trajectory.validate()
             .handle_errors(task_instance_id="convert_to_trajectories")
@@ -704,20 +691,6 @@ def main(params: Params):
             | (params_dict.get("rename_traj_cols") or {}),
             method="call",
         ),
-        "persist_trajs_df": Node(
-            async_task=persist_df.validate()
-            .handle_errors(task_instance_id="persist_trajs_df")
-            .set_executor("lithops"),
-            partial={
-                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            }
-            | (params_dict.get("persist_trajs_df") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("rename_traj_cols"),
-            },
-        ),
         "split_trajectories_by_group": Node(
             async_task=split_groups.validate()
             .handle_errors(task_instance_id="split_trajectories_by_group")
@@ -751,6 +724,34 @@ def main(params: Params):
             kwargs={
                 "argnames": ["df"],
                 "argvalues": DependsOn("split_trajectories_by_group"),
+            },
+        ),
+        "print_traj_info": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="print_traj_info")
+            .set_executor("lithops"),
+            partial={
+                "name": "split patrol type trajs",
+            }
+            | (params_dict.get("print_traj_info") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["gdf"],
+                "argvalues": DependsOn("split_traj_patrol_type"),
+            },
+        ),
+        "persist_trajs_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_trajs_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_trajs_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("split_traj_patrol_type"),
             },
         ),
         "apply_patrol_colormap": Node(

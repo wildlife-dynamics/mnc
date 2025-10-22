@@ -85,6 +85,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_color_map
 from ecoscope_workflows_ext_mnc.tasks import (
     classify_mnc_patrol,
     create_view_state_from_gdf,
+    view_df,
     zip_grouped_by_key,
 )
 
@@ -559,16 +560,6 @@ def main(params: Params):
         .call()
     )
 
-    persist_relocs_df = (
-        persist_df.validate()
-        .handle_errors(task_instance_id="persist_relocs_df")
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            **(params_dict.get("persist_relocs_df") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=patrol_relocs)
-    )
-
     convert_to_trajectories = (
         relocations_to_trajectory.validate()
         .handle_errors(task_instance_id="convert_to_trajectories")
@@ -629,16 +620,6 @@ def main(params: Params):
         .call()
     )
 
-    persist_trajs_df = (
-        persist_df.validate()
-        .handle_errors(task_instance_id="persist_trajs_df")
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            **(params_dict.get("persist_trajs_df") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=rename_traj_cols)
-    )
-
     split_trajectories_by_group = (
         split_groups.validate()
         .handle_errors(task_instance_id="split_trajectories_by_group")
@@ -667,6 +648,25 @@ def main(params: Params):
             **(params_dict.get("split_traj_patrol_type") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
+    )
+
+    print_traj_info = (
+        view_df.validate()
+        .handle_errors(task_instance_id="print_traj_info")
+        .partial(
+            name="split patrol type trajs", **(params_dict.get("print_traj_info") or {})
+        )
+        .mapvalues(argnames=["gdf"], argvalues=split_traj_patrol_type)
+    )
+
+    persist_trajs_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_trajs_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_trajs_df") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_traj_patrol_type)
     )
 
     apply_patrol_colormap = (
