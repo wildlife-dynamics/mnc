@@ -461,45 +461,19 @@ workflow:
       df: ${{ workflow.rename_traj_cols.return }}
       groupers: ${{ workflow.groupers.return }}
 
-    # define patrol cat type groupers
-  - name: Set patrol type category groupers
-    id: patrol_groupers
-    task: set_groupers
-    partial:
-      groupers:
-        - patrol_cat_types
 
-  - name: Split trajectories by patrol type
-    id: split_traj_patrol_type
-    task: split_groups
+  - name: Filter foot patrol data 
+    id: filter_foot_patrols
+    task: filter_by_value
     partial:
-      #df: ${{ workflow.rename_traj_cols.return }}
-      groupers: ${{ workflow.patrol_groupers.return }}
+      column_name: patrol_cat_types
+      value:  Foot
     mapvalues:
       argnames: df
       argvalues: ${{ workflow.split_trajectories_by_group.return }}
 
-  - name: Print traj info
-    id: print_traj_info 
-    task: view_df
-    partial:
-      name: split patrol type trajs
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.split_traj_patrol_type.return }}
-    
-  - name: Persist trajs df
-    id: persist_trajs_df
-    task: persist_df 
-    partial:
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.split_traj_patrol_type.return }}
-
-
-  - name: Apply Colormap to patrol titles
-    id: apply_patrol_colormap
+  - name: Apply Colormap to foot patrol
+    id: apply_footp_colormap
     task: apply_color_map
     partial:
       input_column_name: patrol_type_value
@@ -507,10 +481,10 @@ workflow:
       colormap: coolwarm
     mapvalues:
       argnames: df
-      argvalues: ${{ workflow.split_traj_patrol_type.return }}
+      argvalues: ${{ workflow.filter_foot_patrols.return }}
 
-  - name: Generate patrol layer
-    id: generate_patrol_layers
+  - name: Generate  foot patrol layers
+    id: generate_footp_layers
     task: create_polyline_layer
     skipif:
       conditions:
@@ -534,27 +508,27 @@ workflow:
 
     mapvalues:
       argnames: geodataframe
-      argvalues: ${{ workflow.apply_patrol_colormap.return }}
+      argvalues: ${{ workflow.apply_footp_colormap.return }}
 
-  - name: Zoom patrol trajs by view state
-    id: zoom_patrol_traj_view
+  - name: Zoom  foot patrol trajs by view state
+    id: zoom_footp_traj_view
     task: create_view_state_from_gdf
     partial:
       pitch: 0
       bearing: 0
     mapvalues:
       argnames: gdf
-      argvalues: ${{ workflow.apply_patrol_colormap.return }}
+      argvalues: ${{ workflow.apply_footp_colormap.return }}
 
-  - name: Zip patrol layers and zoom values
-    id: zip_patrol_zoom_values
+  - name: Zip foot patrol layers and zoom values
+    id: zip_footp_zoom_values
     task: zip_grouped_by_key
     partial:
-      left:  ${{ workflow.generate_patrol_layers.return }}
-      right: ${{ workflow.zoom_patrol_traj_view.return }} 
+      left:  ${{ workflow.generate_footp_layers.return }}
+      right: ${{ workflow.zoom_footp_traj_view.return }} 
 
-  - name: Draw patrol ecomaps
-    id: draw_patrol_ecomap
+  - name: Draw  foot patrol ecomaps
+    id: draw_footp_ecomap
     task: draw_ecomap
     partial:
       tile_layers: ${{ workflow.configure_base_maps.return }}
@@ -570,36 +544,264 @@ workflow:
       argnames: 
         - geo_layers
         - view_state
-      argvalues: ${{ workflow.zip_patrol_zoom_values.return }}
+      argvalues: ${{ workflow.zip_footp_zoom_values.return }}
 
-  - name: Persist patrol ecomap html paths
-    id: persist_patrol_ecomap_urls
+  - name: Persist  foot patrol ecomap html paths
+    id: persist_footp_ecomap_urls
     task: persist_text
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
     mapvalues:
       argnames: text
-      argvalues: ${{ workflow.draw_patrol_ecomap.return }}
+      argvalues: ${{ workflow.draw_footp_ecomap.return }}
 
-  - name: Create Patrol Widgets
-    id: create_patrol_widgets
+  - name: Create foot patrol widgets
+    id: create_footp_widgets
     task: create_map_widget_single_view
     skipif:
       conditions: 
         - never
     partial:
-      title: Patrols
+      title: Foot Patrol
     map:
       argnames:
         - view 
         - data
-      argvalues: ${{ workflow.persist_patrol_ecomap_urls.return }}
+      argvalues: ${{ workflow.persist_footp_ecomap_urls.return }}
 
-  - name: Merge Patrol Ecomap Widgets
-    id: merge_patrol_widgets
+  - name: Merge foot patrol ecomap widgets
+    id: merge_footp_widgets
     task: merge_widget_views
     partial:
-      widgets: ${{ workflow.create_patrol_widgets.return }}
+      widgets: ${{ workflow.create_footp_widgets.return }}
+
+
+  - name: Filter vehicle patrol data 
+    id: filter_vehicle_patrols
+    task: filter_by_value
+    partial:
+      column_name: patrol_cat_types
+      value: Vehicle
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.split_trajectories_by_group.return }}
+
+  - name: Apply Colormap to vh patrol
+    id: apply_vhp_colormap
+    task: apply_color_map
+    partial:
+      input_column_name: patrol_type_value
+      output_column_name: patrol_colormap
+      colormap: coolwarm
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.filter_vehicle_patrols.return }}
+
+  - name: Generate vehicle patrol layers
+    id: generate_vhp_layers
+    task: create_polyline_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        color_column: patrol_colormap
+      legend:
+        label_column: patrol_cat_types
+        color_column: patrol_colormap
+      tooltip_columns:
+        - patrol_subject_name
+        - patrol_start_time
+        - patrol_end_time
+        - patrol_title
+        - patrol_type_value
+        - segment_start
+        - dist_meters
+        - timespan_seconds
+
+    mapvalues:
+      argnames: geodataframe
+      argvalues: ${{ workflow.apply_vhp_colormap.return }}
+
+  - name: Zoom vehicle patrol trajs by view state
+    id: zoom_vhp_traj_view
+    task: create_view_state_from_gdf
+    partial:
+      pitch: 0
+      bearing: 0
+    mapvalues:
+      argnames: gdf
+      argvalues: ${{ workflow.apply_vhp_colormap.return }}
+
+  - name: Zip vehicle patrol layers and zoom values
+    id: zip_vhp_zoom_values
+    task: zip_grouped_by_key
+    partial:
+      left:  ${{ workflow.generate_vhp_layers.return }}
+      right: ${{ workflow.zoom_vhp_traj_view.return }} 
+
+  - name: Draw vehicle patrol ecomaps
+    id: draw_vhp_ecomap
+    task: draw_ecomap
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      north_arrow_style:
+        placement: top-left
+      legend_style:
+        placement: bottom-right
+        title: Patrol Types
+      static: false
+      title: null
+      max_zoom: 20
+    mapvalues:
+      argnames: 
+        - geo_layers
+        - view_state
+      argvalues: ${{ workflow.zip_vhp_zoom_values.return }}
+
+  - name: Persist vehicle patrol ecomap html paths
+    id: persist_vhp_ecomap_urls
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: text
+      argvalues: ${{ workflow.draw_vhp_ecomap.return }}
+
+  - name: Create vehicle patrol widgets
+    id: create_vhp_widgets
+    task: create_map_widget_single_view
+    skipif:
+      conditions: 
+        - never
+    partial:
+      title: Vehicle Patrol
+    map:
+      argnames:
+        - view 
+        - data
+      argvalues: ${{ workflow.persist_vhp_ecomap_urls.return }}
+
+  - name: Merge vehicle patrol ecomap widgets
+    id: merge_vhp_widgets
+    task: merge_widget_views
+    partial:
+      widgets: ${{ workflow.create_vhp_widgets.return }}
+
+  - name: Filter motorbike patrol data 
+    id: filter_motor_patrols
+    task: filter_by_value
+    partial:
+      column_name: patrol_cat_types
+      value: Motorcycle
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.split_trajectories_by_group.return }}
+
+
+  - name: Apply Colormap to motorcycle patrol
+    id: apply_mocp_colormap
+    task: apply_color_map
+    partial:
+      input_column_name: patrol_type_value
+      output_column_name: patrol_colormap
+      colormap: coolwarm
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.filter_motor_patrols.return }}
+
+  - name: Generate motor patrol layers
+    id: generate_mocp_layers
+    task: create_polyline_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        color_column: patrol_colormap
+      legend:
+        label_column: patrol_cat_types
+        color_column: patrol_colormap
+      tooltip_columns:
+        - patrol_subject_name
+        - patrol_start_time
+        - patrol_end_time
+        - patrol_title
+        - patrol_type_value
+        - segment_start
+        - dist_meters
+        - timespan_seconds
+
+    mapvalues:
+      argnames: geodataframe
+      argvalues: ${{ workflow.apply_mocp_colormap.return }}
+
+  - name: Zoom motor patrol trajs by view state
+    id: zoom_mocp_traj_view
+    task: create_view_state_from_gdf
+    partial:
+      pitch: 0
+      bearing: 0
+    mapvalues:
+      argnames: gdf
+      argvalues: ${{ workflow.apply_mocp_colormap.return }}
+
+  - name: Zip motor patrol layers and zoom values
+    id: zip_mocp_zoom_values
+    task: zip_grouped_by_key
+    partial:
+      left:  ${{ workflow.generate_mocp_layers.return }}
+      right: ${{ workflow.zoom_mocp_traj_view.return }} 
+
+  - name: Draw motor patrol ecomaps
+    id: draw_mocp_ecomap
+    task: draw_ecomap
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      north_arrow_style:
+        placement: top-left
+      legend_style:
+        placement: bottom-right
+        title: Patrol Types
+      static: false
+      title: null
+      max_zoom: 20
+    mapvalues:
+      argnames: 
+        - geo_layers
+        - view_state
+      argvalues: ${{ workflow.zip_mocp_zoom_values.return }}
+
+  - name: Persist motor patrol ecomap html paths
+    id: persist_mocp_ecomap_urls
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: text
+      argvalues: ${{ workflow.draw_mocp_ecomap.return }}
+
+  - name: Create motor patrol widgets
+    id: create_mocp_widgets
+    task: create_map_widget_single_view
+    skipif:
+      conditions: 
+        - never
+    partial:
+      title: Motorbike Patrol
+    map:
+      argnames:
+        - view 
+        - data
+      argvalues: ${{ workflow.persist_mocp_ecomap_urls.return }}
+
+  - name: Merge motor patrol ecomap widgets
+    id: merge_mocp_widgets
+    task: merge_widget_views
+    partial:
+      widgets: ${{ workflow.create_mocp_widgets.return }}
 
 
   - name: Create A Weather Dashboard
@@ -611,7 +813,9 @@ workflow:
         - ${{ workflow.grouped_precipitation_widget.return }}
         - ${{ workflow.grouped_temperature_widget.return }}
         - ${{ workflow.grouped_tevents_widget.return }}
-        - ${{ workflow.merge_patrol_widgets.return }}
-
+        - ${{ workflow.merge_footp_widgets.return }}
+        - ${{ workflow.merge_vhp_widgets.return }}
+        - ${{ workflow.merge_mocp_widgets.return }}
+      
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}

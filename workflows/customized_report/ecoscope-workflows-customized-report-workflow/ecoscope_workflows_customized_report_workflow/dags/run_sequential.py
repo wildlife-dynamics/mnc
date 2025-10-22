@@ -44,7 +44,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_color_map
 from ecoscope_workflows_ext_mnc.tasks import (
     classify_mnc_patrol,
     create_view_state_from_gdf,
-    view_df,
+    filter_by_value,
     zip_grouped_by_key,
 )
 
@@ -588,59 +588,32 @@ def main(params: Params):
         .call()
     )
 
-    patrol_groupers = (
-        set_groupers.validate()
-        .handle_errors(task_instance_id="patrol_groupers")
+    filter_foot_patrols = (
+        filter_by_value.validate()
+        .handle_errors(task_instance_id="filter_foot_patrols")
         .partial(
-            groupers=["patrol_cat_types"], **(params_dict.get("patrol_groupers") or {})
-        )
-        .call()
-    )
-
-    split_traj_patrol_type = (
-        split_groups.validate()
-        .handle_errors(task_instance_id="split_traj_patrol_type")
-        .partial(
-            groupers=patrol_groupers,
-            **(params_dict.get("split_traj_patrol_type") or {}),
+            column_name="patrol_cat_types",
+            value="Foot",
+            **(params_dict.get("filter_foot_patrols") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
     )
 
-    print_traj_info = (
-        view_df.validate()
-        .handle_errors(task_instance_id="print_traj_info")
-        .partial(
-            name="split patrol type trajs", **(params_dict.get("print_traj_info") or {})
-        )
-        .mapvalues(argnames=["gdf"], argvalues=split_traj_patrol_type)
-    )
-
-    persist_trajs_df = (
-        persist_df.validate()
-        .handle_errors(task_instance_id="persist_trajs_df")
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            **(params_dict.get("persist_trajs_df") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=split_traj_patrol_type)
-    )
-
-    apply_patrol_colormap = (
+    apply_footp_colormap = (
         apply_color_map.validate()
-        .handle_errors(task_instance_id="apply_patrol_colormap")
+        .handle_errors(task_instance_id="apply_footp_colormap")
         .partial(
             input_column_name="patrol_type_value",
             output_column_name="patrol_colormap",
             colormap="coolwarm",
-            **(params_dict.get("apply_patrol_colormap") or {}),
+            **(params_dict.get("apply_footp_colormap") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_traj_patrol_type)
+        .mapvalues(argnames=["df"], argvalues=filter_foot_patrols)
     )
 
-    generate_patrol_layers = (
+    generate_footp_layers = (
         create_polyline_layer.validate()
-        .handle_errors(task_instance_id="generate_patrol_layers")
+        .handle_errors(task_instance_id="generate_footp_layers")
         .skipif(
             conditions=[
                 any_is_empty_df,
@@ -664,32 +637,32 @@ def main(params: Params):
                 "dist_meters",
                 "timespan_seconds",
             ],
-            **(params_dict.get("generate_patrol_layers") or {}),
+            **(params_dict.get("generate_footp_layers") or {}),
         )
-        .mapvalues(argnames=["geodataframe"], argvalues=apply_patrol_colormap)
+        .mapvalues(argnames=["geodataframe"], argvalues=apply_footp_colormap)
     )
 
-    zoom_patrol_traj_view = (
+    zoom_footp_traj_view = (
         create_view_state_from_gdf.validate()
-        .handle_errors(task_instance_id="zoom_patrol_traj_view")
-        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_patrol_traj_view") or {}))
-        .mapvalues(argnames=["gdf"], argvalues=apply_patrol_colormap)
+        .handle_errors(task_instance_id="zoom_footp_traj_view")
+        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_footp_traj_view") or {}))
+        .mapvalues(argnames=["gdf"], argvalues=apply_footp_colormap)
     )
 
-    zip_patrol_zoom_values = (
+    zip_footp_zoom_values = (
         zip_grouped_by_key.validate()
-        .handle_errors(task_instance_id="zip_patrol_zoom_values")
+        .handle_errors(task_instance_id="zip_footp_zoom_values")
         .partial(
-            left=generate_patrol_layers,
-            right=zoom_patrol_traj_view,
-            **(params_dict.get("zip_patrol_zoom_values") or {}),
+            left=generate_footp_layers,
+            right=zoom_footp_traj_view,
+            **(params_dict.get("zip_footp_zoom_values") or {}),
         )
         .call()
     )
 
-    draw_patrol_ecomap = (
+    draw_footp_ecomap = (
         draw_ecomap.validate()
-        .handle_errors(task_instance_id="draw_patrol_ecomap")
+        .handle_errors(task_instance_id="draw_footp_ecomap")
         .partial(
             tile_layers=configure_base_maps,
             north_arrow_style={"placement": "top-left"},
@@ -697,42 +670,286 @@ def main(params: Params):
             static=False,
             title=None,
             max_zoom=20,
-            **(params_dict.get("draw_patrol_ecomap") or {}),
+            **(params_dict.get("draw_footp_ecomap") or {}),
         )
         .mapvalues(
-            argnames=["geo_layers", "view_state"], argvalues=zip_patrol_zoom_values
+            argnames=["geo_layers", "view_state"], argvalues=zip_footp_zoom_values
         )
     )
 
-    persist_patrol_ecomap_urls = (
+    persist_footp_ecomap_urls = (
         persist_text.validate()
-        .handle_errors(task_instance_id="persist_patrol_ecomap_urls")
+        .handle_errors(task_instance_id="persist_footp_ecomap_urls")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            **(params_dict.get("persist_patrol_ecomap_urls") or {}),
+            **(params_dict.get("persist_footp_ecomap_urls") or {}),
         )
-        .mapvalues(argnames=["text"], argvalues=draw_patrol_ecomap)
+        .mapvalues(argnames=["text"], argvalues=draw_footp_ecomap)
     )
 
-    create_patrol_widgets = (
+    create_footp_widgets = (
         create_map_widget_single_view.validate()
-        .handle_errors(task_instance_id="create_patrol_widgets")
+        .handle_errors(task_instance_id="create_footp_widgets")
         .skipif(
             conditions=[
                 never,
             ],
             unpack_depth=1,
         )
-        .partial(title="Patrols", **(params_dict.get("create_patrol_widgets") or {}))
-        .map(argnames=["view", "data"], argvalues=persist_patrol_ecomap_urls)
+        .partial(title="Foot Patrol", **(params_dict.get("create_footp_widgets") or {}))
+        .map(argnames=["view", "data"], argvalues=persist_footp_ecomap_urls)
     )
 
-    merge_patrol_widgets = (
+    merge_footp_widgets = (
         merge_widget_views.validate()
-        .handle_errors(task_instance_id="merge_patrol_widgets")
+        .handle_errors(task_instance_id="merge_footp_widgets")
         .partial(
-            widgets=create_patrol_widgets,
-            **(params_dict.get("merge_patrol_widgets") or {}),
+            widgets=create_footp_widgets,
+            **(params_dict.get("merge_footp_widgets") or {}),
+        )
+        .call()
+    )
+
+    filter_vehicle_patrols = (
+        filter_by_value.validate()
+        .handle_errors(task_instance_id="filter_vehicle_patrols")
+        .partial(
+            column_name="patrol_cat_types",
+            value="Vehicle",
+            **(params_dict.get("filter_vehicle_patrols") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
+    )
+
+    apply_vhp_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_vhp_colormap")
+        .partial(
+            input_column_name="patrol_type_value",
+            output_column_name="patrol_colormap",
+            colormap="coolwarm",
+            **(params_dict.get("apply_vhp_colormap") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=filter_vehicle_patrols)
+    )
+
+    generate_vhp_layers = (
+        create_polyline_layer.validate()
+        .handle_errors(task_instance_id="generate_vhp_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={"color_column": "patrol_colormap"},
+            legend={
+                "label_column": "patrol_cat_types",
+                "color_column": "patrol_colormap",
+            },
+            tooltip_columns=[
+                "patrol_subject_name",
+                "patrol_start_time",
+                "patrol_end_time",
+                "patrol_title",
+                "patrol_type_value",
+                "segment_start",
+                "dist_meters",
+                "timespan_seconds",
+            ],
+            **(params_dict.get("generate_vhp_layers") or {}),
+        )
+        .mapvalues(argnames=["geodataframe"], argvalues=apply_vhp_colormap)
+    )
+
+    zoom_vhp_traj_view = (
+        create_view_state_from_gdf.validate()
+        .handle_errors(task_instance_id="zoom_vhp_traj_view")
+        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_vhp_traj_view") or {}))
+        .mapvalues(argnames=["gdf"], argvalues=apply_vhp_colormap)
+    )
+
+    zip_vhp_zoom_values = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_vhp_zoom_values")
+        .partial(
+            left=generate_vhp_layers,
+            right=zoom_vhp_traj_view,
+            **(params_dict.get("zip_vhp_zoom_values") or {}),
+        )
+        .call()
+    )
+
+    draw_vhp_ecomap = (
+        draw_ecomap.validate()
+        .handle_errors(task_instance_id="draw_vhp_ecomap")
+        .partial(
+            tile_layers=configure_base_maps,
+            north_arrow_style={"placement": "top-left"},
+            legend_style={"placement": "bottom-right", "title": "Patrol Types"},
+            static=False,
+            title=None,
+            max_zoom=20,
+            **(params_dict.get("draw_vhp_ecomap") or {}),
+        )
+        .mapvalues(argnames=["geo_layers", "view_state"], argvalues=zip_vhp_zoom_values)
+    )
+
+    persist_vhp_ecomap_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_vhp_ecomap_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_vhp_ecomap_urls") or {}),
+        )
+        .mapvalues(argnames=["text"], argvalues=draw_vhp_ecomap)
+    )
+
+    create_vhp_widgets = (
+        create_map_widget_single_view.validate()
+        .handle_errors(task_instance_id="create_vhp_widgets")
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Vehicle Patrol", **(params_dict.get("create_vhp_widgets") or {})
+        )
+        .map(argnames=["view", "data"], argvalues=persist_vhp_ecomap_urls)
+    )
+
+    merge_vhp_widgets = (
+        merge_widget_views.validate()
+        .handle_errors(task_instance_id="merge_vhp_widgets")
+        .partial(
+            widgets=create_vhp_widgets, **(params_dict.get("merge_vhp_widgets") or {})
+        )
+        .call()
+    )
+
+    filter_motor_patrols = (
+        filter_by_value.validate()
+        .handle_errors(task_instance_id="filter_motor_patrols")
+        .partial(
+            column_name="patrol_cat_types",
+            value="Motorcycle",
+            **(params_dict.get("filter_motor_patrols") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
+    )
+
+    apply_mocp_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_mocp_colormap")
+        .partial(
+            input_column_name="patrol_type_value",
+            output_column_name="patrol_colormap",
+            colormap="coolwarm",
+            **(params_dict.get("apply_mocp_colormap") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=filter_motor_patrols)
+    )
+
+    generate_mocp_layers = (
+        create_polyline_layer.validate()
+        .handle_errors(task_instance_id="generate_mocp_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={"color_column": "patrol_colormap"},
+            legend={
+                "label_column": "patrol_cat_types",
+                "color_column": "patrol_colormap",
+            },
+            tooltip_columns=[
+                "patrol_subject_name",
+                "patrol_start_time",
+                "patrol_end_time",
+                "patrol_title",
+                "patrol_type_value",
+                "segment_start",
+                "dist_meters",
+                "timespan_seconds",
+            ],
+            **(params_dict.get("generate_mocp_layers") or {}),
+        )
+        .mapvalues(argnames=["geodataframe"], argvalues=apply_mocp_colormap)
+    )
+
+    zoom_mocp_traj_view = (
+        create_view_state_from_gdf.validate()
+        .handle_errors(task_instance_id="zoom_mocp_traj_view")
+        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_mocp_traj_view") or {}))
+        .mapvalues(argnames=["gdf"], argvalues=apply_mocp_colormap)
+    )
+
+    zip_mocp_zoom_values = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_mocp_zoom_values")
+        .partial(
+            left=generate_mocp_layers,
+            right=zoom_mocp_traj_view,
+            **(params_dict.get("zip_mocp_zoom_values") or {}),
+        )
+        .call()
+    )
+
+    draw_mocp_ecomap = (
+        draw_ecomap.validate()
+        .handle_errors(task_instance_id="draw_mocp_ecomap")
+        .partial(
+            tile_layers=configure_base_maps,
+            north_arrow_style={"placement": "top-left"},
+            legend_style={"placement": "bottom-right", "title": "Patrol Types"},
+            static=False,
+            title=None,
+            max_zoom=20,
+            **(params_dict.get("draw_mocp_ecomap") or {}),
+        )
+        .mapvalues(
+            argnames=["geo_layers", "view_state"], argvalues=zip_mocp_zoom_values
+        )
+    )
+
+    persist_mocp_ecomap_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_mocp_ecomap_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_mocp_ecomap_urls") or {}),
+        )
+        .mapvalues(argnames=["text"], argvalues=draw_mocp_ecomap)
+    )
+
+    create_mocp_widgets = (
+        create_map_widget_single_view.validate()
+        .handle_errors(task_instance_id="create_mocp_widgets")
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Motorbike Patrol", **(params_dict.get("create_mocp_widgets") or {})
+        )
+        .map(argnames=["view", "data"], argvalues=persist_mocp_ecomap_urls)
+    )
+
+    merge_mocp_widgets = (
+        merge_widget_views.validate()
+        .handle_errors(task_instance_id="merge_mocp_widgets")
+        .partial(
+            widgets=create_mocp_widgets, **(params_dict.get("merge_mocp_widgets") or {})
         )
         .call()
     )
@@ -746,7 +963,9 @@ def main(params: Params):
                 grouped_precipitation_widget,
                 grouped_temperature_widget,
                 grouped_tevents_widget,
-                merge_patrol_widgets,
+                merge_footp_widgets,
+                merge_vhp_widgets,
+                merge_mocp_widgets,
             ],
             time_range=time_range,
             groupers=groupers,

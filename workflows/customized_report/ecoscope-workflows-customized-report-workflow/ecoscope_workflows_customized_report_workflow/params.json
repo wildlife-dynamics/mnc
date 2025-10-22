@@ -466,25 +466,6 @@
       "required": [],
       "type": "object",
       "title": "Convert Relocations to Trajectories"
-    },
-    "persist_trajs_df": {
-      "additionalProperties": false,
-      "properties": {
-        "filetype": {
-          "default": "csv",
-          "enum": [
-            "csv",
-            "gpkg",
-            "geoparquet"
-          ],
-          "title": "Filetype",
-          "type": "string",
-          "description": "The output format"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Persist trajs df"
     }
   },
   "$defs": {
@@ -644,8 +625,7 @@
       "persist_tevents_df",
       "draw_events_chart",
       "patrol_observations",
-      "convert_to_trajectories",
-      "persist_trajs_df"
+      "convert_to_trajectories"
     ]
   },
   "additionalProperties": false
