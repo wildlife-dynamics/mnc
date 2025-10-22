@@ -467,6 +467,21 @@
       "type": "object",
       "title": "Convert Relocations to Trajectories"
     },
+    "view_grid_df": {
+      "additionalProperties": false,
+      "properties": {
+        "gdf": {
+          "title": "Gdf",
+          "type": "ecoscope_workflows.annotations.DataFrame",
+          "description": "A GeoDataFrame to inspect"
+        }
+      },
+      "required": [
+        "gdf"
+      ],
+      "type": "object",
+      "title": "view patrol coverage grid df"
+    },
     "apply_classification_grid": {
       "additionalProperties": false,
       "properties": {
@@ -840,6 +855,7 @@
       "draw_events_chart",
       "patrol_observations",
       "convert_to_trajectories",
+      "view_grid_df",
       "apply_classification_grid",
       "persist_patrol_df"
     ]

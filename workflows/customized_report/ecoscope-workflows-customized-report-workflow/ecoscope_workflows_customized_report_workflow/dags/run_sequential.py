@@ -51,6 +51,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
+    view_df,
     zip_grouped_by_key,
 )
 
@@ -967,6 +968,13 @@ def main(params: Params):
         .mapvalues(argnames=["trajs"], argvalues=split_trajectories_by_group)
     )
 
+    view_grid_df = (
+        view_df.validate()
+        .handle_errors(task_instance_id="view_grid_df")
+        .partial(name="Patrol Grid gdf", **(params_dict.get("view_grid_df") or {}))
+        .mapvalues(argnames=["df"], argvalues=patrol_grid_visits)
+    )
+
     apply_classification_grid = (
         apply_classification.validate()
         .handle_errors(task_instance_id="apply_classification_grid")
@@ -987,7 +995,7 @@ def main(params: Params):
             colormap="Wistia",
             **(params_dict.get("apply_grid_colormap") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=filter_motor_patrols)
+        .mapvalues(argnames=["df"], argvalues=apply_classification_grid)
     )
 
     generate_grid_layers = (

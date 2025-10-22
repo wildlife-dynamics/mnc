@@ -61,6 +61,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
+    view_df,
     zip_grouped_by_key,
 )
 
@@ -1776,6 +1777,27 @@ patrol_grid_visits = (
 
 
 # %% [markdown]
+# ## view patrol coverage grid df
+
+# %%
+# parameters
+
+view_grid_df_params = dict(
+    gdf=...,
+)
+
+# %%
+# call the task
+
+
+view_grid_df = (
+    view_df.handle_errors(task_instance_id="view_grid_df")
+    .partial(name="Patrol Grid gdf", **view_grid_df_params)
+    .mapvalues(argnames=["df"], argvalues=patrol_grid_visits)
+)
+
+
+# %% [markdown]
 # ## Apply bin classification on grids
 
 # %%
@@ -1821,7 +1843,7 @@ apply_grid_colormap = (
         colormap="Wistia",
         **apply_grid_colormap_params,
     )
-    .mapvalues(argnames=["df"], argvalues=filter_motor_patrols)
+    .mapvalues(argnames=["df"], argvalues=apply_classification_grid)
 )
 
 

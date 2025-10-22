@@ -52,6 +52,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
+    view_df,
     zip_grouped_by_key,
 )
 
@@ -128,8 +129,9 @@ def main(params: Params):
         "create_mocp_widgets": ["persist_mocp_ecomap_urls"],
         "merge_mocp_widgets": ["create_mocp_widgets"],
         "patrol_grid_visits": ["split_trajectories_by_group"],
+        "view_grid_df": ["patrol_grid_visits"],
         "apply_classification_grid": ["patrol_grid_visits"],
-        "apply_grid_colormap": ["filter_motor_patrols"],
+        "apply_grid_colormap": ["apply_classification_grid"],
         "generate_grid_layers": ["apply_grid_colormap"],
         "zoom_grid_view": ["apply_grid_colormap"],
         "zip_grid_zoom_values": ["generate_grid_layers", "zoom_grid_view"],
@@ -1220,6 +1222,20 @@ def main(params: Params):
                 "argvalues": DependsOn("split_trajectories_by_group"),
             },
         ),
+        "view_grid_df": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_grid_df")
+            .set_executor("lithops"),
+            partial={
+                "name": "Patrol Grid gdf",
+            }
+            | (params_dict.get("view_grid_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("patrol_grid_visits"),
+            },
+        ),
         "apply_classification_grid": Node(
             async_task=apply_classification.validate()
             .handle_errors(task_instance_id="apply_classification_grid")
@@ -1248,7 +1264,7 @@ def main(params: Params):
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
-                "argvalues": DependsOn("filter_motor_patrols"),
+                "argvalues": DependsOn("apply_classification_grid"),
             },
         ),
         "generate_grid_layers": Node(
