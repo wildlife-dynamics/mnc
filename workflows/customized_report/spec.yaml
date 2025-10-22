@@ -406,6 +406,16 @@ workflow:
         - x: 1.000000
           y: 1.000000
 
+
+  - name: Persist relocs df
+    id: persist_relocs_df
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.patrol_relocs.return }}
+
   - name: Convert Relocations to Trajectories
     id: convert_to_trajectories
     task: relocations_to_trajectory
@@ -453,6 +463,17 @@ workflow:
 
       df: ${{ workflow.map_patrol_types.return }}
 
+
+  - name: Persist trajs df
+    id: persist_trajs_df
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.rename_traj_cols.return }}
+
+
     # split subject trajectories into groups based on grouping strategy
   - name: Split Trajectories by Group
     id: split_trajectories_by_group
@@ -460,7 +481,6 @@ workflow:
     partial:
       df: ${{ workflow.rename_traj_cols.return }}
       groupers: ${{ workflow.groupers.return }}
-
 
     # define patrol cat type groupers
   - name: Set patrol type category groupers

@@ -943,6 +943,30 @@ patrol_relocs = (
 
 
 # %% [markdown]
+# ## Persist relocs df
+
+# %%
+# parameters
+
+persist_relocs_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_relocs_df = (
+    persist_df.handle_errors(task_instance_id="persist_relocs_df")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_relocs_df_params
+    )
+    .mapvalues(argnames=["df"], argvalues=patrol_relocs)
+)
+
+
+# %% [markdown]
 # ## Convert Relocations to Trajectories
 
 # %%
@@ -1046,6 +1070,30 @@ rename_traj_cols = (
         **rename_traj_cols_params,
     )
     .call()
+)
+
+
+# %% [markdown]
+# ## Persist trajs df
+
+# %%
+# parameters
+
+persist_trajs_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_trajs_df = (
+    persist_df.handle_errors(task_instance_id="persist_trajs_df")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_trajs_df_params
+    )
+    .mapvalues(argnames=["df"], argvalues=rename_traj_cols)
 )
 
 

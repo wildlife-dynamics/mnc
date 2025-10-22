@@ -516,6 +516,16 @@ def main(params: Params):
         .call()
     )
 
+    persist_relocs_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_relocs_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_relocs_df") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=patrol_relocs)
+    )
+
     convert_to_trajectories = (
         relocations_to_trajectory.validate()
         .handle_errors(task_instance_id="convert_to_trajectories")
@@ -574,6 +584,16 @@ def main(params: Params):
             **(params_dict.get("rename_traj_cols") or {}),
         )
         .call()
+    )
+
+    persist_trajs_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_trajs_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_trajs_df") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=rename_traj_cols)
     )
 
     split_trajectories_by_group = (

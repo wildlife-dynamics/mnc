@@ -73,6 +73,7 @@ from ecoscope_workflows_core.tasks.skip import (
     never,
 )
 from ecoscope_workflows_core.tasks.transformation import add_temporal_index, map_columns
+from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     process_relocations,
     relocations_to_trajectory,
@@ -130,10 +131,12 @@ def main(params: Params):
         "grouped_tevents_widget": ["tevents_chart_widget"],
         "patrol_observations": ["er_client_name", "time_range"],
         "patrol_relocs": ["patrol_observations"],
+        "persist_relocs_df": ["patrol_relocs"],
         "convert_to_trajectories": ["patrol_relocs"],
         "add_temporal_index_to_traj": ["convert_to_trajectories", "groupers"],
         "map_patrol_types": ["add_temporal_index_to_traj"],
         "rename_traj_cols": ["map_patrol_types"],
+        "persist_trajs_df": ["rename_traj_cols"],
         "split_trajectories_by_group": ["rename_traj_cols", "groupers"],
         "patrol_groupers": [],
         "split_traj_patrol_type": ["patrol_groupers", "split_trajectories_by_group"],
@@ -670,6 +673,20 @@ def main(params: Params):
             | (params_dict.get("patrol_relocs") or {}),
             method="call",
         ),
+        "persist_relocs_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_relocs_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_relocs_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("patrol_relocs"),
+            },
+        ),
         "convert_to_trajectories": Node(
             async_task=relocations_to_trajectory.validate()
             .handle_errors(task_instance_id="convert_to_trajectories")
@@ -729,6 +746,20 @@ def main(params: Params):
             }
             | (params_dict.get("rename_traj_cols") or {}),
             method="call",
+        ),
+        "persist_trajs_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_trajs_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_trajs_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("rename_traj_cols"),
+            },
         ),
         "split_trajectories_by_group": Node(
             async_task=split_groups.validate()
