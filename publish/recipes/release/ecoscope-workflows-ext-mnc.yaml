@@ -25,6 +25,13 @@ requirements:
   run:
     - python
     - ecoscope-workflows-core
+    - ecoscope
+    - ecoscope-workflows-ext-ecoscope
+    - ecoscope-workflows-ext-custom
+    - geopandas
+    - shapely
+    - docxtpl # for word document template generation
+    - playwright # html to image conversion
 
 about:
   license: BSD-3-Clause
