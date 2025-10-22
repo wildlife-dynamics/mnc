@@ -903,9 +903,7 @@ patrol_observations = (
 # %%
 # parameters
 
-patrol_relocs_params = dict(
-    relocs_columns=...,
-)
+patrol_relocs_params = dict()
 
 # %%
 # call the task
@@ -915,7 +913,7 @@ patrol_relocs = (
     process_relocations.handle_errors(task_instance_id="patrol_relocs")
     .partial(
         observations=patrol_observations,
-        reloc_columns=[
+        relocs_columns=[
             "extra__id",
             "extra__created_at",
             "extra__subject_id",
@@ -1052,6 +1050,27 @@ rename_traj_cols = (
 
 
 # %% [markdown]
+# ## Split Trajectories by Group
+
+# %%
+# parameters
+
+split_trajectories_by_group_params = dict()
+
+# %%
+# call the task
+
+
+split_trajectories_by_group = (
+    split_groups.handle_errors(task_instance_id="split_trajectories_by_group")
+    .partial(
+        df=rename_traj_cols, groupers=groupers, **split_trajectories_by_group_params
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Set patrol type category groupers
 
 # %%
@@ -1084,10 +1103,8 @@ split_traj_patrol_type_params = dict()
 
 split_traj_patrol_type = (
     split_groups.handle_errors(task_instance_id="split_traj_patrol_type")
-    .partial(
-        df=rename_traj_cols, groupers=patrol_groupers, **split_traj_patrol_type_params
-    )
-    .call()
+    .partial(groupers=patrol_groupers, **split_traj_patrol_type_params)
+    .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
 )
 
 

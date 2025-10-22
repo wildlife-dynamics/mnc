@@ -381,7 +381,7 @@ workflow:
     task: process_relocations
     partial:
       observations: ${{ workflow.patrol_observations.return }}
-      reloc_columns:
+      relocs_columns:
         - extra__id
         - extra__created_at
         - extra__subject_id
@@ -452,7 +452,16 @@ workflow:
         extra__subject_id: subject_id
 
       df: ${{ workflow.map_patrol_types.return }}
-  
+
+    # split subject trajectories into groups based on grouping strategy
+  - name: Split Trajectories by Group
+    id: split_trajectories_by_group
+    task: split_groups
+    partial:
+      df: ${{ workflow.rename_traj_cols.return }}
+      groupers: ${{ workflow.groupers.return }}
+
+
     # define patrol cat type groupers
   - name: Set patrol type category groupers
     id: patrol_groupers
@@ -465,8 +474,11 @@ workflow:
     id: split_traj_patrol_type
     task: split_groups
     partial:
-      df: ${{ workflow.rename_traj_cols.return }}
+      #df: ${{ workflow.rename_traj_cols.return }}
       groupers: ${{ workflow.patrol_groupers.return }}
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.split_trajectories_by_group.return }}
 
   - name: Apply Colormap to patrol titles
     id: apply_patrol_colormap
@@ -505,7 +517,6 @@ workflow:
     mapvalues:
       argnames: geodataframe
       argvalues: ${{ workflow.apply_patrol_colormap.return }}
-
 
   - name: Zoom patrol trajs by view state
     id: zoom_patrol_traj_view

@@ -441,24 +441,6 @@
       "type": "object",
       "title": "Get Patrol observations"
     },
-    "patrol_relocs": {
-      "additionalProperties": false,
-      "properties": {
-        "relocs_columns": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Relocs Columns",
-          "type": "array",
-          "description": "A list of column names to retain in the relocations dataframe."
-        }
-      },
-      "required": [
-        "relocs_columns"
-      ],
-      "type": "object",
-      "title": "Transform observations to relocations"
-    },
     "convert_to_trajectories": {
       "additionalProperties": false,
       "properties": {
@@ -643,7 +625,6 @@
       "persist_tevents_df",
       "draw_events_chart",
       "patrol_observations",
-      "patrol_relocs",
       "convert_to_trajectories"
     ]
   },

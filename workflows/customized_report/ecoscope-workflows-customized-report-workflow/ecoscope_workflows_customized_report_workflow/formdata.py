@@ -306,17 +306,6 @@ class PatrolObservations(BaseModel):
     )
 
 
-class PatrolRelocs(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    relocs_columns: List[str] = Field(
-        ...,
-        description="A list of column names to retain in the relocations dataframe.",
-        title="Relocs Columns",
-    )
-
-
 class TemporalGrouper(RootModel[str]):
     root: str = Field(..., title="Time")
 
@@ -425,9 +414,6 @@ class FormData(BaseModel):
     )
     patrol_observations: Optional[PatrolObservations] = Field(
         None, title="Get Patrol observations"
-    )
-    patrol_relocs: Optional[PatrolRelocs] = Field(
-        None, title="Transform observations to relocations"
     )
     convert_to_trajectories: Optional[ConvertToTrajectories] = Field(
         None, title="Convert Relocations to Trajectories"

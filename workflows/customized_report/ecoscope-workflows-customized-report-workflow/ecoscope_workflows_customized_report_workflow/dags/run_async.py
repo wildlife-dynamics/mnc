@@ -92,8 +92,9 @@ def main(params: Params):
         "add_temporal_index_to_traj": ["convert_to_trajectories", "groupers"],
         "map_patrol_types": ["add_temporal_index_to_traj"],
         "rename_traj_cols": ["map_patrol_types"],
+        "split_trajectories_by_group": ["rename_traj_cols", "groupers"],
         "patrol_groupers": [],
-        "split_traj_patrol_type": ["rename_traj_cols", "patrol_groupers"],
+        "split_traj_patrol_type": ["patrol_groupers", "split_trajectories_by_group"],
         "apply_patrol_colormap": ["split_traj_patrol_type"],
         "generate_patrol_layers": ["apply_patrol_colormap"],
         "zoom_patrol_traj_view": ["apply_patrol_colormap"],
@@ -600,7 +601,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "observations": DependsOn("patrol_observations"),
-                "reloc_columns": [
+                "relocs_columns": [
                     "extra__id",
                     "extra__created_at",
                     "extra__subject_id",
@@ -687,6 +688,17 @@ def main(params: Params):
             | (params_dict.get("rename_traj_cols") or {}),
             method="call",
         ),
+        "split_trajectories_by_group": Node(
+            async_task=split_groups.validate()
+            .handle_errors(task_instance_id="split_trajectories_by_group")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_traj_cols"),
+                "groupers": DependsOn("groupers"),
+            }
+            | (params_dict.get("split_trajectories_by_group") or {}),
+            method="call",
+        ),
         "patrol_groupers": Node(
             async_task=set_groupers.validate()
             .handle_errors(task_instance_id="patrol_groupers")
@@ -702,11 +714,14 @@ def main(params: Params):
             .handle_errors(task_instance_id="split_traj_patrol_type")
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("rename_traj_cols"),
                 "groupers": DependsOn("patrol_groupers"),
             }
             | (params_dict.get("split_traj_patrol_type") or {}),
-            method="call",
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("split_trajectories_by_group"),
+            },
         ),
         "apply_patrol_colormap": Node(
             async_task=apply_color_map.validate()

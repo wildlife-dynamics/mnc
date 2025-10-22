@@ -530,7 +530,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="patrol_relocs")
         .partial(
             observations=patrol_observations,
-            reloc_columns=[
+            relocs_columns=[
                 "extra__id",
                 "extra__created_at",
                 "extra__subject_id",
@@ -618,6 +618,17 @@ def main(params: Params):
         .call()
     )
 
+    split_trajectories_by_group = (
+        split_groups.validate()
+        .handle_errors(task_instance_id="split_trajectories_by_group")
+        .partial(
+            df=rename_traj_cols,
+            groupers=groupers,
+            **(params_dict.get("split_trajectories_by_group") or {}),
+        )
+        .call()
+    )
+
     patrol_groupers = (
         set_groupers.validate()
         .handle_errors(task_instance_id="patrol_groupers")
@@ -631,11 +642,10 @@ def main(params: Params):
         split_groups.validate()
         .handle_errors(task_instance_id="split_traj_patrol_type")
         .partial(
-            df=rename_traj_cols,
             groupers=patrol_groupers,
             **(params_dict.get("split_traj_patrol_type") or {}),
         )
-        .call()
+        .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
     )
 
     apply_patrol_colormap = (
