@@ -466,6 +466,73 @@
       "required": [],
       "type": "object",
       "title": "Convert Relocations to Trajectories"
+    },
+    "apply_classification_grid": {
+      "additionalProperties": false,
+      "properties": {
+        "label_options": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DefaultLabels"
+            },
+            {
+              "$ref": "#/$defs/CustomLabels"
+            }
+          ],
+          "default": null,
+          "title": "Label Options",
+          "description": "Optional specification or formatting of classification values.",
+          "ecoscope:advanced": true
+        },
+        "classification_options": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SharedArgs"
+            },
+            {
+              "$ref": "#/$defs/StdMeanArgs"
+            },
+            {
+              "$ref": "#/$defs/MaxBreaksArgs"
+            },
+            {
+              "$ref": "#/$defs/NaturalBreaksArgs"
+            },
+            {
+              "$ref": "#/$defs/QuantileArgs"
+            },
+            {
+              "$ref": "#/$defs/FisherJenksArgs"
+            }
+          ],
+          "default": {
+            "k": 5
+          },
+          "title": "Classification Options"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Apply bin classification on grids"
+    },
+    "persist_patrol_df": {
+      "additionalProperties": false,
+      "properties": {
+        "filetype": {
+          "default": "csv",
+          "enum": [
+            "csv",
+            "gpkg",
+            "geoparquet"
+          ],
+          "title": "Filetype",
+          "type": "string",
+          "description": "The output format"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Persist patrol"
     }
   },
   "$defs": {
@@ -572,6 +639,147 @@
       },
       "title": "TrajectorySegmentFilter",
       "type": "object"
+    },
+    "CustomLabels": {
+      "properties": {
+        "label_prefix": {
+          "default": "",
+          "title": "Label Prefix",
+          "type": "string"
+        },
+        "label_suffix": {
+          "default": "",
+          "title": "Label Suffix",
+          "type": "string"
+        },
+        "labels": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Labels",
+          "type": "array"
+        }
+      },
+      "required": [
+        "labels"
+      ],
+      "title": "CustomLabels",
+      "type": "object"
+    },
+    "DefaultLabels": {
+      "properties": {
+        "label_prefix": {
+          "default": "",
+          "title": "Label Prefix",
+          "type": "string"
+        },
+        "label_suffix": {
+          "default": "",
+          "title": "Label Suffix",
+          "type": "string"
+        },
+        "label_ranges": {
+          "default": false,
+          "title": "Label Ranges",
+          "type": "boolean"
+        },
+        "label_decimals": {
+          "default": 1,
+          "title": "Label Decimals",
+          "type": "integer"
+        }
+      },
+      "title": "DefaultLabels",
+      "type": "object"
+    },
+    "FisherJenksArgs": {
+      "properties": {
+        "k": {
+          "default": 5,
+          "title": "K",
+          "type": "integer"
+        }
+      },
+      "title": "FisherJenksArgs",
+      "type": "object"
+    },
+    "MaxBreaksArgs": {
+      "properties": {
+        "k": {
+          "default": 5,
+          "title": "K",
+          "type": "integer"
+        },
+        "mindiff": {
+          "default": 0,
+          "title": "Mindiff",
+          "type": "number"
+        }
+      },
+      "title": "MaxBreaksArgs",
+      "type": "object"
+    },
+    "NaturalBreaksArgs": {
+      "properties": {
+        "k": {
+          "default": 5,
+          "title": "K",
+          "type": "integer"
+        },
+        "initial": {
+          "default": 10,
+          "title": "Initial",
+          "type": "integer"
+        }
+      },
+      "title": "NaturalBreaksArgs",
+      "type": "object"
+    },
+    "QuantileArgs": {
+      "properties": {
+        "k": {
+          "default": 5,
+          "title": "K",
+          "type": "integer"
+        }
+      },
+      "title": "QuantileArgs",
+      "type": "object"
+    },
+    "SharedArgs": {
+      "properties": {
+        "k": {
+          "default": 5,
+          "title": "K",
+          "type": "integer"
+        }
+      },
+      "title": "SharedArgs",
+      "type": "object"
+    },
+    "StdMeanArgs": {
+      "properties": {
+        "multiples": {
+          "default": [
+            -2,
+            -1,
+            1,
+            2
+          ],
+          "items": {
+            "type": "integer"
+          },
+          "title": "Multiples",
+          "type": "array"
+        },
+        "anchor": {
+          "default": false,
+          "title": "Anchor",
+          "type": "boolean"
+        }
+      },
+      "title": "StdMeanArgs",
+      "type": "object"
     }
   },
   "uiSchema": {
@@ -612,6 +820,12 @@
         "sub_page_size"
       ]
     },
+    "apply_classification_grid": {
+      "ui:order": [
+        "label_options",
+        "classification_options"
+      ]
+    },
     "ui:order": [
       "workflow_details",
       "time_range",
@@ -625,7 +839,9 @@
       "persist_tevents_df",
       "draw_events_chart",
       "patrol_observations",
-      "convert_to_trajectories"
+      "convert_to_trajectories",
+      "apply_classification_grid",
+      "persist_patrol_df"
     ]
   },
   "additionalProperties": false

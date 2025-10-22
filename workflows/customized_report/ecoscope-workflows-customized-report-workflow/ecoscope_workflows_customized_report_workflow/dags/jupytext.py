@@ -45,14 +45,20 @@ from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
+    create_polygon_layer,
     create_polyline_layer,
     draw_ecomap,
     draw_line_chart,
     set_base_maps,
 )
-from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_color_map
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
+    apply_classification,
+    apply_color_map,
+    normalize_column,
+)
 from ecoscope_workflows_ext_mnc.tasks import (
     classify_mnc_patrol,
+    create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
     zip_grouped_by_key,
@@ -1139,7 +1145,7 @@ generate_footp_layers = (
     )
     .partial(
         layer_style={"color_column": "patrol_colormap"},
-        legend={"label_column": "patrol_cat_types", "color_column": "patrol_colormap"},
+        legend={"label_column": "patrol_type_value", "color_column": "patrol_colormap"},
         tooltip_columns=[
             "patrol_subject_name",
             "patrol_start_time",
@@ -1366,7 +1372,7 @@ generate_vhp_layers = (
     )
     .partial(
         layer_style={"color_column": "patrol_colormap"},
-        legend={"label_column": "patrol_cat_types", "color_column": "patrol_colormap"},
+        legend={"label_column": "patrol_type_value", "color_column": "patrol_colormap"},
         tooltip_columns=[
             "patrol_subject_name",
             "patrol_start_time",
@@ -1593,7 +1599,7 @@ generate_mocp_layers = (
     )
     .partial(
         layer_style={"color_column": "patrol_colormap"},
-        legend={"label_column": "patrol_cat_types", "color_column": "patrol_colormap"},
+        legend={"label_column": "patrol_type_value", "color_column": "patrol_colormap"},
         tooltip_columns=[
             "patrol_subject_name",
             "patrol_start_time",
@@ -1751,6 +1757,398 @@ merge_mocp_widgets = (
 
 
 # %% [markdown]
+# ## Compute patrol coverage
+
+# %%
+# parameters
+
+patrol_grid_visits_params = dict()
+
+# %%
+# call the task
+
+
+patrol_grid_visits = (
+    create_patrol_coverage_grid.handle_errors(task_instance_id="patrol_grid_visits")
+    .partial(grid_cell_size=1000, **patrol_grid_visits_params)
+    .mapvalues(argnames=["trajs"], argvalues=split_trajectories_by_group)
+)
+
+
+# %% [markdown]
+# ## Apply bin classification on grids
+
+# %%
+# parameters
+
+apply_classification_grid_params = dict(
+    label_options=...,
+    classification_options=...,
+)
+
+# %%
+# call the task
+
+
+apply_classification_grid = (
+    apply_classification.handle_errors(task_instance_id="apply_classification_grid")
+    .partial(
+        input_column_name="unique_patrol_count",
+        output_column_name="density_bins",
+        **apply_classification_grid_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=patrol_grid_visits)
+)
+
+
+# %% [markdown]
+# ## Apply Colormap to patrol grid visits
+
+# %%
+# parameters
+
+apply_grid_colormap_params = dict()
+
+# %%
+# call the task
+
+
+apply_grid_colormap = (
+    apply_color_map.handle_errors(task_instance_id="apply_grid_colormap")
+    .partial(
+        input_column_name="density_bins",
+        output_column_name="density_colormap",
+        colormap="Wistia",
+        **apply_grid_colormap_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=filter_motor_patrols)
+)
+
+
+# %% [markdown]
+# ## Generate grid layers
+
+# %%
+# parameters
+
+generate_grid_layers_params = dict(
+    zoom=...,
+)
+
+# %%
+# call the task
+
+
+generate_grid_layers = (
+    create_polygon_layer.handle_errors(task_instance_id="generate_grid_layers")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        layer_style={"color_column": "density_colormap"},
+        legend={"label_column": "density_bins", "color_column": "density_colormap"},
+        tooltip_columns=[
+            "density_bins",
+            "density_colormap",
+            "geometry",
+            "patrol_id",
+            "dist_meters",
+            "timespan_seconds",
+        ],
+        **generate_grid_layers_params,
+    )
+    .mapvalues(argnames=["geodataframe"], argvalues=apply_grid_colormap)
+)
+
+
+# %% [markdown]
+# ## Zoom grid polygons by view state
+
+# %%
+# parameters
+
+zoom_grid_view_params = dict()
+
+# %%
+# call the task
+
+
+zoom_grid_view = (
+    create_view_state_from_gdf.handle_errors(task_instance_id="zoom_grid_view")
+    .partial(pitch=0, bearing=0, **zoom_grid_view_params)
+    .mapvalues(argnames=["gdf"], argvalues=apply_grid_colormap)
+)
+
+
+# %% [markdown]
+# ## Zip grid layers and zoom values
+
+# %%
+# parameters
+
+zip_grid_zoom_values_params = dict()
+
+# %%
+# call the task
+
+
+zip_grid_zoom_values = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_grid_zoom_values")
+    .partial(
+        left=generate_grid_layers, right=zoom_grid_view, **zip_grid_zoom_values_params
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Draw grid ecomaps
+
+# %%
+# parameters
+
+draw_grid_ecomap_params = dict(
+    widget_id=...,
+)
+
+# %%
+# call the task
+
+
+draw_grid_ecomap = (
+    draw_ecomap.handle_errors(task_instance_id="draw_grid_ecomap")
+    .partial(
+        tile_layers=configure_base_maps,
+        north_arrow_style={"placement": "top-left"},
+        legend_style={"placement": "bottom-right", "title": "Patrol Types"},
+        static=False,
+        title=None,
+        max_zoom=20,
+        **draw_grid_ecomap_params,
+    )
+    .mapvalues(argnames=["geo_layers", "view_state"], argvalues=zip_grid_zoom_values)
+)
+
+
+# %% [markdown]
+# ## Persist grid ecomap html paths
+
+# %%
+# parameters
+
+persist_grid_ecomap_urls_params = dict(
+    filename=...,
+    filename_suffix=...,
+)
+
+# %%
+# call the task
+
+
+persist_grid_ecomap_urls = (
+    persist_text.handle_errors(task_instance_id="persist_grid_ecomap_urls")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        **persist_grid_ecomap_urls_params,
+    )
+    .mapvalues(argnames=["text"], argvalues=draw_grid_ecomap)
+)
+
+
+# %% [markdown]
+# ## Create grid widgets
+
+# %%
+# parameters
+
+create_grid_widgets_params = dict()
+
+# %%
+# call the task
+
+
+create_grid_widgets = (
+    create_map_widget_single_view.handle_errors(task_instance_id="create_grid_widgets")
+    .skipif(
+        conditions=[
+            never,
+        ],
+        unpack_depth=1,
+    )
+    .partial(title="Patrol Grid Visits", **create_grid_widgets_params)
+    .map(argnames=["view", "data"], argvalues=persist_grid_ecomap_urls)
+)
+
+
+# %% [markdown]
+# ## Merge grid ecomap widgets
+
+# %%
+# parameters
+
+merge_grid_widgets_params = dict()
+
+# %%
+# call the task
+
+
+merge_grid_widgets = (
+    merge_widget_views.handle_errors(task_instance_id="merge_grid_widgets")
+    .partial(widgets=create_grid_widgets, **merge_grid_widgets_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Filter events and get patrol information records
+
+# %%
+# parameters
+
+filter_patrol_info_events_params = dict()
+
+# %%
+# call the task
+
+
+filter_patrol_info_events = (
+    filter_by_value.handle_errors(task_instance_id="filter_patrol_info_events")
+    .partial(
+        column_name="value",
+        value="patrol_information",
+        **filter_patrol_info_events_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=split_event_groups)
+)
+
+
+# %% [markdown]
+# ## Normalize event details columns
+
+# %%
+# parameters
+
+normalize_pi_values_params = dict()
+
+# %%
+# call the task
+
+
+normalize_pi_values = (
+    normalize_column.handle_errors(task_instance_id="normalize_pi_values")
+    .partial(column="event_details", **normalize_pi_values_params)
+    .mapvalues(argnames=["df"], argvalues=filter_patrol_info_events)
+)
+
+
+# %% [markdown]
+# ## Rename patrol information columns
+
+# %%
+# parameters
+
+rename_patrolinf_cols_params = dict()
+
+# %%
+# call the task
+
+
+rename_patrolinf_cols = (
+    map_columns.handle_errors(task_instance_id="rename_patrolinf_cols")
+    .partial(
+        drop_columns=[
+            "event_type",
+            "event_category",
+            "priority",
+            "priority_label",
+            "attributes",
+            "comment",
+            "title",
+            "reported_by",
+            "state",
+            "is_contained_in",
+            "sort_at",
+            'icon_id"',
+            "serial_number",
+            "url",
+            "image_url",
+            "is_collection",
+            "event_details__updates",
+            "message",
+            "end_time",
+            "provenance",
+            "updated_at",
+            "created_at",
+            "geojson",
+        ],
+        retain_columns=[],
+        rename_columns={
+            "event_details__participants": "participants",
+            "event_details__patrol_purpose": "purpose",
+            "event_details__person_who_authorized": "authorized_by",
+        },
+        df=normalize_pi_values,
+        **rename_patrolinf_cols_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Patrol information Summary
+
+# %%
+# parameters
+
+patrol_info_summary_params = dict()
+
+# %%
+# call the task
+
+
+patrol_info_summary = (
+    summarize_df.handle_errors(task_instance_id="patrol_info_summary")
+    .partial(
+        groupby_cols=["purpose"],
+        summary_params=[
+            {"display_name": "Number of Patrols", "aggregator": "count", "column": "id"}
+        ],
+        reset_index=True,
+        **patrol_info_summary_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=rename_patrolinf_cols)
+)
+
+
+# %% [markdown]
+# ## Persist patrol
+
+# %%
+# parameters
+
+persist_patrol_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_patrol_df = (
+    persist_df.handle_errors(task_instance_id="persist_patrol_df")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_patrol_df_params
+    )
+    .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
+)
+
+
+# %% [markdown]
 # ## Create A Weather Dashboard
 
 # %%
@@ -1773,6 +2171,7 @@ weather_dashboard = (
             merge_footp_widgets,
             merge_vhp_widgets,
             merge_mocp_widgets,
+            merge_grid_widgets,
         ],
         time_range=time_range,
         groupers=groupers,

@@ -306,6 +306,15 @@ class PatrolObservations(BaseModel):
     )
 
 
+class PersistPatrolDf(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filetype: Optional[Filetype] = Field(
+        "csv", description="The output format", title="Filetype"
+    )
+
+
 class TemporalGrouper(RootModel[str]):
     root: str = Field(..., title="Time")
 
@@ -337,6 +346,46 @@ class TrajectorySegmentFilter(BaseModel):
     max_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
         500, title="Maximum Segment Speed (Kilometers per Hour)"
     )
+
+
+class CustomLabels(BaseModel):
+    label_prefix: Optional[str] = Field("", title="Label Prefix")
+    label_suffix: Optional[str] = Field("", title="Label Suffix")
+    labels: List[str] = Field(..., title="Labels")
+
+
+class DefaultLabels(BaseModel):
+    label_prefix: Optional[str] = Field("", title="Label Prefix")
+    label_suffix: Optional[str] = Field("", title="Label Suffix")
+    label_ranges: Optional[bool] = Field(False, title="Label Ranges")
+    label_decimals: Optional[int] = Field(1, title="Label Decimals")
+
+
+class FisherJenksArgs(BaseModel):
+    k: Optional[int] = Field(5, title="K")
+
+
+class MaxBreaksArgs(BaseModel):
+    k: Optional[int] = Field(5, title="K")
+    mindiff: Optional[float] = Field(0, title="Mindiff")
+
+
+class NaturalBreaksArgs(BaseModel):
+    k: Optional[int] = Field(5, title="K")
+    initial: Optional[int] = Field(10, title="Initial")
+
+
+class QuantileArgs(BaseModel):
+    k: Optional[int] = Field(5, title="K")
+
+
+class SharedArgs(BaseModel):
+    k: Optional[int] = Field(5, title="K")
+
+
+class StdMeanArgs(BaseModel):
+    multiples: Optional[List[int]] = Field([-2, -1, 1, 2], title="Multiples")
+    anchor: Optional[bool] = Field(False, title="Anchor")
 
 
 class Groupers(BaseModel):
@@ -379,6 +428,27 @@ class ConvertToTrajectories(BaseModel):
     )
 
 
+class ApplyClassificationGrid(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    label_options: Optional[Union[DefaultLabels, CustomLabels]] = Field(
+        None,
+        description="Optional specification or formatting of classification values.",
+        title="Label Options",
+    )
+    classification_options: Optional[
+        Union[
+            SharedArgs,
+            StdMeanArgs,
+            MaxBreaksArgs,
+            NaturalBreaksArgs,
+            QuantileArgs,
+            FisherJenksArgs,
+        ]
+    ] = Field({"k": 5}, title="Classification Options")
+
+
 class Params(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -418,3 +488,7 @@ class Params(BaseModel):
     convert_to_trajectories: Optional[ConvertToTrajectories] = Field(
         None, title="Convert Relocations to Trajectories"
     )
+    apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
+        None, title="Apply bin classification on grids"
+    )
+    persist_patrol_df: Optional[PersistPatrolDf] = Field(None, title="Persist patrol")
