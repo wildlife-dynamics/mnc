@@ -273,6 +273,21 @@ workflow:
       output_type: date
       output_column_name: date
 
+  - name: Add temporal index on events
+    id: events_wtemporal
+    task: add_temporal_index
+    partial:
+      df: ${{ workflow.extract_event_date.return }}
+      time_col: created_at
+      groupers: ${{ workflow.groupers.return }}
+
+  - name: Split events by group
+    id: split_event_groups
+    task: split_groups
+    partial:
+      df: ${{ workflow.events_wtemporal.return }}
+      groupers: ${{ workflow.groupers.return }}
+
     # create summary table 
   - name: Calculate Total Events
     id: total_events_recorded
@@ -285,21 +300,23 @@ workflow:
           aggregator: nunique
           column: id
       reset_index: true
-      df: ${{ workflow.extract_event_date.return }}
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.split_event_groups.return }}
   
   - name: Persist total events df 
     id: persist_tevents_df
     task: persist_df 
     partial:
-      df: ${{ workflow.total_events_recorded.return }}
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filename: total_events_recorded
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.total_events_recorded.return }}
 
   - name: Draw total events line chart 
     id: draw_events_chart 
     task: draw_line_chart
     partial:
-      dataframe: ${{ workflow.total_events_recorded.return }}
       x_column: date 
       y_column: no_of_events
 
@@ -321,7 +338,11 @@ workflow:
           title: "Count"
           tickformat: ".1f"
         hovermode: "x unified"
-  
+
+    mapvalues:
+      argnames: dataframe
+      argvalues: ${{ workflow.total_events_recorded.return }}
+    
   - name: Persist Total events chart as Text
     id: persist_total_events
     task: persist_text

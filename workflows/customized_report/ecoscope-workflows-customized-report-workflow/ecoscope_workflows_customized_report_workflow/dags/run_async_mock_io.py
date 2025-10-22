@@ -42,12 +42,16 @@ get_events = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
     func_name="get_events",  # 🧪
 )  # 🧪
+from ecoscope_workflows_core.tasks.groupby import split_groups
 from ecoscope_workflows_core.tasks.io import persist_text
 from ecoscope_workflows_core.tasks.results import (
     create_plot_widget_single_view,
     merge_widget_views,
 )
-from ecoscope_workflows_core.tasks.transformation import extract_column_as_type
+from ecoscope_workflows_core.tasks.transformation import (
+    add_temporal_index,
+    extract_column_as_type,
+)
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
@@ -116,7 +120,9 @@ def main(params: Params):
         "grouped_temperature_widget": ["temperature_chart_widget"],
         "get_events_data": ["er_client_name", "time_range"],
         "extract_event_date": ["get_events_data"],
-        "total_events_recorded": ["extract_event_date"],
+        "events_wtemporal": ["extract_event_date", "groupers"],
+        "split_event_groups": ["events_wtemporal", "groupers"],
+        "total_events_recorded": ["split_event_groups"],
         "persist_tevents_df": ["total_events_recorded"],
         "draw_events_chart": ["total_events_recorded"],
         "persist_total_events": ["draw_events_chart"],
@@ -488,6 +494,29 @@ def main(params: Params):
             | (params_dict.get("extract_event_date") or {}),
             method="call",
         ),
+        "events_wtemporal": Node(
+            async_task=add_temporal_index.validate()
+            .handle_errors(task_instance_id="events_wtemporal")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("extract_event_date"),
+                "time_col": "created_at",
+                "groupers": DependsOn("groupers"),
+            }
+            | (params_dict.get("events_wtemporal") or {}),
+            method="call",
+        ),
+        "split_event_groups": Node(
+            async_task=split_groups.validate()
+            .handle_errors(task_instance_id="split_event_groups")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("events_wtemporal"),
+                "groupers": DependsOn("groupers"),
+            }
+            | (params_dict.get("split_event_groups") or {}),
+            method="call",
+        ),
         "total_events_recorded": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="total_events_recorded")
@@ -502,29 +531,33 @@ def main(params: Params):
                     }
                 ],
                 "reset_index": True,
-                "df": DependsOn("extract_event_date"),
             }
             | (params_dict.get("total_events_recorded") or {}),
-            method="call",
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("split_event_groups"),
+            },
         ),
         "persist_tevents_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_tevents_df")
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("total_events_recorded"),
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "filename": "total_events_recorded",
             }
             | (params_dict.get("persist_tevents_df") or {}),
-            method="call",
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("total_events_recorded"),
+            },
         ),
         "draw_events_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="draw_events_chart")
             .set_executor("lithops"),
             partial={
-                "dataframe": DependsOn("total_events_recorded"),
                 "x_column": "date",
                 "y_column": "no_of_events",
                 "line_kwargs": {"shape": "linear"},
@@ -546,7 +579,11 @@ def main(params: Params):
                 },
             }
             | (params_dict.get("draw_events_chart") or {}),
-            method="call",
+            method="mapvalues",
+            kwargs={
+                "argnames": ["dataframe"],
+                "argvalues": DependsOn("total_events_recorded"),
+            },
         ),
         "persist_total_events": Node(
             async_task=persist_text.validate()

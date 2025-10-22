@@ -41,12 +41,16 @@ get_events = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
     func_name="get_events",  # 🧪
 )  # 🧪
+from ecoscope_workflows_core.tasks.groupby import split_groups
 from ecoscope_workflows_core.tasks.io import persist_text
 from ecoscope_workflows_core.tasks.results import (
     create_plot_widget_single_view,
     merge_widget_views,
 )
-from ecoscope_workflows_core.tasks.transformation import extract_column_as_type
+from ecoscope_workflows_core.tasks.transformation import (
+    add_temporal_index,
+    extract_column_as_type,
+)
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
@@ -400,6 +404,29 @@ def main(params: Params):
         .call()
     )
 
+    events_wtemporal = (
+        add_temporal_index.validate()
+        .handle_errors(task_instance_id="events_wtemporal")
+        .partial(
+            df=extract_event_date,
+            time_col="created_at",
+            groupers=groupers,
+            **(params_dict.get("events_wtemporal") or {}),
+        )
+        .call()
+    )
+
+    split_event_groups = (
+        split_groups.validate()
+        .handle_errors(task_instance_id="split_event_groups")
+        .partial(
+            df=events_wtemporal,
+            groupers=groupers,
+            **(params_dict.get("split_event_groups") or {}),
+        )
+        .call()
+    )
+
     total_events_recorded = (
         summarize_df.validate()
         .handle_errors(task_instance_id="total_events_recorded")
@@ -413,29 +440,25 @@ def main(params: Params):
                 }
             ],
             reset_index=True,
-            df=extract_event_date,
             **(params_dict.get("total_events_recorded") or {}),
         )
-        .call()
+        .mapvalues(argnames=["df"], argvalues=split_event_groups)
     )
 
     persist_tevents_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_tevents_df")
         .partial(
-            df=total_events_recorded,
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filename="total_events_recorded",
             **(params_dict.get("persist_tevents_df") or {}),
         )
-        .call()
+        .mapvalues(argnames=["df"], argvalues=total_events_recorded)
     )
 
     draw_events_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="draw_events_chart")
         .partial(
-            dataframe=total_events_recorded,
             x_column="date",
             y_column="no_of_events",
             line_kwargs={"shape": "linear"},
@@ -457,7 +480,7 @@ def main(params: Params):
             },
             **(params_dict.get("draw_events_chart") or {}),
         )
-        .call()
+        .mapvalues(argnames=["dataframe"], argvalues=total_events_recorded)
     )
 
     persist_total_events = (

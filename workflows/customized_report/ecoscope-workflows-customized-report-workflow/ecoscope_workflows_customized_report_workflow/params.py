@@ -236,6 +236,22 @@ class GetEventsData(BaseModel):
     )
 
 
+class EventsWtemporal(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    cast_to_datetime: Optional[bool] = Field(
+        True,
+        description="Whether to attempt casting `time_col` to datetime.",
+        title="Cast To Datetime",
+    )
+    format: Optional[str] = Field(
+        "mixed",
+        description='            If `cast_to_datetime=True`, the format to pass to `pd.to_datetime`\n            when attempting to cast `time_col` to datetime. Defaults to "mixed".\n            ',
+        title="Format",
+    )
+
+
 class Filetype(str, Enum):
     csv = "csv"
     gpkg = "gpkg"
@@ -398,6 +414,9 @@ class Params(BaseModel):
         None, title="Add temporal index"
     )
     get_events_data: Optional[GetEventsData] = Field(None, title="Get events")
+    events_wtemporal: Optional[EventsWtemporal] = Field(
+        None, title="Add temporal index on events"
+    )
     persist_tevents_df: Optional[PersistTeventsDf] = Field(
         None, title="Persist total events df"
     )

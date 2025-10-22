@@ -665,6 +665,52 @@ extract_event_date = (
 
 
 # %% [markdown]
+# ## Add temporal index on events
+
+# %%
+# parameters
+
+events_wtemporal_params = dict(
+    cast_to_datetime=...,
+    format=...,
+)
+
+# %%
+# call the task
+
+
+events_wtemporal = (
+    add_temporal_index.handle_errors(task_instance_id="events_wtemporal")
+    .partial(
+        df=extract_event_date,
+        time_col="created_at",
+        groupers=groupers,
+        **events_wtemporal_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Split events by group
+
+# %%
+# parameters
+
+split_event_groups_params = dict()
+
+# %%
+# call the task
+
+
+split_event_groups = (
+    split_groups.handle_errors(task_instance_id="split_event_groups")
+    .partial(df=events_wtemporal, groupers=groupers, **split_event_groups_params)
+    .call()
+)
+
+
+# %% [markdown]
 # ## Calculate Total Events
 
 # %%
@@ -684,10 +730,9 @@ total_events_recorded = (
             {"display_name": "no_of_events", "aggregator": "nunique", "column": "id"}
         ],
         reset_index=True,
-        df=extract_event_date,
         **total_events_recorded_params,
     )
-    .call()
+    .mapvalues(argnames=["df"], argvalues=split_event_groups)
 )
 
 
@@ -698,6 +743,7 @@ total_events_recorded = (
 # parameters
 
 persist_tevents_df_params = dict(
+    filename=...,
     filetype=...,
 )
 
@@ -708,12 +754,9 @@ persist_tevents_df_params = dict(
 persist_tevents_df = (
     persist_df.handle_errors(task_instance_id="persist_tevents_df")
     .partial(
-        df=total_events_recorded,
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        filename="total_events_recorded",
-        **persist_tevents_df_params,
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_tevents_df_params
     )
-    .call()
+    .mapvalues(argnames=["df"], argvalues=total_events_recorded)
 )
 
 
@@ -735,7 +778,6 @@ draw_events_chart_params = dict(
 draw_events_chart = (
     draw_line_chart.handle_errors(task_instance_id="draw_events_chart")
     .partial(
-        dataframe=total_events_recorded,
         x_column="date",
         y_column="no_of_events",
         line_kwargs={"shape": "linear"},
@@ -757,7 +799,7 @@ draw_events_chart = (
         },
         **draw_events_chart_params,
     )
-    .call()
+    .mapvalues(argnames=["dataframe"], argvalues=total_events_recorded)
 )
 
 
