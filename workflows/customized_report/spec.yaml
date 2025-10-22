@@ -14,39 +14,236 @@ requirements:
 
 
 workflow:
+  # set workflow details
   - name: Set Workflow Details
     id: workflow_details
     task: set_workflow_details
+
+  # set time range
   - name: Time Range
     id: time_range
     task: set_time_range
     partial:
       time_format: "%d %b %Y %H:%M:%S %Z"
+  
+  # define groupers
   - name: Set Groupers
     id: groupers
     task: set_groupers
-  - name: Calculate Task
-    id: calculator
-    task: apply_arithmetic_operation
-  - name: Add More
-    id: add_more
-    task: add_one_thousand
+
+  # connect to ER 
+  - name: Connect to ER 
+    id: er_client_name
+    task: set_er_connection
+
+  # Retrieve observations from ER
+  - name: Get subject observations from ER 
+    id: subject_observations
+    task: get_subjectgroup_observations
     partial:
-      value: ${{ workflow.calculator.return }}
-  - name: Create Single Value Widgets
-    id: sv_widgets
-    task: create_single_value_widget_single_view
+      client: ${{ workflow.er_client_name.return }}
+      time_range: ${{ workflow.time_range.return }}
+      raise_on_empty: false
+      include_details: false
+      include_subjectsource_details: false
+  
+  # Extract precipitation data
+  - name: Extract Precipitation Data
+    id: extract_precipitation
+    task: extract_value_from_json_column
     partial:
-      title: "Sum"
-      decimal_places: 0
-      data: ${{ workflow.add_more.return }}
-  - name: Create An Example Dashboard
-    id: template_dashboard
+      df: ${{ workflow.subject_observations.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - precipitation
+      output_type: float
+      output_column_name: precipitation
+  
+  # Extract temperature data
+  - name: Extract Temperature Data
+    id: extract_temperature
+    task: extract_value_from_json_column
+    partial:
+      df: ${{ workflow.extract_precipitation.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - surface_air_temperature
+      output_type: float
+      output_column_name: temperature
+  
+  # Extract date
+  - name: Extract Date
+    id: extract_date
+    task: extract_column_as_type
+    partial:
+      df: ${{ workflow.extract_temperature.return }}
+      column_name: fixtime
+      output_type: date
+      output_column_name: date
+  
+  # Rename column
+  - name: Rename value grouper columns
+    id: rename_grouper_columns
+    task: map_columns
+    partial:
+      df: ${{ workflow.extract_date.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        extra__subject__name: "weather_station"
+
+  - name: Add temporal index
+    id: df_with_temporal_index
+    task: add_temporal_index
+    partial:
+      df: ${{ workflow.rename_grouper_columns.return }}
+      time_col: fixtime
+      groupers: ${{ workflow.groupers.return }}
+
+  - name: Split by Group
+    id: split_weather_groups
+    task: split_groups
+    partial:
+      df: ${{ workflow.df_with_temporal_index.return }}
+      groupers: ${{ workflow.groupers.return }}
+  
+  - name: Calculate Daily Summary
+    id: daily_weather
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - weather_station
+        - date
+      summary_params:
+        - display_name: daily_precipitation
+          aggregator: sum
+          column: precipitation
+        - display_name: daily_temperature
+          aggregator: mean
+          column: temperature
+      reset_index: true
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.split_weather_groups.return }}
+
+  - name: Draw Precipitation Chart
+    id: precipitation_chart
+    task: draw_line_chart
+    partial:
+      x_column: date
+      y_column: daily_precipitation
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+        dash: None
+        color: None
+      layout_kwargs:
+        title: "Precipitation by Station"
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 12
+        fontcolor: "#222222"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Precipitation (mm)"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+    mapvalues:
+      argnames: dataframe
+      argvalues: ${{ workflow.daily_weather.return }}
+
+  - name: Persist Precipitation Chart as Text
+    id: persist_precipitation
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: text
+      argvalues: ${{ workflow.precipitation_chart.return }}
+
+  - name: Create Precipitation Widget
+    id: precipitation_chart_widget
+    task: create_plot_widget_single_view
+    partial:
+      title: "Daily Precipitation by Station"
+    map:
+      argnames: [view, data]
+      argvalues: ${{ workflow.persist_precipitation.return }}
+
+  - name: Merge Precipitation Widget Views
+    id: grouped_precipitation_widget
+    task: merge_widget_views
+    partial:
+      widgets: ${{ workflow.precipitation_chart_widget.return }}
+
+  - name: Draw Temperature Chart
+    id: temperature_chart
+    task: draw_line_chart
+    partial:
+      x_column: date
+      y_column: daily_temperature
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+        dash: None
+        color: None
+      layout_kwargs:
+        title: "Temperature by Station"
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 12
+        fontcolor: "#222222"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average Temperature (°C)"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+    mapvalues:
+      argnames: dataframe
+      argvalues: ${{ workflow.daily_weather.return }}
+
+  - name: Persist Temperature Chart as Text
+    id: persist_temperature
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: text
+      argvalues: ${{ workflow.temperature_chart.return }}
+      
+  - name: Create Temperature Widget
+    id: temperature_chart_widget
+    task: create_plot_widget_single_view
+    partial:
+      title: "Daily Temperature by Station"
+    map:
+      argnames: [view, data]
+      argvalues: ${{ workflow.persist_temperature.return }}
+
+  - name: Merge Temperature Widget Views
+    id: grouped_temperature_widget
+    task: merge_widget_views
+    partial:
+      widgets: ${{ workflow.temperature_chart_widget.return }}
+  - name: Create A Weather Dashboard
+    id: weather_dashboard
     task: gather_dashboard
     partial:
       details: ${{ workflow.workflow_details.return}}
       widgets:
-        - ${{ workflow.sv_widgets.return }}
+        - ${{ workflow.grouped_precipitation_widget.return }}
+        - ${{ workflow.grouped_temperature_widget.return }}
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}
-
