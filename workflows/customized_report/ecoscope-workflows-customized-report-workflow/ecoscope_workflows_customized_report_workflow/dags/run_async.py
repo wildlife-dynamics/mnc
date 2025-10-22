@@ -457,7 +457,11 @@ def main(params: Params):
             partial={
                 "groupby_cols": ["date"],
                 "summary_params": [
-                    {"display_name": "no_of_events", "aggregator": "sum"}
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
                 ],
                 "reset_index": True,
                 "df": DependsOn("extract_event_date"),

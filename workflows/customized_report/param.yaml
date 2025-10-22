@@ -1,6 +1,6 @@
 workflow_details:
-  name: "Example Workflow"
-  description: "An example workflow for testing purposes."
+  name: "MNC Patrols ,weather report --v7"
+  description: "Patrol info weather data."
 
 # Desired time range
 time_range:
@@ -15,54 +15,58 @@ er_client_name:
 groupers:
   groupers: []
 
+subject_observations:
+  subject_group_name: "ER2ER - From GMMF"
+
+get_events_data:
+  event_types: []
 
 patrol_observations:
-  [
-    'mnc_motorbike_patrol_nkorbob',
-    'mnc_foot_patrol_naishi',
-    'mnc_motorbike_patrol_enkikwei',
-    'mnc_vehicle_patrol_nkorbob',
-    'mnc_vehicle_patrol_rekero',
-    'mnc_motorbike_patrol_naishi',
-    'mnc_vehicle_patrol_naishi',
-    'mnc_Vehicle_patrol_ndoto',
-    'mnc_foot_patrol_mara_east',
-    'mnc_motorbike_patrol_yiale',
-    'mnc_motorbike_patrol_ndoto',
-    'mnc_motorbike_patrol_hqteam',
-    'mnc_vehicle_patrol_aitong',
-    'mnc_foot_patrol_kicheche',
-    'mnc_vehicle_patrol_hqteam',
-    'mnc_motorbike_patrol_kicheche',
-    'mnc_vehicle_patrol_enkuyanai',
-    'mnc_foot_patrol_rekero',
-    'mnc_foot_patrol_hqteam',
-    'mnc_vehicle_patrol_kicheche',
-    'mnc_foot_patrol  cheli team',
-    'mnc_foot_patrol_aitong',
-    'mnc_foot_patrol_enkikwei team',
-    'mnc_vehicle_patrol_enkikwei team',
-    'mnc_foot_patrol_enkuyanai',
-    'mnc_vehicle_patrol_mara_east',
-    'mnc_motorbike_patrol_rekero',
-    'mnc_foot_patrol_ndoto',
-    'mnc_motorbike_patrol_aitong',
-    'mnc_foot_patrol_nkorbob',
-    'mnc_motorbike_patrol_Airstrip',
-    'Motorcycle Patrol',
-    'Foot Patrol',
-    'mnc_vehicle_patrol_cheli',
-    'mnc_foot_patrol_musiara team',
-    'mnc_motorbike_patrol_musiara team',
-    'mnc_motorbike_patrol_cheli',
-    'mnc_vehicle_patrol_musiara',
-    'mnc_foot_patrol_Karen',
-    'mnc_Vehicle_patrol_Karen',
-    'mnc_motorbike_patrol_Karen',
-    'mnc_motorbike_patrol_enkuyanai',
-    'mnc_motorbike_grazing_zone1',
-    'mnc_motorbike_grazing_zone4',
-    ]
+  patrol_types:
+    - mnc_motorbike_patrol_nkorbob
+    - mnc_foot_patrol_naishi
+    - mnc_motorbike_patrol_enkikwei
+    - mnc_vehicle_patrol_nkorbob
+    - mnc_vehicle_patrol_rekero
+    - mnc_motorbike_patrol_naishi
+    - mnc_vehicle_patrol_naishi
+    - mnc_Vehicle_patrol_ndoto
+    - mnc_foot_patrol_mara_east
+    - mnc_motorbike_patrol_yiale
+    - mnc_motorbike_patrol_ndoto
+    - mnc_motorbike_patrol_hqteam
+    - mnc_vehicle_patrol_aitong
+    - mnc_foot_patrol_kicheche
+    - mnc_vehicle_patrol_hqteam
+    - mnc_motorbike_patrol_kicheche
+    - mnc_vehicle_patrol_enkuyanai
+    - mnc_foot_patrol_rekero
+    - mnc_foot_patrol_hqteam
+    - mnc_vehicle_patrol_kicheche
+    - mnc_foot_patrol  cheli team
+    - mnc_foot_patrol_aitong
+    - mnc_foot_patrol_enkikwei team
+    - mnc_vehicle_patrol_enkikwei team
+    - mnc_foot_patrol_enkuyanai
+    - mnc_vehicle_patrol_mara_east
+    - mnc_motorbike_patrol_rekero
+    - mnc_foot_patrol_ndoto
+    - mnc_motorbike_patrol_aitong
+    - mnc_foot_patrol_nkorbob
+    - mnc_motorbike_patrol_Airstrip
+    - Motorcycle Patrol
+    - Foot Patrol
+    - mnc_vehicle_patrol_cheli
+    - mnc_foot_patrol_musiara team
+    - mnc_motorbike_patrol_musiara team
+    - mnc_motorbike_patrol_cheli
+    - mnc_vehicle_patrol_musiara
+    - mnc_foot_patrol_Karen
+    - mnc_Vehicle_patrol_Karen
+    - mnc_motorbike_patrol_Karen
+    - mnc_motorbike_patrol_enkuyanai
+    - mnc_motorbike_grazing_zone1
+    - mnc_motorbike_grazing_zone4
 
 configure_base_maps:
   base_maps:

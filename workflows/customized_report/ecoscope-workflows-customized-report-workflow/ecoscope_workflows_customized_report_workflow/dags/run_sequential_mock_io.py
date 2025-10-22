@@ -405,7 +405,13 @@ def main(params: Params):
         .handle_errors(task_instance_id="total_events_recorded")
         .partial(
             groupby_cols=["date"],
-            summary_params=[{"display_name": "no_of_events", "aggregator": "sum"}],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
             reset_index=True,
             df=extract_event_date,
             **(params_dict.get("total_events_recorded") or {}),

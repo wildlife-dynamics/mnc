@@ -680,7 +680,9 @@ total_events_recorded = (
     summarize_df.handle_errors(task_instance_id="total_events_recorded")
     .partial(
         groupby_cols=["date"],
-        summary_params=[{"display_name": "no_of_events", "aggregator": "sum"}],
+        summary_params=[
+            {"display_name": "no_of_events", "aggregator": "nunique", "column": "id"}
+        ],
         reset_index=True,
         df=extract_event_date,
         **total_events_recorded_params,
