@@ -497,15 +497,15 @@ def main(params: Params):
                     "showlegend": False,
                     "fontsize": 12,
                     "fontcolor": "#222222",
+                    "xaxis": {
+                        "title": "Date",
+                        "tickformat": "%Y-%m-%d",
+                        "tickangle": -45,
+                        "rangemode": "auto",
+                    },
+                    "yaxis": {"title": "Count", "tickformat": ".1f"},
+                    "hovermode": "x unified",
                 },
-                "xaxis": {
-                    "title": "Date",
-                    "tickformat": "%Y-%m-%d",
-                    "tickangle": -45,
-                    "rangemode": "auto",
-                },
-                "yaxis": {"title": "Count", "tickformat": ".1f"},
-                "hovermode": "x unified",
             }
             | (params_dict.get("draw_events_chart") or {}),
             method="call",

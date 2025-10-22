@@ -302,6 +302,7 @@ workflow:
       dataframe: ${{ workflow.total_events_recorded.return }}
       x_column: date 
       y_column: no_of_events
+
       line_kwargs:
         shape: "linear"
       layout_kwargs:
@@ -311,15 +312,15 @@ workflow:
         showlegend: false
         fontsize: 12
         fontcolor: "#222222"
-      xaxis:
-        title: "Date"
-        tickformat: "%Y-%m-%d"
-        tickangle: -45
-        rangemode: auto
-      yaxis:
-        title: "Count"
-        tickformat: ".1f"
-      hovermode: "x unified"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Count"
+          tickformat: ".1f"
+        hovermode: "x unified"
   
   - name: Persist Total events chart as Text
     id: persist_total_events
@@ -549,7 +550,6 @@ workflow:
     task: merge_widget_views
     partial:
       widgets: ${{ workflow.create_patrol_widgets.return }}
-
 
 
   - name: Create A Weather Dashboard
