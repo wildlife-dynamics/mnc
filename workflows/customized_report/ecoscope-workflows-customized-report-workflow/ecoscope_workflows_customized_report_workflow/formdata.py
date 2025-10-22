@@ -3,9 +3,18 @@
 
 from __future__ import annotations
 
-from typing import List, Optional, Union
+from enum import Enum
+from typing import List, Literal, Optional, Union
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, RootModel
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    confloat,
+    constr,
+)
 
 
 class WorkflowDetails(BaseModel):
@@ -22,6 +31,172 @@ class TimeRange(BaseModel):
     )
     since: AwareDatetime = Field(..., description="The start time", title="Since")
     until: AwareDatetime = Field(..., description="The end time", title="Until")
+
+
+class Url(str, Enum):
+    https___tile_openstreetmap_org__z___x___y__png = (
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    )
+
+
+class BaseMaps(BaseModel):
+    url: Literal["https://tile.openstreetmap.org/{z}/{x}/{y}.png"] = Field(
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png", title="Preset Layer URL"
+    )
+    opacity: Optional[confloat(ge=0.0, le=1.0)] = Field(
+        1,
+        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
+        title="Layer Opacity",
+    )
+
+
+class Url1(str, Enum):
+    https___server_arcgisonline_com_ArcGIS_rest_services_World_Street_Map_MapServer_tile__z___y___x_ = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+
+
+class BaseMaps1(BaseModel):
+    url: Literal[
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+    ] = Field(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+        title="Preset Layer URL",
+    )
+    opacity: Optional[confloat(ge=0.0, le=1.0)] = Field(
+        1,
+        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
+        title="Layer Opacity",
+    )
+
+
+class Url2(str, Enum):
+    https___server_arcgisonline_com_ArcGIS_rest_services_World_Imagery_MapServer_tile__z___y___x_ = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+
+
+class BaseMaps2(BaseModel):
+    url: Literal[
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+    ] = Field(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        title="Preset Layer URL",
+    )
+    opacity: Optional[confloat(ge=0.0, le=1.0)] = Field(
+        1,
+        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
+        title="Layer Opacity",
+    )
+
+
+class Url3(str, Enum):
+    https___server_arcgisonline_com_ArcGIS_rest_services_World_Topo_Map_MapServer_tile__z___y___x_ = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+
+
+class BaseMaps3(BaseModel):
+    url: Literal[
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+    ] = Field(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+        title="Preset Layer URL",
+    )
+    opacity: Optional[confloat(ge=0.0, le=1.0)] = Field(
+        1,
+        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
+        title="Layer Opacity",
+    )
+
+
+class Url4(str, Enum):
+    https___tiles_arcgis_com_tiles_POUcpLYXNckpLjnY_arcgis_rest_services_landDx_basemap_tiles_mapservice_MapServer_tile__z___y___x_ = "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}"
+
+
+class BaseMaps4(BaseModel):
+    url: Literal[
+        "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}"
+    ] = Field(
+        "https://tiles.arcgis.com/tiles/POUcpLYXNckpLjnY/arcgis/rest/services/landDx_basemap_tiles_mapservice/MapServer/tile/{z}/{y}/{x}",
+        title="Preset Layer URL",
+    )
+    opacity: Optional[confloat(ge=0.0, le=1.0)] = Field(
+        1,
+        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
+        title="Layer Opacity",
+    )
+
+
+class Url5(str, Enum):
+    https___server_arcgisonline_com_arcgis_rest_services_Elevation_World_Hillshade_MapServer_tile__z___y___x_ = "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"
+
+
+class BaseMaps5(BaseModel):
+    url: Literal[
+        "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"
+    ] = Field(
+        "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+        title="Preset Layer URL",
+    )
+    opacity: Optional[confloat(ge=0.0, le=1.0)] = Field(
+        1,
+        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
+        title="Layer Opacity",
+    )
+
+
+class BaseMaps6(BaseModel):
+    url: Optional[
+        constr(
+            pattern=r"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}([-a-zA-Z0-9()@:%_\+.~#?&//=\{\}]*)"
+        )
+    ] = Field(
+        "https://example.tiles.com/{z}/{x}/{y}.png",
+        description="The URL of a publicly accessible tiled raster service.",
+        title="Custom Layer URL",
+    )
+    opacity: Optional[confloat(ge=0.0, le=1.0)] = Field(
+        1,
+        description="Set layer transparency from 1 (fully visible) to 0 (hidden).",
+        title="Custom Layer Opacity",
+    )
+    max_zoom: Optional[int] = Field(
+        None,
+        description="Set the maximum zoom level to fetch tiles for.",
+        title="Custom Layer Max Zoom",
+    )
+    min_zoom: Optional[int] = Field(
+        None,
+        description="Set the minimum zoom level to fetch tiles for.",
+        title="Custom Layer Min Zoom",
+    )
+
+
+class ConfigureBaseMaps(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    base_maps: Optional[
+        List[
+            Union[
+                BaseMaps,
+                BaseMaps1,
+                BaseMaps2,
+                BaseMaps3,
+                BaseMaps4,
+                BaseMaps5,
+                BaseMaps6,
+            ]
+        ]
+    ] = Field(
+        [
+            {
+                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+                "opacity": 1,
+            },
+            {
+                "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+                "opacity": 0.5,
+            },
+        ],
+        description="Select tile layers to use as base layers in map outputs. The first layer in the list will be the bottommost layer displayed.",
+        title=" ",
+    )
 
 
 class SubjectObservations(BaseModel):
@@ -47,6 +222,85 @@ class DfWithTemporalIndex(BaseModel):
     )
 
 
+class GetEventsData(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    event_types: List[str] = Field(
+        ...,
+        description="Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types.",
+        title="Event Types",
+    )
+    include_null_geometry: Optional[bool] = Field(
+        True, title="Include Events Without a Geometry (point or polygon)"
+    )
+
+
+class Filetype(str, Enum):
+    csv = "csv"
+    gpkg = "gpkg"
+    geoparquet = "geoparquet"
+
+
+class PersistTeventsDf(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filetype: Optional[Filetype] = Field(
+        "csv", description="The output format", title="Filetype"
+    )
+
+
+class DrawEventsChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    category_column: Optional[str] = Field(
+        None,
+        description="The column name in the dataframe to group by and plot separate traces.",
+        title="Category Column",
+    )
+
+
+class StatusEnum(str, Enum):
+    active = "active"
+    overdue = "overdue"
+    done = "done"
+    cancelled = "cancelled"
+
+
+class PatrolObservations(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    patrol_types: List[str] = Field(
+        ...,
+        description="Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types.",
+        title="Patrol Types",
+    )
+    status: Optional[List[StatusEnum]] = Field(
+        ["done"],
+        description="Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
+        title="Patrol Status",
+    )
+    sub_page_size: Optional[int] = Field(
+        None,
+        description="        Manually set the page size for underlying ER API requests.\n        If left as None, this will use the underlying client default value (4000)\n        ",
+        title="Sub Page Size",
+    )
+
+
+class PatrolRelocs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    relocs_columns: List[str] = Field(
+        ...,
+        description="A list of column names to retain in the relocations dataframe.",
+        title="Relocs Columns",
+    )
+
+
 class TemporalGrouper(RootModel[str]):
     root: str = Field(..., title="Time")
 
@@ -57,6 +311,27 @@ class ValueGrouper(RootModel[str]):
 
 class EarthRangerConnection(BaseModel):
     name: str = Field(..., title="Data Source")
+
+
+class TrajectorySegmentFilter(BaseModel):
+    min_length_meters: Optional[confloat(ge=0.001)] = Field(
+        0.001, title="Minimum Segment Length (Meters)"
+    )
+    max_length_meters: Optional[confloat(gt=0.001)] = Field(
+        100000, title="Maximum Segment Length (Meters)"
+    )
+    min_time_secs: Optional[confloat(ge=1.0)] = Field(
+        1, title="Minimum Segment Duration (Seconds)"
+    )
+    max_time_secs: Optional[confloat(gt=1.0)] = Field(
+        172800, title="Maximum Segment Duration (Seconds)"
+    )
+    min_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
+        0.01, title="Minimum Segment Speed (Kilometers per Hour)"
+    )
+    max_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
+        500, title="Maximum Segment Speed (Kilometers per Hour)"
+    )
 
 
 class Groupers(BaseModel):
@@ -79,6 +354,26 @@ class ErClientName(BaseModel):
     )
 
 
+class ConvertToTrajectories(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
+        default_factory=lambda: TrajectorySegmentFilter.model_validate(
+            {
+                "min_length_meters": 0.001,
+                "max_length_meters": 100000,
+                "min_time_secs": 1,
+                "max_time_secs": 172800,
+                "min_speed_kmhr": 0.01,
+                "max_speed_kmhr": 500,
+            }
+        ),
+        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+        title=" ",
+    )
+
+
 class FormData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -93,9 +388,28 @@ class FormData(BaseModel):
     )
     groupers: Optional[Groupers] = Field(None, title="Set Groupers")
     er_client_name: Optional[ErClientName] = Field(None, title="Connect to ER")
+    configure_base_maps: Optional[ConfigureBaseMaps] = Field(
+        None, title="Configure Base Map Layers"
+    )
     subject_observations: Optional[SubjectObservations] = Field(
         None, title="Get subject observations from ER"
     )
     df_with_temporal_index: Optional[DfWithTemporalIndex] = Field(
         None, title="Add temporal index"
+    )
+    get_events_data: Optional[GetEventsData] = Field(None, title="Get events")
+    persist_tevents_df: Optional[PersistTeventsDf] = Field(
+        None, title="Persist total events df"
+    )
+    draw_events_chart: Optional[DrawEventsChart] = Field(
+        None, title="Draw total events line chart"
+    )
+    patrol_observations: Optional[PatrolObservations] = Field(
+        None, title="Get Patrol observations"
+    )
+    patrol_relocs: Optional[PatrolRelocs] = Field(
+        None, title="Transform observations to relocations"
+    )
+    convert_to_trajectories: Optional[ConvertToTrajectories] = Field(
+        None, title="Convert Relocations to Trajectories"
     )

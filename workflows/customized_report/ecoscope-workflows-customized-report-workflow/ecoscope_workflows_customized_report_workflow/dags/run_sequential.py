@@ -7,9 +7,15 @@ from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers, split_groups
 from ecoscope_workflows_core.tasks.io import persist_text, set_er_connection
 from ecoscope_workflows_core.tasks.results import (
+    create_map_widget_single_view,
     create_plot_widget_single_view,
     gather_dashboard,
     merge_widget_views,
+)
+from ecoscope_workflows_core.tasks.skip import (
+    any_dependency_skipped,
+    any_is_empty_df,
+    never,
 )
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index,
@@ -18,8 +24,28 @@ from ecoscope_workflows_core.tasks.transformation import (
     map_columns,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
-from ecoscope_workflows_ext_ecoscope.tasks.io import get_subjectgroup_observations
-from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
+from ecoscope_workflows_ext_ecoscope.tasks.io import (
+    get_events,
+    get_patrol_observations,
+    get_subjectgroup_observations,
+    persist_df,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
+    process_relocations,
+    relocations_to_trajectory,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.results import (
+    create_polyline_layer,
+    draw_ecomap,
+    draw_line_chart,
+    set_base_maps,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_color_map
+from ecoscope_workflows_ext_mnc.tasks import (
+    classify_mnc_patrol,
+    create_view_state_from_gdf,
+    zip_grouped_by_key,
+)
 
 from ..params import Params
 
@@ -54,6 +80,13 @@ def main(params: Params):
         set_er_connection.validate()
         .handle_errors(task_instance_id="er_client_name")
         .partial(**(params_dict.get("er_client_name") or {}))
+        .call()
+    )
+
+    configure_base_maps = (
+        set_base_maps.validate()
+        .handle_errors(task_instance_id="configure_base_maps")
+        .partial(**(params_dict.get("configure_base_maps") or {}))
         .call()
     )
 
@@ -291,12 +324,375 @@ def main(params: Params):
         .call()
     )
 
+    get_events_data = (
+        get_events.validate()
+        .handle_errors(task_instance_id="get_events_data")
+        .partial(
+            client=er_client_name,
+            time_range=time_range,
+            event_columns=[
+                "id",
+                "time",
+                "event_type",
+                "event_category",
+                "reported_by",
+                "serial_number",
+                "geometry",
+                "created_at",
+            ],
+            raise_on_empty=False,
+            include_details=True,
+            include_updates=False,
+            include_related_events=False,
+            **(params_dict.get("get_events_data") or {}),
+        )
+        .call()
+    )
+
+    extract_event_date = (
+        extract_column_as_type.validate()
+        .handle_errors(task_instance_id="extract_event_date")
+        .partial(
+            df=get_events_data,
+            column_name="created_at",
+            output_type="date",
+            output_column_name="date",
+            **(params_dict.get("extract_event_date") or {}),
+        )
+        .call()
+    )
+
+    total_events_recorded = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="total_events_recorded")
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[{"display_name": "no_of_events", "aggregator": "sum"}],
+            reset_index=True,
+            df=extract_event_date,
+            **(params_dict.get("total_events_recorded") or {}),
+        )
+        .call()
+    )
+
+    persist_tevents_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_tevents_df")
+        .partial(
+            df=total_events_recorded,
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename="total_events_recorded",
+            **(params_dict.get("persist_tevents_df") or {}),
+        )
+        .call()
+    )
+
+    draw_events_chart = (
+        draw_line_chart.validate()
+        .handle_errors(task_instance_id="draw_events_chart")
+        .partial(
+            dataframe=total_events_recorded,
+            x_column="date",
+            y_column="no_of_events",
+            line_kwargs={"shape": "linear"},
+            layout_kwargs={
+                "title": "Total events recorded",
+                "title_x": 0.01,
+                "title_y": 0.95,
+                "showlegend": False,
+                "fontsize": 12,
+                "fontcolor": "#222222",
+            },
+            xaxis={
+                "title": "Date",
+                "tickformat": "%Y-%m-%d",
+                "tickangle": -45,
+                "rangemode": "auto",
+            },
+            yaxis={"title": "Count", "tickformat": ".1f"},
+            hovermode="x unified",
+            **(params_dict.get("draw_events_chart") or {}),
+        )
+        .call()
+    )
+
+    persist_total_events = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_total_events")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_total_events") or {}),
+        )
+        .mapvalues(argnames=["text"], argvalues=draw_events_chart)
+    )
+
+    tevents_chart_widget = (
+        create_plot_widget_single_view.validate()
+        .handle_errors(task_instance_id="tevents_chart_widget")
+        .partial(
+            title="Total Events", **(params_dict.get("tevents_chart_widget") or {})
+        )
+        .map(argnames=["view", "data"], argvalues=persist_total_events)
+    )
+
+    grouped_tevents_widget = (
+        merge_widget_views.validate()
+        .handle_errors(task_instance_id="grouped_tevents_widget")
+        .partial(
+            widgets=tevents_chart_widget,
+            **(params_dict.get("grouped_tevents_widget") or {}),
+        )
+        .call()
+    )
+
+    patrol_observations = (
+        get_patrol_observations.validate()
+        .handle_errors(task_instance_id="patrol_observations")
+        .partial(
+            client=er_client_name,
+            time_range=time_range,
+            include_patrol_details=True,
+            raise_on_empty=True,
+            **(params_dict.get("patrol_observations") or {}),
+        )
+        .call()
+    )
+
+    patrol_relocs = (
+        process_relocations.validate()
+        .handle_errors(task_instance_id="patrol_relocs")
+        .partial(
+            observations=patrol_observations,
+            reloc_columns=[
+                "extra__id",
+                "extra__created_at",
+                "extra__subject_id",
+                "geometry",
+                "groupby_col",
+                "fixtime",
+                "junk_status",
+                "patrol_id",
+                "patrol_title",
+                "patrol_serial_number",
+                "patrol_start_time",
+                "patrol_end_time",
+                "patrol_type",
+                "patrol_status",
+                "patrol_subject",
+                "patrol_type__value",
+            ],
+            filter_point_coords=[
+                {"x": 180.0, "y": 90.0},
+                {"x": 0.0, "y": 0.0},
+                {"x": 1.0, "y": 1.0},
+            ],
+            **(params_dict.get("patrol_relocs") or {}),
+        )
+        .call()
+    )
+
+    convert_to_trajectories = (
+        relocations_to_trajectory.validate()
+        .handle_errors(task_instance_id="convert_to_trajectories")
+        .partial(
+            relocations=patrol_relocs,
+            **(params_dict.get("convert_to_trajectories") or {}),
+        )
+        .call()
+    )
+
+    add_temporal_index_to_traj = (
+        add_temporal_index.validate()
+        .handle_errors(task_instance_id="add_temporal_index_to_traj")
+        .partial(
+            df=convert_to_trajectories,
+            time_col="segment_start",
+            groupers=groupers,
+            cast_to_datetime=True,
+            format="mixed",
+            **(params_dict.get("add_temporal_index_to_traj") or {}),
+        )
+        .call()
+    )
+
+    map_patrol_types = (
+        classify_mnc_patrol.validate()
+        .handle_errors(task_instance_id="map_patrol_types")
+        .partial(
+            df=add_temporal_index_to_traj,
+            patrol_col="extra__patrol_type__value",
+            new_col="patrol_cat_types",
+            **(params_dict.get("map_patrol_types") or {}),
+        )
+        .call()
+    )
+
+    rename_traj_cols = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_traj_cols")
+        .partial(
+            drop_columns=["heading", "extra__created_at", "extra__id"],
+            retain_columns=[],
+            rename_columns={
+                "extra__patrol_start_time": "patrol_start_time",
+                "extra__patrol_end_time": "patrol_end_time",
+                "extra__patrol_id": "patrol_id",
+                "extra__patrol_serial_number": "patrol_serial_number",
+                "extra__patrol_status": "patrol_status",
+                "extra__patrol_subject": "patrol_subject_name",
+                "extra__patrol_title": "patrol_title",
+                "extra__patrol_type": "patrol_type_id",
+                "extra__patrol_type__value": "patrol_type_value",
+                "extra__subject_id": "subject_id",
+            },
+            df=map_patrol_types,
+            **(params_dict.get("rename_traj_cols") or {}),
+        )
+        .call()
+    )
+
+    patrol_groupers = (
+        set_groupers.validate()
+        .handle_errors(task_instance_id="patrol_groupers")
+        .partial(
+            groupers=["patrol_cat_types"], **(params_dict.get("patrol_groupers") or {})
+        )
+        .call()
+    )
+
+    split_traj_patrol_type = (
+        split_groups.validate()
+        .handle_errors(task_instance_id="split_traj_patrol_type")
+        .partial(
+            df=rename_traj_cols,
+            groupers=patrol_groupers,
+            **(params_dict.get("split_traj_patrol_type") or {}),
+        )
+        .call()
+    )
+
+    apply_patrol_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_patrol_colormap")
+        .partial(
+            input_column_name="patrol_type_value",
+            output_column_name="patrol_colormap",
+            colormap="coolwarm",
+            **(params_dict.get("apply_patrol_colormap") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_traj_patrol_type)
+    )
+
+    generate_patrol_layers = (
+        create_polyline_layer.validate()
+        .handle_errors(task_instance_id="generate_patrol_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={"color_column": "patrol_colormap"},
+            legend={
+                "label_column": "patrol_cat_types",
+                "color_column": "patrol_colormap",
+            },
+            tooltip_columns=[
+                "patrol_subject_name",
+                "patrol_start_time",
+                "patrol_end_time",
+                "patrol_title",
+                "patrol_type_value",
+                "segment_start",
+                "dist_meters",
+                "timespan_seconds",
+            ],
+            **(params_dict.get("generate_patrol_layers") or {}),
+        )
+        .mapvalues(argnames=["geodataframe"], argvalues=apply_patrol_colormap)
+    )
+
+    zoom_patrol_traj_view = (
+        create_view_state_from_gdf.validate()
+        .handle_errors(task_instance_id="zoom_patrol_traj_view")
+        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_patrol_traj_view") or {}))
+        .mapvalues(argnames=["gdf"], argvalues=apply_patrol_colormap)
+    )
+
+    zip_patrol_zoom_values = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_patrol_zoom_values")
+        .partial(
+            left=generate_patrol_layers,
+            right=zoom_patrol_traj_view,
+            **(params_dict.get("zip_patrol_zoom_values") or {}),
+        )
+        .call()
+    )
+
+    draw_patrol_ecomap = (
+        draw_ecomap.validate()
+        .handle_errors(task_instance_id="draw_patrol_ecomap")
+        .partial(
+            tile_layers=configure_base_maps,
+            north_arrow_style={"placement": "top-left"},
+            legend_style={"placement": "bottom-right", "title": "Patrol Types"},
+            static=False,
+            title=None,
+            max_zoom=20,
+            **(params_dict.get("draw_patrol_ecomap") or {}),
+        )
+        .mapvalues(
+            argnames=["geo_layers", "view_state"], argvalues=zip_patrol_zoom_values
+        )
+    )
+
+    persist_patrol_ecomap_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_patrol_ecomap_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_patrol_ecomap_urls") or {}),
+        )
+        .mapvalues(argnames=["text"], argvalues=draw_patrol_ecomap)
+    )
+
+    create_patrol_widgets = (
+        create_map_widget_single_view.validate()
+        .handle_errors(task_instance_id="create_patrol_widgets")
+        .skipif(
+            conditions=[
+                never,
+            ],
+            unpack_depth=1,
+        )
+        .partial(title="Patrols", **(params_dict.get("create_patrol_widgets") or {}))
+        .map(argnames=["view", "data"], argvalues=persist_patrol_ecomap_urls)
+    )
+
+    merge_patrol_widgets = (
+        merge_widget_views.validate()
+        .handle_errors(task_instance_id="merge_patrol_widgets")
+        .partial(
+            widgets=create_patrol_widgets,
+            **(params_dict.get("merge_patrol_widgets") or {}),
+        )
+        .call()
+    )
+
     weather_dashboard = (
         gather_dashboard.validate()
         .handle_errors(task_instance_id="weather_dashboard")
         .partial(
             details=workflow_details,
-            widgets=[grouped_precipitation_widget, grouped_temperature_widget],
+            widgets=[
+                grouped_precipitation_widget,
+                grouped_temperature_widget,
+                grouped_tevents_widget,
+                merge_patrol_widgets,
+            ],
             time_range=time_range,
             groupers=groupers,
             **(params_dict.get("weather_dashboard") or {}),

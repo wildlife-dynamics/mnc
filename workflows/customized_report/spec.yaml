@@ -36,6 +36,12 @@ workflow:
     id: er_client_name
     task: set_er_connection
 
+  # define base map layers
+  - name: Configure Base Map Layers
+    id: configure_base_maps
+    task: set_base_maps
+
+  # 1. Weather report 
   # Retrieve observations from ER
   - name: Get subject observations from ER 
     id: subject_observations
@@ -233,6 +239,319 @@ workflow:
     task: merge_widget_views
     partial:
       widgets: ${{ workflow.temperature_chart_widget.return }}
+
+  # 2. Patrol Efforts
+  # Patrol effort section
+  - name: Get events
+    id: get_events_data
+    task: get_events
+    partial:
+      client: ${{ workflow.er_client_name.return }}
+      time_range: ${{ workflow.time_range.return }}
+      event_columns:
+        - id
+        - time
+        - event_type
+        - event_category
+        - reported_by
+        - serial_number
+        - geometry
+        - created_at
+
+      raise_on_empty: false
+      include_details: true
+      include_updates: false
+      include_related_events: false
+  
+    # Extract date
+  - name: Extract Date
+    id: extract_event_date
+    task: extract_column_as_type
+    partial:
+      df: ${{ workflow.get_events_data.return }}
+      column_name: created_at
+      output_type: date
+      output_column_name: date
+
+    # create summary table 
+  - name: Calculate Total Events
+    id: total_events_recorded
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - date
+      summary_params:
+        - display_name: no_of_events
+          aggregator: sum
+        #  column: 
+      reset_index: true
+      df: ${{ workflow.extract_event_date.return }}
+  
+  - name: Persist total events df 
+    id: persist_tevents_df
+    task: persist_df 
+    partial:
+      df: ${{ workflow.total_events_recorded.return }}
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename: total_events_recorded
+
+  - name: Draw total events line chart 
+    id: draw_events_chart 
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.total_events_recorded.return }}
+      x_column: date 
+      y_column: no_of_events
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: "Total events recorded"
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: false
+        fontsize: 12
+        fontcolor: "#222222"
+      xaxis:
+        title: "Date"
+        tickformat: "%Y-%m-%d"
+        tickangle: -45
+        rangemode: auto
+      yaxis:
+        title: "Count"
+        tickformat: ".1f"
+      hovermode: "x unified"
+  
+  - name: Persist Total events chart as Text
+    id: persist_total_events
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: text
+      argvalues: ${{ workflow.draw_events_chart.return }}
+
+  - name: Create Total Events Widget
+    id: tevents_chart_widget
+    task: create_plot_widget_single_view
+    partial:
+      title: "Total Events"
+    map:
+      argnames: [view, data]
+      argvalues: ${{ workflow.persist_total_events.return }}
+
+  - name: Merge total events Widget Views
+    id: grouped_tevents_widget
+    task: merge_widget_views
+    partial:
+      widgets: ${{ workflow.tevents_chart_widget.return }}
+
+  - name: Get Patrol observations
+    id: patrol_observations
+    task: get_patrol_observations
+    partial:
+      client: ${{ workflow.er_client_name.return }}
+      time_range: ${{ workflow.time_range.return }}
+      include_patrol_details: true
+      raise_on_empty: true
+
+  - name: Transform observations to relocations 
+    id: patrol_relocs
+    task: process_relocations
+    partial:
+      observations: ${{ workflow.patrol_observations.return }}
+      reloc_columns:
+        - extra__id
+        - extra__created_at
+        - extra__subject_id
+        - geometry
+        - groupby_col
+        - fixtime
+        - junk_status
+        - patrol_id
+        - patrol_title
+        - patrol_serial_number
+        - patrol_start_time
+        - patrol_end_time
+        - patrol_type
+        - patrol_status
+        - patrol_subject
+        - patrol_type__value
+      filter_point_coords:
+        - x: 180.000000
+          y: 90.000000
+        - x: 0.000000
+          y: 0.000000
+        - x: 1.000000
+          y: 1.000000
+
+  - name: Convert Relocations to Trajectories
+    id: convert_to_trajectories
+    task: relocations_to_trajectory
+    partial:
+      relocations: ${{ workflow.patrol_relocs.return }}
+
+  - name: Add Temporal Index to Trajectories
+    id: add_temporal_index_to_traj
+    task: add_temporal_index
+    partial:
+      df: ${{ workflow.convert_to_trajectories.return }}
+      time_col: segment_start
+      groupers: ${{ workflow.groupers.return }}
+      cast_to_datetime: true
+      format: mixed
+
+  - name: Map patrol types correctly
+    id: map_patrol_types
+    task: classify_mnc_patrol
+    partial:
+      df: ${{ workflow.add_temporal_index_to_traj.return }}
+      patrol_col: extra__patrol_type__value
+      new_col: patrol_cat_types
+
+  - name: Rename traj columns
+    id: rename_traj_cols
+    task: map_columns
+    partial:
+      drop_columns:
+        - heading
+        - extra__created_at
+        - extra__id 
+      retain_columns: []
+      rename_columns:
+        extra__patrol_start_time: patrol_start_time
+        extra__patrol_end_time: patrol_end_time
+        extra__patrol_id: patrol_id
+        extra__patrol_serial_number: patrol_serial_number
+        extra__patrol_status: patrol_status
+        extra__patrol_subject: patrol_subject_name
+        extra__patrol_title: patrol_title 
+        extra__patrol_type: patrol_type_id
+        extra__patrol_type__value: patrol_type_value 
+        extra__subject_id: subject_id
+
+      df: ${{ workflow.map_patrol_types.return }}
+  
+    # define patrol cat type groupers
+  - name: Set patrol type category groupers
+    id: patrol_groupers
+    task: set_groupers
+    partial:
+      groupers:
+        - patrol_cat_types
+
+  - name: Split trajectories by patrol type
+    id: split_traj_patrol_type
+    task: split_groups
+    partial:
+      df: ${{ workflow.rename_traj_cols.return }}
+      groupers: ${{ workflow.patrol_groupers.return }}
+
+  - name: Apply Colormap to patrol titles
+    id: apply_patrol_colormap
+    task: apply_color_map
+    partial:
+      input_column_name: patrol_type_value
+      output_column_name: patrol_colormap
+      colormap: coolwarm
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.split_traj_patrol_type.return }}
+
+  - name: Generate patrol layer
+    id: generate_patrol_layers
+    task: create_polyline_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        color_column: patrol_colormap
+      legend:
+        label_column: patrol_cat_types
+        color_column: patrol_colormap
+      tooltip_columns:
+        - patrol_subject_name
+        - patrol_start_time
+        - patrol_end_time
+        - patrol_title
+        - patrol_type_value
+        - segment_start
+        - dist_meters
+        - timespan_seconds
+
+    mapvalues:
+      argnames: geodataframe
+      argvalues: ${{ workflow.apply_patrol_colormap.return }}
+
+
+  - name: Zoom patrol trajs by view state
+    id: zoom_patrol_traj_view
+    task: create_view_state_from_gdf
+    partial:
+      pitch: 0
+      bearing: 0
+    mapvalues:
+      argnames: gdf
+      argvalues: ${{ workflow.apply_patrol_colormap.return }}
+
+  - name: Zip patrol layers and zoom values
+    id: zip_patrol_zoom_values
+    task: zip_grouped_by_key
+    partial:
+      left:  ${{ workflow.generate_patrol_layers.return }}
+      right: ${{ workflow.zoom_patrol_traj_view.return }} 
+
+  - name: Draw patrol ecomaps
+    id: draw_patrol_ecomap
+    task: draw_ecomap
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      north_arrow_style:
+        placement: top-left
+      legend_style:
+        placement: bottom-right
+        title: Patrol Types
+      static: false
+      title: null
+      max_zoom: 20
+    mapvalues:
+      argnames: 
+        - geo_layers
+        - view_state
+      argvalues: ${{ workflow.zip_patrol_zoom_values.return }}
+
+  - name: Persist patrol ecomap html paths
+    id: persist_patrol_ecomap_urls
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: text
+      argvalues: ${{ workflow.draw_patrol_ecomap.return }}
+
+  - name: Create Patrol Widgets
+    id: create_patrol_widgets
+    task: create_map_widget_single_view
+    skipif:
+      conditions: 
+        - never
+    partial:
+      title: Patrols
+    map:
+      argnames:
+        - view 
+        - data
+      argvalues: ${{ workflow.persist_patrol_ecomap_urls.return }}
+
+  - name: Merge Patrol Ecomap Widgets
+    id: merge_patrol_widgets
+    task: merge_widget_views
+    partial:
+      widgets: ${{ workflow.create_patrol_widgets.return }}
+
+
+
   - name: Create A Weather Dashboard
     id: weather_dashboard
     task: gather_dashboard
@@ -241,5 +560,8 @@ workflow:
       widgets:
         - ${{ workflow.grouped_precipitation_widget.return }}
         - ${{ workflow.grouped_temperature_widget.return }}
+        - ${{ workflow.grouped_tevents_widget.return }}
+        - ${{ workflow.merge_patrol_widgets.return }}
+
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}

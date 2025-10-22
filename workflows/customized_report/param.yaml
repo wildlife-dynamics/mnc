@@ -1,12 +1,74 @@
 workflow_details:
   name: "Example Workflow"
   description: "An example workflow for testing purposes."
+
+# Desired time range
 time_range:
-  since: "2015-01-01T00:00:00Z"
-  until: "2015-02-28T23:59:59Z"
+  since: "2025-08-01T00:00:00Z"
+  until: "2025-10-21T23:59:59Z"
+
+# Connect to EarthRanger
+er_client_name:
+  data_source:
+    name: "mnc"
+
 groupers:
   groupers: []
-calculator:
-  a: 1
-  b: 1
-  operation: "add"
+
+
+patrol_observations:
+  [
+    'mnc_motorbike_patrol_nkorbob',
+    'mnc_foot_patrol_naishi',
+    'mnc_motorbike_patrol_enkikwei',
+    'mnc_vehicle_patrol_nkorbob',
+    'mnc_vehicle_patrol_rekero',
+    'mnc_motorbike_patrol_naishi',
+    'mnc_vehicle_patrol_naishi',
+    'mnc_Vehicle_patrol_ndoto',
+    'mnc_foot_patrol_mara_east',
+    'mnc_motorbike_patrol_yiale',
+    'mnc_motorbike_patrol_ndoto',
+    'mnc_motorbike_patrol_hqteam',
+    'mnc_vehicle_patrol_aitong',
+    'mnc_foot_patrol_kicheche',
+    'mnc_vehicle_patrol_hqteam',
+    'mnc_motorbike_patrol_kicheche',
+    'mnc_vehicle_patrol_enkuyanai',
+    'mnc_foot_patrol_rekero',
+    'mnc_foot_patrol_hqteam',
+    'mnc_vehicle_patrol_kicheche',
+    'mnc_foot_patrol  cheli team',
+    'mnc_foot_patrol_aitong',
+    'mnc_foot_patrol_enkikwei team',
+    'mnc_vehicle_patrol_enkikwei team',
+    'mnc_foot_patrol_enkuyanai',
+    'mnc_vehicle_patrol_mara_east',
+    'mnc_motorbike_patrol_rekero',
+    'mnc_foot_patrol_ndoto',
+    'mnc_motorbike_patrol_aitong',
+    'mnc_foot_patrol_nkorbob',
+    'mnc_motorbike_patrol_Airstrip',
+    'Motorcycle Patrol',
+    'Foot Patrol',
+    'mnc_vehicle_patrol_cheli',
+    'mnc_foot_patrol_musiara team',
+    'mnc_motorbike_patrol_musiara team',
+    'mnc_motorbike_patrol_cheli',
+    'mnc_vehicle_patrol_musiara',
+    'mnc_foot_patrol_Karen',
+    'mnc_Vehicle_patrol_Karen',
+    'mnc_motorbike_patrol_Karen',
+    'mnc_motorbike_patrol_enkuyanai',
+    'mnc_motorbike_grazing_zone1',
+    'mnc_motorbike_grazing_zone4',
+    ]
+
+configure_base_maps:
+  base_maps:
+    - url: "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"
+      opacity: 0.7
+    - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+      opacity: 0.2
+      max_zoom: 15
+      min_zoom: null
