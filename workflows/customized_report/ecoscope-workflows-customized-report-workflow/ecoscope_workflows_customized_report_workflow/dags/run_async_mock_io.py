@@ -711,7 +711,7 @@ def main(params: Params):
                     "state",
                     "is_contained_in",
                     "sort_at",
-                    'icon_id"',
+                    "icon_id",
                     "serial_number",
                     "url",
                     "image_url",
