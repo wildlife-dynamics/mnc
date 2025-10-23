@@ -263,6 +263,22 @@ class DrawEventsChart(BaseModel):
     )
 
 
+class IncludePatTotals(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    label: Optional[str] = Field("Total", title="Label")
+
+
+class PersistPatrolDf(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filetype: Optional[Filetype] = Field(
+        "csv", description="The output format", title="Filetype"
+    )
+
+
 class StatusEnum(str, Enum):
     active = "active"
     overdue = "overdue"
@@ -288,22 +304,6 @@ class PatrolObservations(BaseModel):
         None,
         description="        Manually set the page size for underlying ER API requests.\n        If left as None, this will use the underlying client default value (4000)\n        ",
         title="Sub Page Size",
-    )
-
-
-class IncludePatTotals(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    label: Optional[str] = Field("Total", title="Label")
-
-
-class PersistPatrolDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
     )
 
 
@@ -499,6 +499,12 @@ class Params(BaseModel):
     draw_events_chart: Optional[DrawEventsChart] = Field(
         None, title="Draw total events line chart"
     )
+    include_pat_totals: Optional[IncludePatTotals] = Field(
+        None, title="Add totals row in patrol info summary table"
+    )
+    persist_patrol_df: Optional[PersistPatrolDf] = Field(
+        None, title="Persist patrol summary table"
+    )
     patrol_observations: Optional[PatrolObservations] = Field(
         None, title="Get Patrol observations"
     )
@@ -507,12 +513,6 @@ class Params(BaseModel):
     )
     apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
         None, title="Apply bin classification on grids"
-    )
-    include_pat_totals: Optional[IncludePatTotals] = Field(
-        None, title="Add totals row in patrol info summary table"
-    )
-    persist_patrol_df: Optional[PersistPatrolDf] = Field(
-        None, title="Persist patrol summary table"
     )
     persist_total_df: Optional[PersistTotalDf] = Field(
         None, title="Persist total patrol coverage"

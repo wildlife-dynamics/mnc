@@ -50,10 +50,13 @@ from ecoscope_workflows_core.tasks.results import (
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index,
     extract_column_as_type,
+    map_columns,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
 
 get_patrol_observations = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -85,10 +88,8 @@ from ecoscope_workflows_ext_ecoscope.tasks.results import (
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     apply_classification,
     apply_color_map,
-    normalize_column,
 )
 from ecoscope_workflows_ext_mnc.tasks import (
-    add_totals_row,
     classify_mnc_patrol,
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
@@ -390,6 +391,7 @@ def main(params: Params):
                 "serial_number",
                 "geometry",
                 "created_at",
+                "event_details",
             ],
             raise_on_empty=False,
             include_details=True,
@@ -519,6 +521,102 @@ def main(params: Params):
             **(params_dict.get("grouped_tevents_widget") or {}),
         )
         .call()
+    )
+
+    filter_patrol_info_events = (
+        filter_by_value.validate()
+        .handle_errors(task_instance_id="filter_patrol_info_events")
+        .partial(
+            column_name="event_type",
+            value="patrol_information",
+            **(params_dict.get("filter_patrol_info_events") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_event_groups)
+    )
+
+    normalize_pi_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_pi_values")
+        .partial(
+            column="event_details", **(params_dict.get("normalize_pi_values") or {})
+        )
+        .mapvalues(argnames=["df"], argvalues=filter_patrol_info_events)
+    )
+
+    rename_patrolinf_cols = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_patrolinf_cols")
+        .partial(
+            drop_columns=[
+                "event_type",
+                "event_category",
+                "priority",
+                "priority_label",
+                "attributes",
+                "comment",
+                "title",
+                "reported_by",
+                "state",
+                "is_contained_in",
+                "sort_at",
+                'icon_id"',
+                "serial_number",
+                "url",
+                "image_url",
+                "is_collection",
+                "event_details__updates",
+                "message",
+                "end_time",
+                "provenance",
+                "updated_at",
+                "created_at",
+                "geojson",
+            ],
+            retain_columns=[],
+            rename_columns={
+                "event_details__participants": "participants",
+                "event_details__patrol_purpose": "purpose",
+                "event_details__person_who_authorized": "authorized_by",
+            },
+            df=normalize_pi_values,
+            **(params_dict.get("rename_patrolinf_cols") or {}),
+        )
+        .call()
+    )
+
+    patrol_info_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="patrol_info_summary")
+        .partial(
+            groupby_cols=["purpose"],
+            summary_params=[
+                {
+                    "display_name": "Number of Patrols",
+                    "aggregator": "count",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            **(params_dict.get("patrol_info_summary") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=rename_patrolinf_cols)
+    )
+
+    include_pat_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_pat_totals")
+        .partial(label_col=["purpose"], **(params_dict.get("include_pat_totals") or {}))
+        .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
+    )
+
+    persist_patrol_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_patrol_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_patrol_df") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=include_pat_totals)
     )
 
     patrol_observations = (
@@ -1032,102 +1130,6 @@ def main(params: Params):
             **(params_dict.get("apply_grid_colormap") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=apply_classification_grid)
-    )
-
-    filter_patrol_info_events = (
-        filter_by_value.validate()
-        .handle_errors(task_instance_id="filter_patrol_info_events")
-        .partial(
-            column_name="event_type",
-            value="patrol_information",
-            **(params_dict.get("filter_patrol_info_events") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=split_event_groups)
-    )
-
-    normalize_pi_values = (
-        normalize_column.validate()
-        .handle_errors(task_instance_id="normalize_pi_values")
-        .partial(
-            column="event_details", **(params_dict.get("normalize_pi_values") or {})
-        )
-        .mapvalues(argnames=["df"], argvalues=filter_patrol_info_events)
-    )
-
-    rename_patrolinf_cols = (
-        map_columns.validate()
-        .handle_errors(task_instance_id="rename_patrolinf_cols")
-        .partial(
-            drop_columns=[
-                "event_type",
-                "event_category",
-                "priority",
-                "priority_label",
-                "attributes",
-                "comment",
-                "title",
-                "reported_by",
-                "state",
-                "is_contained_in",
-                "sort_at",
-                'icon_id"',
-                "serial_number",
-                "url",
-                "image_url",
-                "is_collection",
-                "event_details__updates",
-                "message",
-                "end_time",
-                "provenance",
-                "updated_at",
-                "created_at",
-                "geojson",
-            ],
-            retain_columns=[],
-            rename_columns={
-                "event_details__participants": "participants",
-                "event_details__patrol_purpose": "purpose",
-                "event_details__person_who_authorized": "authorized_by",
-            },
-            df=normalize_pi_values,
-            **(params_dict.get("rename_patrolinf_cols") or {}),
-        )
-        .call()
-    )
-
-    patrol_info_summary = (
-        summarize_df.validate()
-        .handle_errors(task_instance_id="patrol_info_summary")
-        .partial(
-            groupby_cols=["purpose"],
-            summary_params=[
-                {
-                    "display_name": "Number of Patrols",
-                    "aggregator": "count",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            **(params_dict.get("patrol_info_summary") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=rename_patrolinf_cols)
-    )
-
-    include_pat_totals = (
-        add_totals_row.validate()
-        .handle_errors(task_instance_id="include_pat_totals")
-        .partial(label_col=["purpose"], **(params_dict.get("include_pat_totals") or {}))
-        .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
-    )
-
-    persist_patrol_df = (
-        persist_df.validate()
-        .handle_errors(task_instance_id="persist_patrol_df")
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            **(params_dict.get("persist_patrol_df") or {}),
-        )
-        .mapvalues(argnames=["df"], argvalues=include_pat_totals)
     )
 
     ranger_patrol_metrics = (

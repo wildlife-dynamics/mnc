@@ -93,6 +93,12 @@ def main(params: Params):
         "persist_total_events": ["draw_events_chart"],
         "tevents_chart_widget": ["persist_total_events"],
         "grouped_tevents_widget": ["tevents_chart_widget"],
+        "filter_patrol_info_events": ["split_event_groups"],
+        "normalize_pi_values": ["filter_patrol_info_events"],
+        "rename_patrolinf_cols": ["normalize_pi_values"],
+        "patrol_info_summary": ["rename_patrolinf_cols"],
+        "include_pat_totals": ["patrol_info_summary"],
+        "persist_patrol_df": ["include_pat_totals"],
         "patrol_observations": ["er_client_name", "time_range"],
         "patrol_relocs": ["patrol_observations"],
         "convert_to_trajectories": ["patrol_relocs"],
@@ -130,12 +136,6 @@ def main(params: Params):
         "patrol_grid_visits": ["split_trajectories_by_group"],
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
-        "filter_patrol_info_events": ["split_event_groups"],
-        "normalize_pi_values": ["filter_patrol_info_events"],
-        "rename_patrolinf_cols": ["normalize_pi_values"],
-        "patrol_info_summary": ["rename_patrolinf_cols"],
-        "include_pat_totals": ["patrol_info_summary"],
-        "persist_patrol_df": ["include_pat_totals"],
         "ranger_patrol_metrics": ["split_trajectories_by_group"],
         "persist_total_df": ["ranger_patrol_metrics"],
         "weather_dashboard": [
@@ -468,6 +468,7 @@ def main(params: Params):
                     "serial_number",
                     "geometry",
                     "created_at",
+                    "event_details",
                 ],
                 "raise_on_empty": False,
                 "include_details": True,
@@ -618,6 +619,126 @@ def main(params: Params):
             }
             | (params_dict.get("grouped_tevents_widget") or {}),
             method="call",
+        ),
+        "filter_patrol_info_events": Node(
+            async_task=filter_by_value.validate()
+            .handle_errors(task_instance_id="filter_patrol_info_events")
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "value": "patrol_information",
+            }
+            | (params_dict.get("filter_patrol_info_events") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("split_event_groups"),
+            },
+        ),
+        "normalize_pi_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_pi_values")
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+            }
+            | (params_dict.get("normalize_pi_values") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("filter_patrol_info_events"),
+            },
+        ),
+        "rename_patrolinf_cols": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_patrolinf_cols")
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [
+                    "event_type",
+                    "event_category",
+                    "priority",
+                    "priority_label",
+                    "attributes",
+                    "comment",
+                    "title",
+                    "reported_by",
+                    "state",
+                    "is_contained_in",
+                    "sort_at",
+                    'icon_id"',
+                    "serial_number",
+                    "url",
+                    "image_url",
+                    "is_collection",
+                    "event_details__updates",
+                    "message",
+                    "end_time",
+                    "provenance",
+                    "updated_at",
+                    "created_at",
+                    "geojson",
+                ],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__participants": "participants",
+                    "event_details__patrol_purpose": "purpose",
+                    "event_details__person_who_authorized": "authorized_by",
+                },
+                "df": DependsOn("normalize_pi_values"),
+            }
+            | (params_dict.get("rename_patrolinf_cols") or {}),
+            method="call",
+        ),
+        "patrol_info_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="patrol_info_summary")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["purpose"],
+                "summary_params": [
+                    {
+                        "display_name": "Number of Patrols",
+                        "aggregator": "count",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("patrol_info_summary") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("rename_patrolinf_cols"),
+            },
+        ),
+        "include_pat_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_pat_totals")
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["purpose"],
+            }
+            | (params_dict.get("include_pat_totals") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("patrol_info_summary"),
+            },
+        ),
+        "persist_patrol_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_patrol_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_patrol_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("include_pat_totals"),
+            },
         ),
         "patrol_observations": Node(
             async_task=get_patrol_observations.validate()
@@ -1244,126 +1365,6 @@ def main(params: Params):
             kwargs={
                 "argnames": ["df"],
                 "argvalues": DependsOn("apply_classification_grid"),
-            },
-        ),
-        "filter_patrol_info_events": Node(
-            async_task=filter_by_value.validate()
-            .handle_errors(task_instance_id="filter_patrol_info_events")
-            .set_executor("lithops"),
-            partial={
-                "column_name": "event_type",
-                "value": "patrol_information",
-            }
-            | (params_dict.get("filter_patrol_info_events") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("split_event_groups"),
-            },
-        ),
-        "normalize_pi_values": Node(
-            async_task=normalize_column.validate()
-            .handle_errors(task_instance_id="normalize_pi_values")
-            .set_executor("lithops"),
-            partial={
-                "column": "event_details",
-            }
-            | (params_dict.get("normalize_pi_values") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("filter_patrol_info_events"),
-            },
-        ),
-        "rename_patrolinf_cols": Node(
-            async_task=map_columns.validate()
-            .handle_errors(task_instance_id="rename_patrolinf_cols")
-            .set_executor("lithops"),
-            partial={
-                "drop_columns": [
-                    "event_type",
-                    "event_category",
-                    "priority",
-                    "priority_label",
-                    "attributes",
-                    "comment",
-                    "title",
-                    "reported_by",
-                    "state",
-                    "is_contained_in",
-                    "sort_at",
-                    'icon_id"',
-                    "serial_number",
-                    "url",
-                    "image_url",
-                    "is_collection",
-                    "event_details__updates",
-                    "message",
-                    "end_time",
-                    "provenance",
-                    "updated_at",
-                    "created_at",
-                    "geojson",
-                ],
-                "retain_columns": [],
-                "rename_columns": {
-                    "event_details__participants": "participants",
-                    "event_details__patrol_purpose": "purpose",
-                    "event_details__person_who_authorized": "authorized_by",
-                },
-                "df": DependsOn("normalize_pi_values"),
-            }
-            | (params_dict.get("rename_patrolinf_cols") or {}),
-            method="call",
-        ),
-        "patrol_info_summary": Node(
-            async_task=summarize_df.validate()
-            .handle_errors(task_instance_id="patrol_info_summary")
-            .set_executor("lithops"),
-            partial={
-                "groupby_cols": ["purpose"],
-                "summary_params": [
-                    {
-                        "display_name": "Number of Patrols",
-                        "aggregator": "count",
-                        "column": "id",
-                    }
-                ],
-                "reset_index": True,
-            }
-            | (params_dict.get("patrol_info_summary") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("rename_patrolinf_cols"),
-            },
-        ),
-        "include_pat_totals": Node(
-            async_task=add_totals_row.validate()
-            .handle_errors(task_instance_id="include_pat_totals")
-            .set_executor("lithops"),
-            partial={
-                "label_col": ["purpose"],
-            }
-            | (params_dict.get("include_pat_totals") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("patrol_info_summary"),
-            },
-        ),
-        "persist_patrol_df": Node(
-            async_task=persist_df.validate()
-            .handle_errors(task_instance_id="persist_patrol_df")
-            .set_executor("lithops"),
-            partial={
-                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            }
-            | (params_dict.get("persist_patrol_df") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("include_pat_totals"),
             },
         ),
         "ranger_patrol_metrics": Node(

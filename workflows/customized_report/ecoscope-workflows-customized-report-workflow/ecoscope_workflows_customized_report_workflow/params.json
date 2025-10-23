@@ -407,6 +407,38 @@
       "type": "object",
       "title": "Draw total events line chart"
     },
+    "include_pat_totals": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "default": "Total",
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Add totals row in patrol info summary table"
+    },
+    "persist_patrol_df": {
+      "additionalProperties": false,
+      "properties": {
+        "filetype": {
+          "default": "csv",
+          "enum": [
+            "csv",
+            "gpkg",
+            "geoparquet"
+          ],
+          "title": "Filetype",
+          "type": "string",
+          "description": "The output format"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Persist patrol summary table"
+    },
     "patrol_observations": {
       "additionalProperties": false,
       "properties": {
@@ -523,38 +555,6 @@
       "required": [],
       "type": "object",
       "title": "Apply bin classification on grids"
-    },
-    "include_pat_totals": {
-      "additionalProperties": false,
-      "properties": {
-        "label": {
-          "default": "Total",
-          "title": "Label",
-          "type": "string"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Add totals row in patrol info summary table"
-    },
-    "persist_patrol_df": {
-      "additionalProperties": false,
-      "properties": {
-        "filetype": {
-          "default": "csv",
-          "enum": [
-            "csv",
-            "gpkg",
-            "geoparquet"
-          ],
-          "title": "Filetype",
-          "type": "string",
-          "description": "The output format"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Persist patrol summary table"
     },
     "persist_total_df": {
       "additionalProperties": false,
@@ -908,11 +908,11 @@
       "events_wtemporal",
       "persist_tevents_df",
       "draw_events_chart",
+      "include_pat_totals",
+      "persist_patrol_df",
       "patrol_observations",
       "convert_to_trajectories",
       "apply_classification_grid",
-      "include_pat_totals",
-      "persist_patrol_df",
       "persist_total_df"
     ]
   },
