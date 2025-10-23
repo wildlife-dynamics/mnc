@@ -451,8 +451,7 @@ workflow:
       argvalues: ${{ workflow.include_pat_totals.return }}
 
 
-
-
+# --- Patrol Observations --- 
   - name: Get Patrol observations
     id: patrol_observations
     task: get_patrol_observations
@@ -546,7 +545,6 @@ workflow:
     partial:
       df: ${{ workflow.rename_traj_cols.return }}
       groupers: ${{ workflow.groupers.return }}
-
 
   - name: Filter foot patrol data 
     id: filter_foot_patrols
@@ -1020,25 +1018,26 @@ workflow:
     task: summarize_df
     partial:
       groupby_cols:
-        -  patrol_subject_name
+        - patrol_subject_name
       summary_params:
         - display_name: Number of Patrols
           aggregator: nunique
           column: patrol_id
         - display_name: Distance (km)
-          aggregator: sum 
+          aggregator: sum
           column: dist_meters
-          original_unit: METER
-          new_unit: KILOMETER
+          original_unit: m
+          new_unit: km
         - display_name: Duration (hrs)
-          aggregator: sum 
+          aggregator: sum
           column: timespan_seconds
-          original_unit: SECOND 
-          new_unit: HOUR 
+          original_unit: s
+          new_unit: h
       reset_index: true
-    mapvalues: 
-      argnames: df 
+    mapvalues:
+      argnames: df
       argvalues: ${{ workflow.split_trajectories_by_group.return }}
+
 
   - name: Persist total patrol coverage 
     id: persist_total_df
