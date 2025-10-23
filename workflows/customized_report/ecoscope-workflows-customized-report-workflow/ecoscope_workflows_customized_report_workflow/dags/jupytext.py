@@ -61,6 +61,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
+    view_df,
     zip_grouped_by_key,
 )
 
@@ -916,6 +917,25 @@ normalize_pi_values = (
     normalize_column.handle_errors(task_instance_id="normalize_pi_values")
     .partial(column="event_details", **normalize_pi_values_params)
     .mapvalues(argnames=["df"], argvalues=filter_patrol_info_events)
+)
+
+
+# %% [markdown]
+# ## view normalized patrol information events
+
+# %%
+# parameters
+
+view_norm_df_params = dict()
+
+# %%
+# call the task
+
+
+view_norm_df = (
+    view_df.handle_errors(task_instance_id="view_norm_df")
+    .partial(name="Patrol information events", **view_norm_df_params)
+    .mapvalues(argnames=["gdf"], argvalues=normalize_pi_values)
 )
 
 

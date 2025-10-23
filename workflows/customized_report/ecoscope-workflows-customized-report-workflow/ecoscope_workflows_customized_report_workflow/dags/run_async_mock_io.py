@@ -57,7 +57,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value, view_df
 
 get_patrol_observations = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -140,6 +140,7 @@ def main(params: Params):
         "grouped_tevents_widget": ["tevents_chart_widget"],
         "filter_patrol_info_events": ["split_event_groups"],
         "normalize_pi_values": ["filter_patrol_info_events"],
+        "view_norm_df": ["normalize_pi_values"],
         "rename_patrolinf_cols": ["normalize_pi_values"],
         "patrol_info_summary": ["rename_patrolinf_cols"],
         "include_pat_totals": ["patrol_info_summary"],
@@ -692,6 +693,20 @@ def main(params: Params):
             kwargs={
                 "argnames": ["df"],
                 "argvalues": DependsOn("filter_patrol_info_events"),
+            },
+        ),
+        "view_norm_df": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_norm_df")
+            .set_executor("lithops"),
+            partial={
+                "name": "Patrol information events",
+            }
+            | (params_dict.get("view_norm_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["gdf"],
+                "argvalues": DependsOn("normalize_pi_values"),
             },
         ),
         "rename_patrolinf_cols": Node(
