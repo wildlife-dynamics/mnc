@@ -24,6 +24,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     extract_value_from_json_column,
     map_columns,
 )
+from ecoscope_workflows_ext_custom.tasks import html_to_png
 from ecoscope_workflows_ext_custom.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
@@ -147,6 +148,13 @@ def main(params: Params):
         "persist_grid_ecomap_urls": ["draw_grid_ecomap"],
         "create_grid_widgets": ["persist_grid_ecomap_urls"],
         "merge_grid_widgets": ["create_grid_widgets"],
+        "convert_footp_html_to_png": ["persist_footp_ecomap_urls"],
+        "convert_vhp_html_to_png": ["persist_vhp_ecomap_urls"],
+        "convert_mbp_html_to_png": ["persist_mocp_ecomap_urls"],
+        "convert_temp_html_to_png": ["persist_temperature"],
+        "convert_prec_html_to_png": ["persist_precipitation"],
+        "convert_tev_html_to_png": ["persist_total_events"],
+        "convert_patgr_html_to_png": ["persist_grid_ecomap_urls"],
         "weather_dashboard": [
             "workflow_details",
             "grouped_precipitation_widget",
@@ -155,6 +163,7 @@ def main(params: Params):
             "merge_footp_widgets",
             "merge_vhp_widgets",
             "merge_mocp_widgets",
+            "merge_grid_widgets",
             "time_range",
             "groupers",
         ],
@@ -1402,6 +1411,7 @@ def main(params: Params):
                     "label_column": "density_bins",
                     "color_column": "density_colors",
                 },
+                "tooltip_columns": ["density_bins", "density_colors"],
             }
             | (params_dict.get("generate_grid_layers") or {}),
             method="mapvalues",
@@ -1510,6 +1520,111 @@ def main(params: Params):
             | (params_dict.get("merge_grid_widgets") or {}),
             method="call",
         ),
+        "convert_footp_html_to_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_footp_html_to_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_footp_html_to_png") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["html_path"],
+                "argvalues": DependsOn("persist_footp_ecomap_urls"),
+            },
+        ),
+        "convert_vhp_html_to_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_vhp_html_to_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_vhp_html_to_png") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["html_path"],
+                "argvalues": DependsOn("persist_vhp_ecomap_urls"),
+            },
+        ),
+        "convert_mbp_html_to_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_mbp_html_to_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_mbp_html_to_png") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["html_path"],
+                "argvalues": DependsOn("persist_mocp_ecomap_urls"),
+            },
+        ),
+        "convert_temp_html_to_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_temp_html_to_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 200},
+            }
+            | (params_dict.get("convert_temp_html_to_png") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["html_path"],
+                "argvalues": DependsOn("persist_temperature"),
+            },
+        ),
+        "convert_prec_html_to_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_prec_html_to_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 200},
+            }
+            | (params_dict.get("convert_prec_html_to_png") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["html_path"],
+                "argvalues": DependsOn("persist_precipitation"),
+            },
+        ),
+        "convert_tev_html_to_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_tev_html_to_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 200},
+            }
+            | (params_dict.get("convert_tev_html_to_png") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["html_path"],
+                "argvalues": DependsOn("persist_total_events"),
+            },
+        ),
+        "convert_patgr_html_to_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_patgr_html_to_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_patgr_html_to_png") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["html_path"],
+                "argvalues": DependsOn("persist_grid_ecomap_urls"),
+            },
+        ),
         "weather_dashboard": Node(
             async_task=gather_dashboard.validate()
             .handle_errors(task_instance_id="weather_dashboard")
@@ -1524,6 +1639,7 @@ def main(params: Params):
                         DependsOn("merge_footp_widgets"),
                         DependsOn("merge_vhp_widgets"),
                         DependsOn("merge_mocp_widgets"),
+                        DependsOn("merge_grid_widgets"),
                     ],
                 ),
                 "time_range": DependsOn("time_range"),

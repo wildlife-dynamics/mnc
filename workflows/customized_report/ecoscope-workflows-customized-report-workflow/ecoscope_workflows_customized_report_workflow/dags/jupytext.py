@@ -33,6 +33,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     extract_value_from_json_column,
     map_columns,
 )
+from ecoscope_workflows_ext_custom.tasks import html_to_png
 from ecoscope_workflows_ext_custom.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
@@ -2034,6 +2035,7 @@ generate_grid_layers = (
     .partial(
         layer_style={"fill_color_column": "density_colors", "opacity": 0.55},
         legend={"label_column": "density_bins", "color_column": "density_colors"},
+        tooltip_columns=["density_bins", "density_colors"],
         **generate_grid_layers_params,
     )
     .mapvalues(argnames=["geodataframe"], argvalues=apply_grid_colormap)
@@ -2198,6 +2200,167 @@ merge_grid_widgets = (
 
 
 # %% [markdown]
+# ## Convert foot patrol html to png
+
+# %%
+# parameters
+
+convert_footp_html_to_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_footp_html_to_png = (
+    html_to_png.handle_errors(task_instance_id="convert_footp_html_to_png")
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 20000},
+        **convert_footp_html_to_png_params,
+    )
+    .mapvalues(argnames=["html_path"], argvalues=persist_footp_ecomap_urls)
+)
+
+
+# %% [markdown]
+# ## Convert vehicle patrol html to png
+
+# %%
+# parameters
+
+convert_vhp_html_to_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_vhp_html_to_png = (
+    html_to_png.handle_errors(task_instance_id="convert_vhp_html_to_png")
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 20000},
+        **convert_vhp_html_to_png_params,
+    )
+    .mapvalues(argnames=["html_path"], argvalues=persist_vhp_ecomap_urls)
+)
+
+
+# %% [markdown]
+# ## Convert motorbike patrol html to png
+
+# %%
+# parameters
+
+convert_mbp_html_to_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_mbp_html_to_png = (
+    html_to_png.handle_errors(task_instance_id="convert_mbp_html_to_png")
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 20000},
+        **convert_mbp_html_to_png_params,
+    )
+    .mapvalues(argnames=["html_path"], argvalues=persist_mocp_ecomap_urls)
+)
+
+
+# %% [markdown]
+# ## Convert temperature html to png
+
+# %%
+# parameters
+
+convert_temp_html_to_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_temp_html_to_png = (
+    html_to_png.handle_errors(task_instance_id="convert_temp_html_to_png")
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 200},
+        **convert_temp_html_to_png_params,
+    )
+    .mapvalues(argnames=["html_path"], argvalues=persist_temperature)
+)
+
+
+# %% [markdown]
+# ## Convert precipitation html to png
+
+# %%
+# parameters
+
+convert_prec_html_to_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_prec_html_to_png = (
+    html_to_png.handle_errors(task_instance_id="convert_prec_html_to_png")
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 200},
+        **convert_prec_html_to_png_params,
+    )
+    .mapvalues(argnames=["html_path"], argvalues=persist_precipitation)
+)
+
+
+# %% [markdown]
+# ## Convert total events html to png
+
+# %%
+# parameters
+
+convert_tev_html_to_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_tev_html_to_png = (
+    html_to_png.handle_errors(task_instance_id="convert_tev_html_to_png")
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 200},
+        **convert_tev_html_to_png_params,
+    )
+    .mapvalues(argnames=["html_path"], argvalues=persist_total_events)
+)
+
+
+# %% [markdown]
+# ## Convert patrol coverage html to png
+
+# %%
+# parameters
+
+convert_patgr_html_to_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_patgr_html_to_png = (
+    html_to_png.handle_errors(task_instance_id="convert_patgr_html_to_png")
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 20000},
+        **convert_patgr_html_to_png_params,
+    )
+    .mapvalues(argnames=["html_path"], argvalues=persist_grid_ecomap_urls)
+)
+
+
+# %% [markdown]
 # ## Create A Weather Dashboard
 
 # %%
@@ -2220,6 +2383,7 @@ weather_dashboard = (
             merge_footp_widgets,
             merge_vhp_widgets,
             merge_mocp_widgets,
+            merge_grid_widgets,
         ],
         time_range=time_range,
         groupers=groupers,

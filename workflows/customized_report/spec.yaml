@@ -5,7 +5,7 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.5.*"
+    version: "0.0.3.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
@@ -962,7 +962,11 @@ workflow:
         opacity: 0.55
       legend:
         label_column: density_bins
-        color_column: density_colors      
+        color_column: density_colors
+      tooltip_columns:
+        - density_bins
+        - density_colors
+
     mapvalues:
       argnames: geodataframe
       argvalues: ${{ workflow.apply_grid_colormap.return }}
@@ -1041,6 +1045,88 @@ workflow:
       widgets: ${{ workflow.create_grid_widgets.return }}
 
 
+  - name: Convert foot patrol html to png 
+    id: convert_footp_html_to_png
+    task: html_to_png
+    partial:
+      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      config:
+        wait_for_timeout: 20000
+    mapvalues:
+      argnames: html_path
+      argvalues: ${{ workflow.persist_footp_ecomap_urls.return }}
+  
+  - name: Convert vehicle patrol html to png 
+    id: convert_vhp_html_to_png
+    task: html_to_png
+    partial:
+      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      config:
+        wait_for_timeout: 20000
+    mapvalues:
+      argnames: html_path
+      argvalues: ${{ workflow.persist_vhp_ecomap_urls.return }}
+
+
+  - name: Convert motorbike patrol html to png 
+    id: convert_mbp_html_to_png
+    task: html_to_png
+    partial:
+      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      config:
+        wait_for_timeout: 20000
+    mapvalues:
+      argnames: html_path
+      argvalues: ${{ workflow.persist_mocp_ecomap_urls.return }}
+
+
+  - name: Convert temperature html to png 
+    id: convert_temp_html_to_png
+    task: html_to_png
+    partial:
+      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      config:
+        wait_for_timeout: 200
+    mapvalues:
+      argnames: html_path
+      argvalues: ${{ workflow.persist_temperature.return }}
+
+
+  - name: Convert precipitation html to png 
+    id: convert_prec_html_to_png
+    task: html_to_png
+    partial:
+      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      config:
+        wait_for_timeout: 200
+    mapvalues:
+      argnames: html_path
+      argvalues: ${{ workflow.persist_precipitation.return }}
+
+  - name: Convert total events html to png 
+    id: convert_tev_html_to_png
+    task: html_to_png
+    partial:
+      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      config:
+        wait_for_timeout: 200
+    mapvalues:
+      argnames: html_path
+      argvalues: ${{ workflow.persist_total_events.return }}
+
+
+  - name: Convert patrol coverage html to png 
+    id: convert_patgr_html_to_png
+    task: html_to_png
+    partial:
+      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      config:
+        wait_for_timeout: 20000
+    mapvalues:
+      argnames: html_path
+      argvalues: ${{ workflow.persist_grid_ecomap_urls.return }}
+
+
 
   - name: Create A Weather Dashboard
     id: weather_dashboard
@@ -1054,7 +1140,7 @@ workflow:
         - ${{ workflow.merge_footp_widgets.return }}
         - ${{ workflow.merge_vhp_widgets.return }}
         - ${{ workflow.merge_mocp_widgets.return }}
-        #- ${{ workflow.merge_grid_widgets.return }}
+        - ${{ workflow.merge_grid_widgets.return }}
       
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}

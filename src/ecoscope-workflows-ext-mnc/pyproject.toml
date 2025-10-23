@@ -67,7 +67,7 @@ docxtpl="*"
 playwright="*"
 ecoscope-workflows-core = ">=0.14.0"
 ecoscope-workflows-ext-ecoscope=">=0.14.0"
-ecoscope-workflows-ext-custom = "0.0.5.*"
+ecoscope-workflows-ext-custom = "0.0.3.*"
 
 
 # additional dependencies added by this extension

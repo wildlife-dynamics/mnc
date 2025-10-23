@@ -69,5 +69,5 @@ def create_patrol_coverage_grid(trajs:AnyGeoDataFrame, grid_cell_size=1000)->Any
     
     full_grid_summary = full_grid_summary[full_grid_summary["unique_patrol_count"] > 0]
     full_grid_summary = full_grid_summary.sort_values(by="unique_patrol_count", ascending=False)
-    print(f"full grid summary columns: {full_grid_summary}")
+    print(f"full grid summary columns: {full_grid_summary.columns}")
     return full_grid_summary

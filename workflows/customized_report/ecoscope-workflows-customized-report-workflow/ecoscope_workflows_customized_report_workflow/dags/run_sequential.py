@@ -23,6 +23,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     extract_value_from_json_column,
     map_columns,
 )
+from ecoscope_workflows_ext_custom.tasks import html_to_png
 from ecoscope_workflows_ext_custom.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
@@ -1106,6 +1107,7 @@ def main(params: Params):
         .partial(
             layer_style={"fill_color_column": "density_colors", "opacity": 0.55},
             legend={"label_column": "density_bins", "color_column": "density_colors"},
+            tooltip_columns=["density_bins", "density_colors"],
             **(params_dict.get("generate_grid_layers") or {}),
         )
         .mapvalues(argnames=["geodataframe"], argvalues=apply_grid_colormap)
@@ -1187,6 +1189,83 @@ def main(params: Params):
         .call()
     )
 
+    convert_footp_html_to_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_footp_html_to_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_footp_html_to_png") or {}),
+        )
+        .mapvalues(argnames=["html_path"], argvalues=persist_footp_ecomap_urls)
+    )
+
+    convert_vhp_html_to_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_vhp_html_to_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_vhp_html_to_png") or {}),
+        )
+        .mapvalues(argnames=["html_path"], argvalues=persist_vhp_ecomap_urls)
+    )
+
+    convert_mbp_html_to_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_mbp_html_to_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_mbp_html_to_png") or {}),
+        )
+        .mapvalues(argnames=["html_path"], argvalues=persist_mocp_ecomap_urls)
+    )
+
+    convert_temp_html_to_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_temp_html_to_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 200},
+            **(params_dict.get("convert_temp_html_to_png") or {}),
+        )
+        .mapvalues(argnames=["html_path"], argvalues=persist_temperature)
+    )
+
+    convert_prec_html_to_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_prec_html_to_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 200},
+            **(params_dict.get("convert_prec_html_to_png") or {}),
+        )
+        .mapvalues(argnames=["html_path"], argvalues=persist_precipitation)
+    )
+
+    convert_tev_html_to_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_tev_html_to_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 200},
+            **(params_dict.get("convert_tev_html_to_png") or {}),
+        )
+        .mapvalues(argnames=["html_path"], argvalues=persist_total_events)
+    )
+
+    convert_patgr_html_to_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_patgr_html_to_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_patgr_html_to_png") or {}),
+        )
+        .mapvalues(argnames=["html_path"], argvalues=persist_grid_ecomap_urls)
+    )
+
     weather_dashboard = (
         gather_dashboard.validate()
         .handle_errors(task_instance_id="weather_dashboard")
@@ -1199,6 +1278,7 @@ def main(params: Params):
                 merge_footp_widgets,
                 merge_vhp_widgets,
                 merge_mocp_widgets,
+                merge_grid_widgets,
             ],
             time_range=time_range,
             groupers=groupers,
