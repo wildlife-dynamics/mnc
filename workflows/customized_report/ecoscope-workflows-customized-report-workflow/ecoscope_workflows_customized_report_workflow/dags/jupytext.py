@@ -33,6 +33,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     extract_value_from_json_column,
     map_columns,
 )
+from ecoscope_workflows_ext_custom.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
     get_events,
@@ -45,7 +46,6 @@ from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
-    create_polygon_layer,
     create_polyline_layer,
     draw_ecomap,
     draw_line_chart,
@@ -98,6 +98,7 @@ workflow_details = (
 time_range_params = dict(
     since=...,
     until=...,
+    timezone=...,
 )
 
 # %%
@@ -1852,9 +1853,7 @@ apply_grid_colormap = (
 # %%
 # parameters
 
-generate_grid_layers_params = dict(
-    zoom=...,
-)
+generate_grid_layers_params = dict()
 
 # %%
 # call the task

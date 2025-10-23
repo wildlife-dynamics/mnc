@@ -1,11 +1,11 @@
 id: customized_report
 requirements:
   - name: ecoscope-workflows-core
-    version: "*"
+    version: "0.14.0"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.5.*"
+    version: "0.14.0"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc

@@ -73,6 +73,7 @@ from ecoscope_workflows_core.tasks.skip import (
     never,
 )
 from ecoscope_workflows_core.tasks.transformation import add_temporal_index, map_columns
+from ecoscope_workflows_ext_custom.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
@@ -80,7 +81,6 @@ from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     relocations_to_trajectory,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
-    create_polygon_layer,
     create_polyline_layer,
     draw_ecomap,
 )
