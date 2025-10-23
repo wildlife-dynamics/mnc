@@ -994,7 +994,7 @@ def main(params: Params):
         filter_by_value.validate()
         .handle_errors(task_instance_id="filter_patrol_info_events")
         .partial(
-            column_name="value",
+            column_name="event_type",
             value="patrol_information",
             **(params_dict.get("filter_patrol_info_events") or {}),
         )

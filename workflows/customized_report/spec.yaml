@@ -932,7 +932,7 @@ workflow:
     id: filter_patrol_info_events
     task: filter_by_value
     partial:
-      column_name: value
+      column_name: event_type	
       value: patrol_information
     mapvalues: 
       argnames: df
@@ -1017,7 +1017,7 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.include_pat_totals.return }}
 
-  - name: Summarize  ranger patrol metrics
+  - name: Summarize ranger patrol metrics
     id: ranger_patrol_metrics
     task: summarize_df
     partial:
@@ -1050,6 +1050,7 @@ workflow:
     mapvalues:
       argnames: df 
       argvalues: ${{ workflow.ranger_patrol_metrics.return }}
+      
   - name: Create A Weather Dashboard
     id: weather_dashboard
     task: gather_dashboard

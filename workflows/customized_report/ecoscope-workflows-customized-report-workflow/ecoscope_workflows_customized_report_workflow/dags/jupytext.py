@@ -1841,7 +1841,7 @@ filter_patrol_info_events_params = dict()
 filter_patrol_info_events = (
     filter_by_value.handle_errors(task_instance_id="filter_patrol_info_events")
     .partial(
-        column_name="value",
+        column_name="event_type",
         value="patrol_information",
         **filter_patrol_info_events_params,
     )
@@ -1993,7 +1993,7 @@ persist_patrol_df = (
 
 
 # %% [markdown]
-# ## Summarize  ranger patrol metrics
+# ## Summarize ranger patrol metrics
 
 # %%
 # parameters
