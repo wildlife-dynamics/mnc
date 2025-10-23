@@ -969,13 +969,6 @@ def main(params: Params):
         .mapvalues(argnames=["trajs"], argvalues=split_trajectories_by_group)
     )
 
-    view_grid_df = (
-        view_df.validate()
-        .handle_errors(task_instance_id="view_grid_df")
-        .partial(name="Patrol Grid gdf", **(params_dict.get("view_grid_df") or {}))
-        .mapvalues(argnames=["gdf"], argvalues=patrol_grid_visits)
-    )
-
     apply_classification_grid = (
         apply_classification.validate()
         .handle_errors(task_instance_id="apply_classification_grid")
@@ -999,6 +992,15 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=apply_classification_grid)
     )
 
+    view_ngrid_df = (
+        view_df.validate()
+        .handle_errors(task_instance_id="view_ngrid_df")
+        .partial(
+            name="Patrol colormap grid", **(params_dict.get("view_ngrid_df") or {})
+        )
+        .mapvalues(argnames=["gdf"], argvalues=apply_grid_colormap)
+    )
+
     generate_grid_layers = (
         create_polygon_layer.validate()
         .handle_errors(task_instance_id="generate_grid_layers")
@@ -1016,7 +1018,6 @@ def main(params: Params):
                 "density_bins",
                 "density_colormap",
                 "geometry",
-                "patrol_id",
                 "dist_meters",
                 "timespan_seconds",
             ],

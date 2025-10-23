@@ -174,9 +174,9 @@ def main(params: Params):
         "create_mocp_widgets": ["persist_mocp_ecomap_urls"],
         "merge_mocp_widgets": ["create_mocp_widgets"],
         "patrol_grid_visits": ["split_trajectories_by_group"],
-        "view_grid_df": ["patrol_grid_visits"],
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
+        "view_ngrid_df": ["apply_grid_colormap"],
         "generate_grid_layers": ["apply_grid_colormap"],
         "zoom_grid_view": ["apply_grid_colormap"],
         "zip_grid_zoom_values": ["generate_grid_layers", "zoom_grid_view"],
@@ -1270,20 +1270,6 @@ def main(params: Params):
                 "argvalues": DependsOn("split_trajectories_by_group"),
             },
         ),
-        "view_grid_df": Node(
-            async_task=view_df.validate()
-            .handle_errors(task_instance_id="view_grid_df")
-            .set_executor("lithops"),
-            partial={
-                "name": "Patrol Grid gdf",
-            }
-            | (params_dict.get("view_grid_df") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["gdf"],
-                "argvalues": DependsOn("patrol_grid_visits"),
-            },
-        ),
         "apply_classification_grid": Node(
             async_task=apply_classification.validate()
             .handle_errors(task_instance_id="apply_classification_grid")
@@ -1315,6 +1301,20 @@ def main(params: Params):
                 "argvalues": DependsOn("apply_classification_grid"),
             },
         ),
+        "view_ngrid_df": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_ngrid_df")
+            .set_executor("lithops"),
+            partial={
+                "name": "Patrol colormap grid",
+            }
+            | (params_dict.get("view_ngrid_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["gdf"],
+                "argvalues": DependsOn("apply_grid_colormap"),
+            },
+        ),
         "generate_grid_layers": Node(
             async_task=create_polygon_layer.validate()
             .handle_errors(task_instance_id="generate_grid_layers")
@@ -1336,7 +1336,6 @@ def main(params: Params):
                     "density_bins",
                     "density_colormap",
                     "geometry",
-                    "patrol_id",
                     "dist_meters",
                     "timespan_seconds",
                 ],

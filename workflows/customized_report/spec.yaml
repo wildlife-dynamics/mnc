@@ -811,14 +811,6 @@ workflow:
     mapvalues:
       argnames: trajs
       argvalues: ${{ workflow.split_trajectories_by_group.return }}
-  - name: view patrol coverage grid df 
-    id: view_grid_df
-    task: view_df
-    partial:
-      name: Patrol Grid gdf
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.patrol_grid_visits.return }}
 
   - name: Apply bin classification on grids
     id: apply_classification_grid
@@ -841,6 +833,15 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.apply_classification_grid.return }}
 
+  - name: view patrol coverage grid df 
+    id: view_ngrid_df
+    task: view_df
+    partial:
+      name: Patrol colormap grid
+    mapvalues:
+      argnames: gdf
+      argvalues: ${{ workflow.apply_grid_colormap.return }}
+
   - name: Generate grid layers
     id: generate_grid_layers
     task: create_polygon_layer
@@ -858,7 +859,6 @@ workflow:
         - density_bins
         - density_colormap
         - geometry
-        - patrol_id
         - dist_meters
         - timespan_seconds
 

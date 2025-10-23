@@ -24,7 +24,9 @@ def view_df(gdf: Annotated[AnyDataFrame, Field(description="A GeoDataFrame to in
     print(f"Number of rows: {gdf.shape[0]}")
     print(f"Number of columns: {gdf.shape[1]}")
     #print(f"Geometry column: {gdf.geometry.name}")
-
+    
+    for col in gdf.columns:
+        print(f"column name: {col}")
     print("\n--- Column Details ---")
     for col in gdf.columns:
         dtype = gdf[col].dtype

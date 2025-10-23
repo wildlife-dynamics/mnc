@@ -1779,25 +1779,6 @@ patrol_grid_visits = (
 
 
 # %% [markdown]
-# ## view patrol coverage grid df
-
-# %%
-# parameters
-
-view_grid_df_params = dict()
-
-# %%
-# call the task
-
-
-view_grid_df = (
-    view_df.handle_errors(task_instance_id="view_grid_df")
-    .partial(name="Patrol Grid gdf", **view_grid_df_params)
-    .mapvalues(argnames=["gdf"], argvalues=patrol_grid_visits)
-)
-
-
-# %% [markdown]
 # ## Apply bin classification on grids
 
 # %%
@@ -1848,6 +1829,25 @@ apply_grid_colormap = (
 
 
 # %% [markdown]
+# ## view patrol coverage grid df
+
+# %%
+# parameters
+
+view_ngrid_df_params = dict()
+
+# %%
+# call the task
+
+
+view_ngrid_df = (
+    view_df.handle_errors(task_instance_id="view_ngrid_df")
+    .partial(name="Patrol colormap grid", **view_ngrid_df_params)
+    .mapvalues(argnames=["gdf"], argvalues=apply_grid_colormap)
+)
+
+
+# %% [markdown]
 # ## Generate grid layers
 
 # %%
@@ -1875,7 +1875,6 @@ generate_grid_layers = (
             "density_bins",
             "density_colormap",
             "geometry",
-            "patrol_id",
             "dist_meters",
             "timespan_seconds",
         ],
