@@ -1291,7 +1291,6 @@ def main(params: Params):
                     "label_column": "density_bins",
                     "color_column": "density_colormap",
                 },
-                "tooltip_columns": ["density_bins", "density_colormap"],
             }
             | (params_dict.get("generate_grid_layers") or {}),
             method="mapvalues",

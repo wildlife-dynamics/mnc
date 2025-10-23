@@ -856,9 +856,9 @@ workflow:
       legend:
         label_column: density_bins
         color_column: density_colormap
-      tooltip_columns:
-          - density_bins
-          - density_colormap
+      # tooltip_columns:
+      #     - density_bins
+      #     - density_colormap
     mapvalues:
       argnames: geodataframe
       argvalues: ${{ workflow.apply_grid_colormap.return }}

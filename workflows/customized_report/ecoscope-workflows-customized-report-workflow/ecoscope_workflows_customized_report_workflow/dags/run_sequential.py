@@ -1014,7 +1014,6 @@ def main(params: Params):
         .partial(
             layer_style={"fill_color_column": "density_colormap", "opacity": 0.65},
             legend={"label_column": "density_bins", "color_column": "density_colormap"},
-            tooltip_columns=["density_bins", "density_colormap"],
             **(params_dict.get("generate_grid_layers") or {}),
         )
         .mapvalues(argnames=["geodataframe"], argvalues=apply_grid_colormap)
