@@ -877,7 +877,7 @@ workflow:
     id: zip_grid_zoom_values
     task: zip_grouped_by_key
     partial:
-      left:  ${{ workflow.apply_grid_colormap.return }}
+      left:  ${{ workflow.generate_grid_layers.return }}
       right: ${{ workflow.zoom_grid_view.return }} 
 
   - name: Draw grid ecomaps

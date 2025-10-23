@@ -1911,7 +1911,7 @@ zip_grid_zoom_values_params = dict()
 zip_grid_zoom_values = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_grid_zoom_values")
     .partial(
-        left=apply_grid_colormap, right=zoom_grid_view, **zip_grid_zoom_values_params
+        left=generate_grid_layers, right=zoom_grid_view, **zip_grid_zoom_values_params
     )
     .call()
 )
