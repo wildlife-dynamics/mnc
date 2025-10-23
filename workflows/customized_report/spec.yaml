@@ -859,9 +859,6 @@ workflow:
       tooltip_columns:
           - density_bins
           - density_colormap
-          - geometry
-          - dist_meters
-          - timespan_seconds
     mapvalues:
       argnames: geodataframe
       argvalues: ${{ workflow.apply_grid_colormap.return }}
