@@ -508,6 +508,25 @@
       "type": "object",
       "title": "Convert Relocations to Trajectories"
     },
+    "persist_total_df": {
+      "additionalProperties": false,
+      "properties": {
+        "filetype": {
+          "default": "csv",
+          "enum": [
+            "csv",
+            "gpkg",
+            "geoparquet"
+          ],
+          "title": "Filetype",
+          "type": "string",
+          "description": "The output format"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Persist total patrol coverage"
+    },
     "apply_classification_grid": {
       "additionalProperties": false,
       "properties": {
@@ -555,25 +574,6 @@
       "required": [],
       "type": "object",
       "title": "Apply bin classification on grids"
-    },
-    "persist_total_df": {
-      "additionalProperties": false,
-      "properties": {
-        "filetype": {
-          "default": "csv",
-          "enum": [
-            "csv",
-            "gpkg",
-            "geoparquet"
-          ],
-          "title": "Filetype",
-          "type": "string",
-          "description": "The output format"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Persist total patrol coverage"
     }
   },
   "$defs": {
@@ -912,8 +912,8 @@
       "persist_patrol_df",
       "patrol_observations",
       "convert_to_trajectories",
-      "apply_classification_grid",
-      "persist_total_df"
+      "persist_total_df",
+      "apply_classification_grid"
     ]
   },
   "additionalProperties": false

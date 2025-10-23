@@ -511,9 +511,9 @@ class Params(BaseModel):
     convert_to_trajectories: Optional[ConvertToTrajectories] = Field(
         None, title="Convert Relocations to Trajectories"
     )
-    apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
-        None, title="Apply bin classification on grids"
-    )
     persist_total_df: Optional[PersistTotalDf] = Field(
         None, title="Persist total patrol coverage"
+    )
+    apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
+        None, title="Apply bin classification on grids"
     )

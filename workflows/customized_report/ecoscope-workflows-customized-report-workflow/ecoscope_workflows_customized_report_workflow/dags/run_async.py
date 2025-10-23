@@ -24,6 +24,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     extract_value_from_json_column,
     map_columns,
 )
+from ecoscope_workflows_ext_custom.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
     get_events,
@@ -52,6 +53,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
+    view_df,
     zip_grouped_by_key,
 )
 
@@ -105,6 +107,8 @@ def main(params: Params):
         "map_patrol_types": ["add_temporal_index_to_traj"],
         "rename_traj_cols": ["map_patrol_types"],
         "split_trajectories_by_group": ["rename_traj_cols", "groupers"],
+        "ranger_patrol_metrics": ["split_trajectories_by_group"],
+        "persist_total_df": ["ranger_patrol_metrics"],
         "filter_foot_patrols": ["split_trajectories_by_group"],
         "apply_footp_colormap": ["filter_foot_patrols"],
         "generate_footp_layers": ["apply_footp_colormap"],
@@ -135,8 +139,14 @@ def main(params: Params):
         "patrol_grid_visits": ["split_trajectories_by_group"],
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
-        "ranger_patrol_metrics": ["split_trajectories_by_group"],
-        "persist_total_df": ["ranger_patrol_metrics"],
+        "view_ngrid_df": ["apply_grid_colormap"],
+        "generate_grid_layers": ["apply_grid_colormap"],
+        "zoom_grid_view": ["apply_grid_colormap"],
+        "zip_grid_zoom_values": ["generate_grid_layers", "zoom_grid_view"],
+        "draw_grid_ecomap": ["configure_base_maps", "zip_grid_zoom_values"],
+        "persist_grid_ecomap_urls": ["draw_grid_ecomap"],
+        "create_grid_widgets": ["persist_grid_ecomap_urls"],
+        "merge_grid_widgets": ["create_grid_widgets"],
         "weather_dashboard": [
             "workflow_details",
             "grouped_precipitation_widget",
@@ -815,6 +825,56 @@ def main(params: Params):
             | (params_dict.get("split_trajectories_by_group") or {}),
             method="call",
         ),
+        "ranger_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="ranger_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_subject_name"],
+                "summary_params": [
+                    {
+                        "display_name": "Number of Patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "Duration (hrs)",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("ranger_patrol_metrics") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("split_trajectories_by_group"),
+            },
+        ),
+        "persist_total_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_total_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_total_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("ranger_patrol_metrics"),
+            },
+        ),
         "filter_foot_patrols": Node(
             async_task=filter_by_value.validate()
             .handle_errors(task_instance_id="filter_foot_patrols")
@@ -1315,7 +1375,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "input_column_name": "density_bins",
-                "output_column_name": "density_colormap",
+                "output_column_name": "density_colors",
                 "colormap": "Wistia",
             }
             | (params_dict.get("apply_grid_colormap") or {}),
@@ -1325,55 +1385,134 @@ def main(params: Params):
                 "argvalues": DependsOn("apply_classification_grid"),
             },
         ),
-        "ranger_patrol_metrics": Node(
-            async_task=summarize_df.validate()
-            .handle_errors(task_instance_id="ranger_patrol_metrics")
+        "view_ngrid_df": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_ngrid_df")
             .set_executor("lithops"),
             partial={
-                "groupby_cols": ["patrol_subject_name"],
-                "summary_params": [
-                    {
-                        "display_name": "Number of Patrols",
-                        "aggregator": "nunique",
-                        "column": "patrol_id",
-                    },
-                    {
-                        "display_name": "Distance (km)",
-                        "aggregator": "sum",
-                        "column": "dist_meters",
-                        "original_unit": "m",
-                        "new_unit": "km",
-                    },
-                    {
-                        "display_name": "Duration (hrs)",
-                        "aggregator": "sum",
-                        "column": "timespan_seconds",
-                        "original_unit": "s",
-                        "new_unit": "h",
-                    },
-                ],
-                "reset_index": True,
+                "name": "Patrol colormap grid",
             }
-            | (params_dict.get("ranger_patrol_metrics") or {}),
+            | (params_dict.get("view_ngrid_df") or {}),
             method="mapvalues",
             kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("split_trajectories_by_group"),
+                "argnames": ["gdf"],
+                "argvalues": DependsOn("apply_grid_colormap"),
             },
         ),
-        "persist_total_df": Node(
-            async_task=persist_df.validate()
-            .handle_errors(task_instance_id="persist_total_df")
+        "generate_grid_layers": Node(
+            async_task=create_polygon_layer.validate()
+            .handle_errors(task_instance_id="generate_grid_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {"fill_color_column": "density_colors", "opacity": 0.55},
+                "legend": {
+                    "label_column": "density_bins",
+                    "color_column": "density_colors",
+                },
+                "tooltip_columns": ["density_bins", "density_colors"],
+            }
+            | (params_dict.get("generate_grid_layers") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["geodataframe"],
+                "argvalues": DependsOn("apply_grid_colormap"),
+            },
+        ),
+        "zoom_grid_view": Node(
+            async_task=create_view_state_from_gdf.validate()
+            .handle_errors(task_instance_id="zoom_grid_view")
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+            }
+            | (params_dict.get("zoom_grid_view") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["gdf"],
+                "argvalues": DependsOn("apply_grid_colormap"),
+            },
+        ),
+        "zip_grid_zoom_values": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_grid_zoom_values")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("generate_grid_layers"),
+                "right": DependsOn("zoom_grid_view"),
+            }
+            | (params_dict.get("zip_grid_zoom_values") or {}),
+            method="call",
+        ),
+        "draw_grid_ecomap": Node(
+            async_task=draw_ecomap.validate()
+            .handle_errors(task_instance_id="draw_grid_ecomap")
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "north_arrow_style": {"placement": "top-left"},
+                "legend_style": {"placement": "bottom-right", "title": "Grid visits"},
+                "static": False,
+                "title": None,
+                "max_zoom": 20,
+            }
+            | (params_dict.get("draw_grid_ecomap") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["geo_layers", "view_state"],
+                "argvalues": DependsOn("zip_grid_zoom_values"),
+            },
+        ),
+        "persist_grid_ecomap_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_grid_ecomap_urls")
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             }
-            | (params_dict.get("persist_total_df") or {}),
+            | (params_dict.get("persist_grid_ecomap_urls") or {}),
             method="mapvalues",
             kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("ranger_patrol_metrics"),
+                "argnames": ["text"],
+                "argvalues": DependsOn("draw_grid_ecomap"),
             },
+        ),
+        "create_grid_widgets": Node(
+            async_task=create_map_widget_single_view.validate()
+            .handle_errors(task_instance_id="create_grid_widgets")
+            .skipif(
+                conditions=[
+                    never,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "title": "Patrol Grid Visits",
+            }
+            | (params_dict.get("create_grid_widgets") or {}),
+            method="map",
+            kwargs={
+                "argnames": ["view", "data"],
+                "argvalues": DependsOn("persist_grid_ecomap_urls"),
+            },
+        ),
+        "merge_grid_widgets": Node(
+            async_task=merge_widget_views.validate()
+            .handle_errors(task_instance_id="merge_grid_widgets")
+            .set_executor("lithops"),
+            partial={
+                "widgets": DependsOn("create_grid_widgets"),
+            }
+            | (params_dict.get("merge_grid_widgets") or {}),
+            method="call",
         ),
         "weather_dashboard": Node(
             async_task=gather_dashboard.validate()
