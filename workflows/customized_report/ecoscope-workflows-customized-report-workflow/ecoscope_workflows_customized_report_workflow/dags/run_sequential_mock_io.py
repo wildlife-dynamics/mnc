@@ -56,7 +56,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value, view_df
 
 get_patrol_observations = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -543,11 +543,25 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=filter_patrol_info_events)
     )
 
+    view_norm_df = (
+        view_df.validate()
+        .handle_errors(task_instance_id="view_norm_df")
+        .partial(
+            name="Patrol information events", **(params_dict.get("view_norm_df") or {})
+        )
+        .mapvalues(argnames=["gdf"], argvalues=normalize_pi_values)
+    )
+
     rename_patrolinf_cols = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_patrolinf_cols")
         .partial(
-            drop_columns=[],
+            drop_columns=[
+                "reported_by",
+                "serial_number",
+                "event_details__updates",
+                "created_at",
+            ],
             retain_columns=[],
             rename_columns={
                 "event_details__participants": "participants",

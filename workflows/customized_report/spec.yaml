@@ -387,20 +387,24 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.filter_patrol_info_events.return }}
 
-  # - name: view normalized patrol information events
-  #   id: view_norm_df
-  #   task: view_df
-  #   partial:
-  #     name: Patrol information events
-  #   mapvalues:
-  #     argnames: gdf
-  #     argvalues: ${{ workflow.normalize_pi_values.return }}
+  - name: view normalized patrol information events
+    id: view_norm_df
+    task: view_df
+    partial:
+      name: Patrol information events
+    mapvalues:
+      argnames: gdf
+      argvalues: ${{ workflow.normalize_pi_values.return }}
 
   - name: Rename patrol information columns
     id: rename_patrolinf_cols
     task: map_columns
     partial:
-      drop_columns: []
+      drop_columns:
+        - reported_by
+        - serial_number
+        - event_details__updates
+        - created_at
       retain_columns: []
       rename_columns:
         event_details__participants: participants
