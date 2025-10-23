@@ -50,7 +50,6 @@ from ecoscope_workflows_core.tasks.results import (
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index,
     extract_column_as_type,
-    map_columns,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
@@ -543,33 +542,11 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=filter_patrol_info_events)
     )
 
-    rename_patrolinf_cols = (
-        map_columns.validate()
-        .handle_errors(task_instance_id="rename_patrolinf_cols")
-        .partial(
-            drop_columns=[
-                "reported_by",
-                "serial_number",
-                "event_details__updates",
-                "created_at",
-            ],
-            retain_columns=[],
-            rename_columns={
-                "event_details__participants": "participants",
-                "event_details__patrol_purpose": "purpose",
-                "event_details__person_who_authorized": "authorized_by",
-            },
-            df=normalize_pi_values,
-            **(params_dict.get("rename_patrolinf_cols") or {}),
-        )
-        .call()
-    )
-
     patrol_info_summary = (
         summarize_df.validate()
         .handle_errors(task_instance_id="patrol_info_summary")
         .partial(
-            groupby_cols=["purpose"],
+            groupby_cols=["event_details__patrol_purpose"],
             summary_params=[
                 {
                     "display_name": "Number of Patrols",
@@ -580,13 +557,16 @@ def main(params: Params):
             reset_index=True,
             **(params_dict.get("patrol_info_summary") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=rename_patrolinf_cols)
+        .mapvalues(argnames=["df"], argvalues=normalize_pi_values)
     )
 
     include_pat_totals = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="include_pat_totals")
-        .partial(label_col=["purpose"], **(params_dict.get("include_pat_totals") or {}))
+        .partial(
+            label_col=["event_details__patrol_purpose"],
+            **(params_dict.get("include_pat_totals") or {}),
+        )
         .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
     )
 

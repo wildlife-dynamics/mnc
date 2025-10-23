@@ -920,40 +920,6 @@ normalize_pi_values = (
 
 
 # %% [markdown]
-# ## Rename patrol information columns
-
-# %%
-# parameters
-
-rename_patrolinf_cols_params = dict()
-
-# %%
-# call the task
-
-
-rename_patrolinf_cols = (
-    map_columns.handle_errors(task_instance_id="rename_patrolinf_cols")
-    .partial(
-        drop_columns=[
-            "reported_by",
-            "serial_number",
-            "event_details__updates",
-            "created_at",
-        ],
-        retain_columns=[],
-        rename_columns={
-            "event_details__participants": "participants",
-            "event_details__patrol_purpose": "purpose",
-            "event_details__person_who_authorized": "authorized_by",
-        },
-        df=normalize_pi_values,
-        **rename_patrolinf_cols_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Patrol information Summary
 
 # %%
@@ -968,14 +934,14 @@ patrol_info_summary_params = dict()
 patrol_info_summary = (
     summarize_df.handle_errors(task_instance_id="patrol_info_summary")
     .partial(
-        groupby_cols=["purpose"],
+        groupby_cols=["event_details__patrol_purpose"],
         summary_params=[
             {"display_name": "Number of Patrols", "aggregator": "count", "column": "id"}
         ],
         reset_index=True,
         **patrol_info_summary_params,
     )
-    .mapvalues(argnames=["df"], argvalues=rename_patrolinf_cols)
+    .mapvalues(argnames=["df"], argvalues=normalize_pi_values)
 )
 
 
@@ -995,7 +961,7 @@ include_pat_totals_params = dict(
 
 include_pat_totals = (
     add_totals_row.handle_errors(task_instance_id="include_pat_totals")
-    .partial(label_col=["purpose"], **include_pat_totals_params)
+    .partial(label_col=["event_details__patrol_purpose"], **include_pat_totals_params)
     .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
 )
 

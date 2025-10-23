@@ -368,6 +368,9 @@ workflow:
     partial:
       widgets: ${{ workflow.tevents_chart_widget.return }}
 
+
+
+ # --- Patrol Information ---
   - name: Filter events and get patrol information records 
     id: filter_patrol_info_events
     task: filter_by_value
@@ -396,29 +399,29 @@ workflow:
   #     argnames: gdf
   #     argvalues: ${{ workflow.normalize_pi_values.return }}
 
-  - name: Rename patrol information columns
-    id: rename_patrolinf_cols
-    task: map_columns
-    partial:
-      drop_columns:
-        - reported_by
-        - serial_number
-        - event_details__updates
-        - created_at
-      retain_columns: []
-      rename_columns:
-        event_details__participants: participants
-        event_details__patrol_purpose : purpose
-        event_details__person_who_authorized : authorized_by
+  # - name: Rename patrol information columns
+  #   id: rename_patrolinf_cols
+  #   task: map_columns
+  #   partial:
+  #     drop_columns:
+  #       - reported_by
+  #       - serial_number
+  #       - event_details__updates
+  #       - created_at
+  #     retain_columns: []
+  #     rename_columns:
+  #       event_details__participants: participants
+  #       event_details__patrol_purpose : purpose
+  #       event_details__person_who_authorized : authorized_by
 
-      df: ${{ workflow.normalize_pi_values.return }}
+  #     df: ${{ workflow.normalize_pi_values.return }}
 
   - name: Patrol information Summary
     id: patrol_info_summary
     task: summarize_df
     partial:
       groupby_cols:
-        - purpose
+        - event_details__patrol_purpose
       summary_params:
         - display_name: Number of Patrols
           aggregator: count 
@@ -426,14 +429,14 @@ workflow:
       reset_index: true
     mapvalues:
       argnames: df
-      argvalues: ${{ workflow.rename_patrolinf_cols.return }}
+      argvalues: ${{ workflow.normalize_pi_values.return }}
   
   - name: Add totals row in patrol info summary table
     id: include_pat_totals
     task: add_totals_row
     partial:
       label_col: 
-        - purpose
+        - event_details__patrol_purpose
     mapvalues:
       argnames: df
       argvalues: ${{ workflow.patrol_info_summary.return }}
@@ -446,6 +449,8 @@ workflow:
     mapvalues:
       argnames: df
       argvalues: ${{ workflow.include_pat_totals.return }}
+
+
 
 
   - name: Get Patrol observations

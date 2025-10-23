@@ -51,7 +51,6 @@ from ecoscope_workflows_core.tasks.results import (
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index,
     extract_column_as_type,
-    map_columns,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
@@ -140,8 +139,7 @@ def main(params: Params):
         "grouped_tevents_widget": ["tevents_chart_widget"],
         "filter_patrol_info_events": ["split_event_groups"],
         "normalize_pi_values": ["filter_patrol_info_events"],
-        "rename_patrolinf_cols": ["normalize_pi_values"],
-        "patrol_info_summary": ["rename_patrolinf_cols"],
+        "patrol_info_summary": ["normalize_pi_values"],
         "include_pat_totals": ["patrol_info_summary"],
         "persist_patrol_df": ["include_pat_totals"],
         "patrol_observations": ["er_client_name", "time_range"],
@@ -694,34 +692,12 @@ def main(params: Params):
                 "argvalues": DependsOn("filter_patrol_info_events"),
             },
         ),
-        "rename_patrolinf_cols": Node(
-            async_task=map_columns.validate()
-            .handle_errors(task_instance_id="rename_patrolinf_cols")
-            .set_executor("lithops"),
-            partial={
-                "drop_columns": [
-                    "reported_by",
-                    "serial_number",
-                    "event_details__updates",
-                    "created_at",
-                ],
-                "retain_columns": [],
-                "rename_columns": {
-                    "event_details__participants": "participants",
-                    "event_details__patrol_purpose": "purpose",
-                    "event_details__person_who_authorized": "authorized_by",
-                },
-                "df": DependsOn("normalize_pi_values"),
-            }
-            | (params_dict.get("rename_patrolinf_cols") or {}),
-            method="call",
-        ),
         "patrol_info_summary": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="patrol_info_summary")
             .set_executor("lithops"),
             partial={
-                "groupby_cols": ["purpose"],
+                "groupby_cols": ["event_details__patrol_purpose"],
                 "summary_params": [
                     {
                         "display_name": "Number of Patrols",
@@ -735,7 +711,7 @@ def main(params: Params):
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
-                "argvalues": DependsOn("rename_patrolinf_cols"),
+                "argvalues": DependsOn("normalize_pi_values"),
             },
         ),
         "include_pat_totals": Node(
@@ -743,7 +719,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="include_pat_totals")
             .set_executor("lithops"),
             partial={
-                "label_col": ["purpose"],
+                "label_col": ["event_details__patrol_purpose"],
             }
             | (params_dict.get("include_pat_totals") or {}),
             method="mapvalues",
