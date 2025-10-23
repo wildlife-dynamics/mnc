@@ -306,7 +306,23 @@ class PatrolObservations(BaseModel):
     )
 
 
+class IncludePatTotals(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    label: Optional[str] = Field("Total", title="Label")
+
+
 class PersistPatrolDf(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filetype: Optional[Filetype] = Field(
+        "csv", description="The output format", title="Filetype"
+    )
+
+
+class PersistTotalDf(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
@@ -491,4 +507,12 @@ class FormData(BaseModel):
     apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
         None, title="Apply bin classification on grids"
     )
-    persist_patrol_df: Optional[PersistPatrolDf] = Field(None, title="Persist patrol")
+    include_pat_totals: Optional[IncludePatTotals] = Field(
+        None, title="Add totals row in patrol info summary table"
+    )
+    persist_patrol_df: Optional[PersistPatrolDf] = Field(
+        None, title="Persist patrol summary table"
+    )
+    persist_total_df: Optional[PersistTotalDf] = Field(
+        None, title="Persist total patrol coverage"
+    )

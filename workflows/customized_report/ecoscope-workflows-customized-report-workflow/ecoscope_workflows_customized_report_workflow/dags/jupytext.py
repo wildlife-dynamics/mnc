@@ -57,6 +57,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     normalize_column,
 )
 from ecoscope_workflows_ext_mnc.tasks import (
+    add_totals_row,
     classify_mnc_patrol,
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
@@ -2145,7 +2146,28 @@ patrol_info_summary = (
 
 
 # %% [markdown]
-# ## Persist patrol
+# ## Add totals row in patrol info summary table
+
+# %%
+# parameters
+
+include_pat_totals_params = dict(
+    label=...,
+)
+
+# %%
+# call the task
+
+
+include_pat_totals = (
+    add_totals_row.handle_errors(task_instance_id="include_pat_totals")
+    .partial(label_col=["purpose"], **include_pat_totals_params)
+    .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
+)
+
+
+# %% [markdown]
+# ## Persist patrol summary table
 
 # %%
 # parameters
@@ -2164,7 +2186,75 @@ persist_patrol_df = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_patrol_df_params
     )
-    .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
+    .mapvalues(argnames=["df"], argvalues=include_pat_totals)
+)
+
+
+# %% [markdown]
+# ## Summarize  ranger patrol metrics
+
+# %%
+# parameters
+
+ranger_patrol_metrics_params = dict()
+
+# %%
+# call the task
+
+
+ranger_patrol_metrics = (
+    summarize_df.handle_errors(task_instance_id="ranger_patrol_metrics")
+    .partial(
+        groupby_cols=["patrol_subject_name"],
+        summary_params=[
+            {
+                "display_name": "Number of Patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "Distance (km)",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "METER",
+                "new_unit": "KILOMETER",
+            },
+            {
+                "display_name": "Duration (hrs)",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "SECOND",
+                "new_unit": "HOUR",
+            },
+        ],
+        reset_index=True,
+        **ranger_patrol_metrics_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
+)
+
+
+# %% [markdown]
+# ## Persist total patrol coverage
+
+# %%
+# parameters
+
+persist_total_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_total_df = (
+    persist_df.handle_errors(task_instance_id="persist_total_df")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_total_df_params
+    )
+    .mapvalues(argnames=["df"], argvalues=ranger_patrol_metrics)
 )
 
 

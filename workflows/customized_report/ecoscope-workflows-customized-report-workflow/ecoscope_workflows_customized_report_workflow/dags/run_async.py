@@ -48,6 +48,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     normalize_column,
 )
 from ecoscope_workflows_ext_mnc.tasks import (
+    add_totals_row,
     classify_mnc_patrol,
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
@@ -143,7 +144,10 @@ def main(params: Params):
         "normalize_pi_values": ["filter_patrol_info_events"],
         "rename_patrolinf_cols": ["normalize_pi_values"],
         "patrol_info_summary": ["rename_patrolinf_cols"],
-        "persist_patrol_df": ["patrol_info_summary"],
+        "include_pat_totals": ["patrol_info_summary"],
+        "persist_patrol_df": ["include_pat_totals"],
+        "ranger_patrol_metrics": ["split_trajectories_by_group"],
+        "persist_total_df": ["ranger_patrol_metrics"],
         "weather_dashboard": [
             "workflow_details",
             "grouped_precipitation_widget",
@@ -1481,6 +1485,20 @@ def main(params: Params):
                 "argvalues": DependsOn("rename_patrolinf_cols"),
             },
         ),
+        "include_pat_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_pat_totals")
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["purpose"],
+            }
+            | (params_dict.get("include_pat_totals") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("patrol_info_summary"),
+            },
+        ),
         "persist_patrol_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_patrol_df")
@@ -1492,7 +1510,57 @@ def main(params: Params):
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
-                "argvalues": DependsOn("patrol_info_summary"),
+                "argvalues": DependsOn("include_pat_totals"),
+            },
+        ),
+        "ranger_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="ranger_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_subject_name"],
+                "summary_params": [
+                    {
+                        "display_name": "Number of Patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "METER",
+                        "new_unit": "KILOMETER",
+                    },
+                    {
+                        "display_name": "Duration (hrs)",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "SECOND",
+                        "new_unit": "HOUR",
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("ranger_patrol_metrics") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("split_trajectories_by_group"),
+            },
+        ),
+        "persist_total_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_total_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_total_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("ranger_patrol_metrics"),
             },
         ),
         "weather_dashboard": Node(

@@ -4,6 +4,7 @@ from ._zip import zip_grouped_by_key ,flatten_tuple
 from ._patrol_coverage import create_patrol_coverage_grid
 from ._inspect import print_output,view_df
 from ._filter import filter_by_value
+from ._tabular import add_totals_row
 from ._map_utils import (
     download_land_dx,
     load_landdx_aoi,
@@ -20,6 +21,7 @@ from ._map_utils import (
 )
 
 __all__ = [
+    "add_totals_row",
     "filter_by_value",
     "print_output",
     "view_df",

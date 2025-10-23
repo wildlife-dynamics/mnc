@@ -1001,15 +1001,58 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.rename_patrolinf_cols.return }}
   
-  - name: Persist patrol 
+  - name: Add totals row in patrol info summary table
+    id: include_pat_totals
+    task: add_totals_row
+    partial:
+      label_col: 
+        - purpose
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.patrol_info_summary.return }}
+
+  - name: Persist patrol summary table 
     id: persist_patrol_df
     task: persist_df 
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
     mapvalues:
       argnames: df
-      argvalues: ${{ workflow.patrol_info_summary.return }}
+      argvalues: ${{ workflow.include_pat_totals.return }}
 
+  - name: Summarize  ranger patrol metrics
+    id: ranger_patrol_metrics
+    task: summarize_df
+    partial:
+      groupby_cols:
+        -  patrol_subject_name
+      summary_params:
+        - display_name: Number of Patrols
+          aggregator: nunique
+          column: patrol_id
+        - display_name: Distance (km)
+          aggregator: sum 
+          column: dist_meters
+          original_unit: METER
+          new_unit: KILOMETER
+        - display_name: Duration (hrs)
+          aggregator: sum 
+          column: timespan_seconds
+          original_unit: SECOND 
+          new_unit: HOUR 
+      reset_index: true
+    mapvalues: 
+      argnames: df 
+      argvalues: ${{ workflow.split_trajectories_by_group.return }}
+
+  - name: Persist total patrol coverage 
+    id: persist_total_df
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: df 
+      argvalues: ${{ workflow.ranger_patrol_metrics.return }}
   - name: Create A Weather Dashboard
     id: weather_dashboard
     task: gather_dashboard
