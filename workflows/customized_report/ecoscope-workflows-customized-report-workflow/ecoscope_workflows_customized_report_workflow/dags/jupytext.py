@@ -954,31 +954,7 @@ rename_patrolinf_cols_params = dict()
 rename_patrolinf_cols = (
     map_columns.handle_errors(task_instance_id="rename_patrolinf_cols")
     .partial(
-        drop_columns=[
-            "event_type",
-            "event_category",
-            "priority",
-            "priority_label",
-            "attributes",
-            "comment",
-            "title",
-            "reported_by",
-            "state",
-            "is_contained_in",
-            "sort_at",
-            "icon_id",
-            "serial_number",
-            "url",
-            "image_url",
-            "is_collection",
-            "event_details__updates",
-            "message",
-            "end_time",
-            "provenance",
-            "updated_at",
-            "created_at",
-            "geojson",
-        ],
+        drop_columns=[],
         retain_columns=[],
         rename_columns={
             "event_details__participants": "participants",
