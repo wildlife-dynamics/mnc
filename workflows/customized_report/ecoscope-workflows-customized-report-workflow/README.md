@@ -16,7 +16,7 @@ installed_requirements:
   version: {version: ==0.0.5}
 - channel: file:///tmp/ecoscope-workflows-custom/release/artifacts/
   name: ecoscope-workflows-ext-mnc
-  version: {version: ==10000.dev36+gb2ed634dc.d20251023}
+  version: {version: ==10000.dev37+g928258960.d20251023}
 params_sha256: 3aa22fd43747dcd09c1bc280c29abdeaa8ce3ed6cca01608f13bcc1da8f6af71
 spec_sha256: 962249ce4966d28489ece9776313d011cd57caa6cc17255a6a6f895e583a7517
 

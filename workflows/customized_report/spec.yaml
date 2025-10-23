@@ -974,8 +974,8 @@ workflow:
         label_column: density_bins
         color_column: density_colors
       tooltip_columns:
-          - density_bins
-          - density_colors
+        - density_bins
+        - density_colors
       
     mapvalues:
       argnames: geodataframe
