@@ -833,100 +833,100 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.apply_classification_grid.return }}
 
-  - name: view patrol coverage grid df 
-    id: view_ngrid_df
-    task: view_df
-    partial:
-      name: Patrol colormap grid
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.apply_grid_colormap.return }}
+  # - name: view patrol coverage grid df 
+  #   id: view_ngrid_df
+  #   task: view_df
+  #   partial:
+  #     name: Patrol colormap grid
+  #   mapvalues:
+  #     argnames: gdf
+  #     argvalues: ${{ workflow.apply_grid_colormap.return }}
 
-  - name: Generate grid layers
-    id: generate_grid_layers
-    task: create_polygon_layer
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      layer_style:
-        fill_color_column: density_colormap
-        opacity: 0.65
-      legend:
-        label_column: density_bins
-        color_column: density_colormap
-      # tooltip_columns:
-      #     - density_bins
-      #     - density_colormap
-    mapvalues:
-      argnames: geodataframe
-      argvalues: ${{ workflow.apply_grid_colormap.return }}
+  # - name: Generate grid layers
+  #   id: generate_grid_layers
+  #   task: create_polygon_layer
+  #   skipif:
+  #     conditions:
+  #       - any_is_empty_df
+  #       - any_dependency_skipped
+  #   partial:
+  #     layer_style:
+  #       fill_color_column: density_colormap
+  #       opacity: 0.65
+  #     legend:
+  #       label_column: density_bins
+  #       color_column: density_colormap
+  #     # tooltip_columns:
+  #     #     - density_bins
+  #     #     - density_colormap
+  #   mapvalues:
+  #     argnames: geodataframe
+  #     argvalues: ${{ workflow.apply_grid_colormap.return }}
 
-  - name: Zoom grid polygons by view state
-    id: zoom_grid_view
-    task: create_view_state_from_gdf
-    partial:
-      pitch: 0
-      bearing: 0
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.apply_grid_colormap.return }}
+  # - name: Zoom grid polygons by view state
+  #   id: zoom_grid_view
+  #   task: create_view_state_from_gdf
+  #   partial:
+  #     pitch: 0
+  #     bearing: 0
+  #   mapvalues:
+  #     argnames: gdf
+  #     argvalues: ${{ workflow.apply_grid_colormap.return }}
 
-  - name: Zip grid layers and zoom values
-    id: zip_grid_zoom_values
-    task: zip_grouped_by_key
-    partial:
-      left:  ${{ workflow.generate_grid_layers.return }}
-      right: ${{ workflow.zoom_grid_view.return }} 
+  # - name: Zip grid layers and zoom values
+  #   id: zip_grid_zoom_values
+  #   task: zip_grouped_by_key
+  #   partial:
+  #     left:  ${{ workflow.generate_grid_layers.return }}
+  #     right: ${{ workflow.zoom_grid_view.return }} 
 
-  - name: Draw grid ecomaps
-    id: draw_grid_ecomap
-    task: draw_ecomap
-    partial:
-      tile_layers: ${{ workflow.configure_base_maps.return }}
-      north_arrow_style:
-        placement: top-left
-      legend_style:
-        placement: bottom-right
-        title: Patrol Types
-      static: false
-      title: null
-      max_zoom: 20
-    mapvalues:
-      argnames: 
-        - geo_layers
-        - view_state
-      argvalues: ${{ workflow.zip_grid_zoom_values.return }}
+  # - name: Draw grid ecomaps
+  #   id: draw_grid_ecomap
+  #   task: draw_ecomap
+  #   partial:
+  #     tile_layers: ${{ workflow.configure_base_maps.return }}
+  #     north_arrow_style:
+  #       placement: top-left
+  #     legend_style:
+  #       placement: bottom-right
+  #       title: Patrol Types
+  #     static: false
+  #     title: null
+  #     max_zoom: 20
+  #   mapvalues:
+  #     argnames: 
+  #       - geo_layers
+  #       - view_state
+  #     argvalues: ${{ workflow.zip_grid_zoom_values.return }}
 
-  - name: Persist grid ecomap html paths
-    id: persist_grid_ecomap_urls
-    task: persist_text
-    partial:
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-    mapvalues:
-      argnames: text
-      argvalues: ${{ workflow.draw_grid_ecomap.return }}
+  # - name: Persist grid ecomap html paths
+  #   id: persist_grid_ecomap_urls
+  #   task: persist_text
+  #   partial:
+  #     root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #   mapvalues:
+  #     argnames: text
+  #     argvalues: ${{ workflow.draw_grid_ecomap.return }}
 
-  - name: Create grid widgets
-    id: create_grid_widgets
-    task: create_map_widget_single_view
-    skipif:
-      conditions: 
-        - never
-    partial:
-      title: Patrol Grid Visits
-    map:
-      argnames:
-        - view 
-        - data
-      argvalues: ${{ workflow.persist_grid_ecomap_urls.return }}
+  # - name: Create grid widgets
+  #   id: create_grid_widgets
+  #   task: create_map_widget_single_view
+  #   skipif:
+  #     conditions: 
+  #       - never
+  #   partial:
+  #     title: Patrol Grid Visits
+  #   map:
+  #     argnames:
+  #       - view 
+  #       - data
+  #     argvalues: ${{ workflow.persist_grid_ecomap_urls.return }}
 
-  - name: Merge grid ecomap widgets
-    id: merge_grid_widgets
-    task: merge_widget_views
-    partial:
-      widgets: ${{ workflow.create_grid_widgets.return }}
+  # - name: Merge grid ecomap widgets
+  #   id: merge_grid_widgets
+  #   task: merge_widget_views
+  #   partial:
+  #     widgets: ${{ workflow.create_grid_widgets.return }}
 
   - name: Filter events and get patrol information records 
     id: filter_patrol_info_events
@@ -1062,7 +1062,7 @@ workflow:
         - ${{ workflow.merge_footp_widgets.return }}
         - ${{ workflow.merge_vhp_widgets.return }}
         - ${{ workflow.merge_mocp_widgets.return }}
-        - ${{ workflow.merge_grid_widgets.return }}
+        #- ${{ workflow.merge_grid_widgets.return }}
       
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}

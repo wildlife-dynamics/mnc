@@ -33,7 +33,6 @@ from ecoscope_workflows_core.tasks.transformation import (
     extract_value_from_json_column,
     map_columns,
 )
-from ecoscope_workflows_ext_custom.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
     get_events,
@@ -62,7 +61,6 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
-    view_df,
     zip_grouped_by_key,
 )
 
@@ -1829,193 +1827,6 @@ apply_grid_colormap = (
 
 
 # %% [markdown]
-# ## view patrol coverage grid df
-
-# %%
-# parameters
-
-view_ngrid_df_params = dict()
-
-# %%
-# call the task
-
-
-view_ngrid_df = (
-    view_df.handle_errors(task_instance_id="view_ngrid_df")
-    .partial(name="Patrol colormap grid", **view_ngrid_df_params)
-    .mapvalues(argnames=["gdf"], argvalues=apply_grid_colormap)
-)
-
-
-# %% [markdown]
-# ## Generate grid layers
-
-# %%
-# parameters
-
-generate_grid_layers_params = dict()
-
-# %%
-# call the task
-
-
-generate_grid_layers = (
-    create_polygon_layer.handle_errors(task_instance_id="generate_grid_layers")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        layer_style={"fill_color_column": "density_colormap", "opacity": 0.65},
-        legend={"label_column": "density_bins", "color_column": "density_colormap"},
-        **generate_grid_layers_params,
-    )
-    .mapvalues(argnames=["geodataframe"], argvalues=apply_grid_colormap)
-)
-
-
-# %% [markdown]
-# ## Zoom grid polygons by view state
-
-# %%
-# parameters
-
-zoom_grid_view_params = dict()
-
-# %%
-# call the task
-
-
-zoom_grid_view = (
-    create_view_state_from_gdf.handle_errors(task_instance_id="zoom_grid_view")
-    .partial(pitch=0, bearing=0, **zoom_grid_view_params)
-    .mapvalues(argnames=["gdf"], argvalues=apply_grid_colormap)
-)
-
-
-# %% [markdown]
-# ## Zip grid layers and zoom values
-
-# %%
-# parameters
-
-zip_grid_zoom_values_params = dict()
-
-# %%
-# call the task
-
-
-zip_grid_zoom_values = (
-    zip_grouped_by_key.handle_errors(task_instance_id="zip_grid_zoom_values")
-    .partial(
-        left=generate_grid_layers, right=zoom_grid_view, **zip_grid_zoom_values_params
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Draw grid ecomaps
-
-# %%
-# parameters
-
-draw_grid_ecomap_params = dict(
-    widget_id=...,
-)
-
-# %%
-# call the task
-
-
-draw_grid_ecomap = (
-    draw_ecomap.handle_errors(task_instance_id="draw_grid_ecomap")
-    .partial(
-        tile_layers=configure_base_maps,
-        north_arrow_style={"placement": "top-left"},
-        legend_style={"placement": "bottom-right", "title": "Patrol Types"},
-        static=False,
-        title=None,
-        max_zoom=20,
-        **draw_grid_ecomap_params,
-    )
-    .mapvalues(argnames=["geo_layers", "view_state"], argvalues=zip_grid_zoom_values)
-)
-
-
-# %% [markdown]
-# ## Persist grid ecomap html paths
-
-# %%
-# parameters
-
-persist_grid_ecomap_urls_params = dict(
-    filename=...,
-    filename_suffix=...,
-)
-
-# %%
-# call the task
-
-
-persist_grid_ecomap_urls = (
-    persist_text.handle_errors(task_instance_id="persist_grid_ecomap_urls")
-    .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        **persist_grid_ecomap_urls_params,
-    )
-    .mapvalues(argnames=["text"], argvalues=draw_grid_ecomap)
-)
-
-
-# %% [markdown]
-# ## Create grid widgets
-
-# %%
-# parameters
-
-create_grid_widgets_params = dict()
-
-# %%
-# call the task
-
-
-create_grid_widgets = (
-    create_map_widget_single_view.handle_errors(task_instance_id="create_grid_widgets")
-    .skipif(
-        conditions=[
-            never,
-        ],
-        unpack_depth=1,
-    )
-    .partial(title="Patrol Grid Visits", **create_grid_widgets_params)
-    .map(argnames=["view", "data"], argvalues=persist_grid_ecomap_urls)
-)
-
-
-# %% [markdown]
-# ## Merge grid ecomap widgets
-
-# %%
-# parameters
-
-merge_grid_widgets_params = dict()
-
-# %%
-# call the task
-
-
-merge_grid_widgets = (
-    merge_widget_views.handle_errors(task_instance_id="merge_grid_widgets")
-    .partial(widgets=create_grid_widgets, **merge_grid_widgets_params)
-    .call()
-)
-
-
-# %% [markdown]
 # ## Filter events and get patrol information records
 
 # %%
@@ -2272,7 +2083,6 @@ weather_dashboard = (
             merge_footp_widgets,
             merge_vhp_widgets,
             merge_mocp_widgets,
-            merge_grid_widgets,
         ],
         time_range=time_range,
         groupers=groupers,
