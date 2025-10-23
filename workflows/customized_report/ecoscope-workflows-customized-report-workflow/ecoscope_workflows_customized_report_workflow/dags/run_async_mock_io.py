@@ -95,7 +95,6 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
-    view_df,
     zip_grouped_by_key,
 )
 
@@ -183,7 +182,6 @@ def main(params: Params):
         "patrol_grid_visits": ["split_trajectories_by_group"],
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
-        "view_ngrid_df": ["apply_grid_colormap"],
         "generate_grid_layers": ["apply_grid_colormap"],
         "zoom_grid_view": ["apply_grid_colormap"],
         "zip_grid_zoom_values": ["generate_grid_layers", "zoom_grid_view"],
@@ -1419,28 +1417,14 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "input_column_name": "density_bins",
+                "colormap": "RdYlGn",
                 "output_column_name": "density_colors",
-                "colormap": "Wistia",
             }
             | (params_dict.get("apply_grid_colormap") or {}),
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
                 "argvalues": DependsOn("apply_classification_grid"),
-            },
-        ),
-        "view_ngrid_df": Node(
-            async_task=view_df.validate()
-            .handle_errors(task_instance_id="view_ngrid_df")
-            .set_executor("lithops"),
-            partial={
-                "name": "Patrol colormap grid",
-            }
-            | (params_dict.get("view_ngrid_df") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["gdf"],
-                "argvalues": DependsOn("apply_grid_colormap"),
             },
         ),
         "generate_grid_layers": Node(
@@ -1460,7 +1444,6 @@ def main(params: Params):
                     "label_column": "density_bins",
                     "color_column": "density_colors",
                 },
-                "tooltip_columns": ["density_bins", "density_colors"],
             }
             | (params_dict.get("generate_grid_layers") or {}),
             method="mapvalues",

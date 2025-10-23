@@ -943,21 +943,11 @@ workflow:
     task: apply_color_map
     partial:
       input_column_name: density_bins
+      colormap: RdYlGn
       output_column_name: density_colors
-      colormap: Wistia
     mapvalues:
       argnames: df
       argvalues: ${{ workflow.apply_classification_grid.return }}
-
-  - name: view patrol coverage grid df 
-    id: view_ngrid_df
-    task: view_df
-    partial:
-      name: Patrol colormap grid
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.apply_grid_colormap.return }}
-
 
   - name: Create patrol visit grid layers
     id: generate_grid_layers
@@ -972,15 +962,10 @@ workflow:
         opacity: 0.55
       legend:
         label_column: density_bins
-        color_column: density_colors
-      tooltip_columns:
-        - density_bins
-        - density_colors
-      
+        color_column: density_colors      
     mapvalues:
       argnames: geodataframe
       argvalues: ${{ workflow.apply_grid_colormap.return }}
-
 
   - name: Zoom grid polygons by view state
     id: zoom_grid_view

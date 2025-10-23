@@ -62,7 +62,6 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
-    view_df,
     zip_grouped_by_key,
 )
 
@@ -2002,30 +2001,11 @@ apply_grid_colormap = (
     apply_color_map.handle_errors(task_instance_id="apply_grid_colormap")
     .partial(
         input_column_name="density_bins",
+        colormap="RdYlGn",
         output_column_name="density_colors",
-        colormap="Wistia",
         **apply_grid_colormap_params,
     )
     .mapvalues(argnames=["df"], argvalues=apply_classification_grid)
-)
-
-
-# %% [markdown]
-# ## view patrol coverage grid df
-
-# %%
-# parameters
-
-view_ngrid_df_params = dict()
-
-# %%
-# call the task
-
-
-view_ngrid_df = (
-    view_df.handle_errors(task_instance_id="view_ngrid_df")
-    .partial(name="Patrol colormap grid", **view_ngrid_df_params)
-    .mapvalues(argnames=["gdf"], argvalues=apply_grid_colormap)
 )
 
 
@@ -2053,7 +2033,6 @@ generate_grid_layers = (
     .partial(
         layer_style={"fill_color_column": "density_colors", "opacity": 0.55},
         legend={"label_column": "density_bins", "color_column": "density_colors"},
-        tooltip_columns=["density_bins", "density_colors"],
         **generate_grid_layers_params,
     )
     .mapvalues(argnames=["geodataframe"], argvalues=apply_grid_colormap)
