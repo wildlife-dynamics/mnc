@@ -984,6 +984,14 @@ workflow:
       left:  ${{ workflow.generate_grid_layers.return }}
       right: ${{ workflow.zoom_grid_view.return }} 
 
+  - name: print zip value outputs
+    id: print_zip_values
+    task: print_output
+    mapvalues:
+      argnames: value
+      argvalues: ${{ workflow.zip_grid_zoom_values.return }}
+
+      
   - name: Draw grid ecomaps
     id: draw_grid_ecomap
     task: draw_ecomap

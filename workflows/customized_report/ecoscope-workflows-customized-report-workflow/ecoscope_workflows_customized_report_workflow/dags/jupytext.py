@@ -62,6 +62,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
+    print_output,
     zip_grouped_by_key,
 )
 
@@ -2076,6 +2077,25 @@ zip_grid_zoom_values = (
         left=generate_grid_layers, right=zoom_grid_view, **zip_grid_zoom_values_params
     )
     .call()
+)
+
+
+# %% [markdown]
+# ## print zip value outputs
+
+# %%
+# parameters
+
+print_zip_values_params = dict()
+
+# %%
+# call the task
+
+
+print_zip_values = (
+    print_output.handle_errors(task_instance_id="print_zip_values")
+    .partial(**print_zip_values_params)
+    .mapvalues(argnames=["value"], argvalues=zip_grid_zoom_values)
 )
 
 

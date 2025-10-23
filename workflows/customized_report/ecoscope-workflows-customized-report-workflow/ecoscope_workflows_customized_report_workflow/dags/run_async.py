@@ -53,6 +53,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
+    print_output,
     zip_grouped_by_key,
 )
 
@@ -141,6 +142,7 @@ def main(params: Params):
         "generate_grid_layers": ["apply_grid_colormap"],
         "zoom_grid_view": ["apply_grid_colormap"],
         "zip_grid_zoom_values": ["generate_grid_layers", "zoom_grid_view"],
+        "print_zip_values": ["zip_grid_zoom_values"],
         "draw_grid_ecomap": ["configure_base_maps", "zip_grid_zoom_values"],
         "persist_grid_ecomap_urls": ["draw_grid_ecomap"],
         "create_grid_widgets": ["persist_grid_ecomap_urls"],
@@ -1433,6 +1435,17 @@ def main(params: Params):
             }
             | (params_dict.get("zip_grid_zoom_values") or {}),
             method="call",
+        ),
+        "print_zip_values": Node(
+            async_task=print_output.validate()
+            .handle_errors(task_instance_id="print_zip_values")
+            .set_executor("lithops"),
+            partial=(params_dict.get("print_zip_values") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["value"],
+                "argvalues": DependsOn("zip_grid_zoom_values"),
+            },
         ),
         "draw_grid_ecomap": Node(
             async_task=draw_ecomap.validate()
