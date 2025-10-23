@@ -1074,7 +1074,7 @@ def main(params: Params):
         zip_grouped_by_key.validate()
         .handle_errors(task_instance_id="zip_grid_zoom_values")
         .partial(
-            left=generate_grid_layers,
+            left=apply_grid_colormap,
             right=zoom_grid_view,
             **(params_dict.get("zip_grid_zoom_values") or {}),
         )

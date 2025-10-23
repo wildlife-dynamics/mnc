@@ -135,7 +135,7 @@ def main(params: Params):
         "view_ngrid_df": ["apply_grid_colormap"],
         "generate_grid_layers": ["apply_grid_colormap"],
         "zoom_grid_view": ["apply_grid_colormap"],
-        "zip_grid_zoom_values": ["generate_grid_layers", "zoom_grid_view"],
+        "zip_grid_zoom_values": ["apply_grid_colormap", "zoom_grid_view"],
         "draw_grid_ecomap": ["configure_base_maps", "zip_grid_zoom_values"],
         "persist_grid_ecomap_urls": ["draw_grid_ecomap"],
         "create_grid_widgets": ["persist_grid_ecomap_urls"],
@@ -1319,7 +1319,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="zip_grid_zoom_values")
             .set_executor("lithops"),
             partial={
-                "left": DependsOn("generate_grid_layers"),
+                "left": DependsOn("apply_grid_colormap"),
                 "right": DependsOn("zoom_grid_view"),
             }
             | (params_dict.get("zip_grid_zoom_values") or {}),
