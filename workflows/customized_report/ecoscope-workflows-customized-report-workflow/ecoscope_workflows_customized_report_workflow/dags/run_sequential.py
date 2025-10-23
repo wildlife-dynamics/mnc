@@ -51,7 +51,6 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid,
     create_view_state_from_gdf,
     filter_by_value,
-    view_df,
     zip_grouped_by_key,
 )
 
@@ -497,15 +496,6 @@ def main(params: Params):
             column="event_details", **(params_dict.get("normalize_pi_values") or {})
         )
         .mapvalues(argnames=["df"], argvalues=filter_patrol_info_events)
-    )
-
-    view_norm_df = (
-        view_df.validate()
-        .handle_errors(task_instance_id="view_norm_df")
-        .partial(
-            name="Patrol information events", **(params_dict.get("view_norm_df") or {})
-        )
-        .mapvalues(argnames=["gdf"], argvalues=normalize_pi_values)
     )
 
     rename_patrolinf_cols = (
