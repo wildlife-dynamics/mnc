@@ -1782,9 +1782,7 @@ patrol_grid_visits = (
 # %%
 # parameters
 
-view_grid_df_params = dict(
-    gdf=...,
-)
+view_grid_df_params = dict()
 
 # %%
 # call the task
@@ -1793,7 +1791,7 @@ view_grid_df_params = dict(
 view_grid_df = (
     view_df.handle_errors(task_instance_id="view_grid_df")
     .partial(name="Patrol Grid gdf", **view_grid_df_params)
-    .mapvalues(argnames=["df"], argvalues=patrol_grid_visits)
+    .mapvalues(argnames=["gdf"], argvalues=patrol_grid_visits)
 )
 
 

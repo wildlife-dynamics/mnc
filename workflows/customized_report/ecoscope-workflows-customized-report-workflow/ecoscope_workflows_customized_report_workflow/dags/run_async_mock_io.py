@@ -1276,7 +1276,7 @@ def main(params: Params):
             | (params_dict.get("view_grid_df") or {}),
             method="mapvalues",
             kwargs={
-                "argnames": ["df"],
+                "argnames": ["gdf"],
                 "argvalues": DependsOn("patrol_grid_visits"),
             },
         ),

@@ -1016,7 +1016,7 @@ def main(params: Params):
         view_df.validate()
         .handle_errors(task_instance_id="view_grid_df")
         .partial(name="Patrol Grid gdf", **(params_dict.get("view_grid_df") or {}))
-        .mapvalues(argnames=["df"], argvalues=patrol_grid_visits)
+        .mapvalues(argnames=["gdf"], argvalues=patrol_grid_visits)
     )
 
     apply_classification_grid = (

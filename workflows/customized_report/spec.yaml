@@ -817,7 +817,7 @@ workflow:
     partial:
       name: Patrol Grid gdf
     mapvalues:
-      argnames: df
+      argnames: gdf
       argvalues: ${{ workflow.patrol_grid_visits.return }}
 
   - name: Apply bin classification on grids

@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, List, Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 
 from pydantic import (
     AwareDatetime,
@@ -306,13 +306,6 @@ class PatrolObservations(BaseModel):
     )
 
 
-class ViewGridDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    gdf: Any = Field(..., description="A GeoDataFrame to inspect", title="Gdf")
-
-
 class PersistPatrolDf(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -494,9 +487,6 @@ class Params(BaseModel):
     )
     convert_to_trajectories: Optional[ConvertToTrajectories] = Field(
         None, title="Convert Relocations to Trajectories"
-    )
-    view_grid_df: Optional[ViewGridDf] = Field(
-        None, title="view patrol coverage grid df"
     )
     apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
         None, title="Apply bin classification on grids"
