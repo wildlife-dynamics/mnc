@@ -1056,7 +1056,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            layer_style={"color_column": "density_colormap"},
+            layer_style={"fill_color_column": "density_colormap", "opacity": 0.65},
             legend={"label_column": "density_bins", "color_column": "density_colormap"},
             tooltip_columns=[
                 "density_bins",

@@ -851,17 +851,17 @@ workflow:
         - any_dependency_skipped
     partial:
       layer_style:
-        color_column: density_colormap
+        fill_color_column: density_colormap
+        opacity: 0.65
       legend:
         label_column: density_bins
         color_column: density_colormap
       tooltip_columns:
-        - density_bins
-        - density_colormap
-        - geometry
-        - dist_meters
-        - timespan_seconds
-
+          - density_bins
+          - density_colormap
+          - geometry
+          - dist_meters
+          - timespan_seconds
     mapvalues:
       argnames: geodataframe
       argvalues: ${{ workflow.apply_grid_colormap.return }}
