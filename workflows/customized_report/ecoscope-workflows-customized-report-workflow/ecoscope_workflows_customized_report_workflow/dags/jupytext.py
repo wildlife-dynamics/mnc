@@ -16,6 +16,7 @@ from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection
 from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps
+from ecoscope_workflows_ext_mnc.tasks import download_file_and_persist
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_subjectgroup_observations
 from ecoscope_workflows_core.tasks.transformation import extract_value_from_json_column
 from ecoscope_workflows_core.tasks.transformation import extract_column_as_type
@@ -52,6 +53,8 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_classific
 from ecoscope_workflows_ext_ecoscope.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import html_to_png_pw
+from ecoscope_workflows_ext_mnc.tasks import flatten_tuple
+from ecoscope_workflows_ext_mnc.tasks import create_mnc_context
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 
 # %% [markdown]
@@ -158,6 +161,33 @@ configure_base_maps_params = dict(
 configure_base_maps = (
     set_base_maps.handle_errors(task_instance_id="configure_base_maps")
     .partial(**configure_base_maps_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Download MNC template and persist
+
+# %%
+# parameters
+
+persist_mnc_tpt_params = dict(
+    retries=...,
+    unzip=...,
+)
+
+# %%
+# call the task
+
+
+persist_mnc_tpt = (
+    download_file_and_persist.handle_errors(task_instance_id="persist_mnc_tpt")
+    .partial(
+        url="https://www.dropbox.com/scl/fi/v9vnkxuagrtixs0xdh34p/mara_north_conservancy_report_template_v2.docx?rlkey=c8db8wfezrhu9ekd85ggypf89&st=8xf73hzy&dl=0",
+        output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        overwrite_existing=False,
+        **persist_mnc_tpt_params,
+    )
     .call()
 )
 
@@ -1260,6 +1290,74 @@ filter_foot_patrols = (
 
 
 # %% [markdown]
+# ## Summarize foot patrol metrics
+
+# %%
+# parameters
+
+foot_patrol_metrics_params = dict()
+
+# %%
+# call the task
+
+
+foot_patrol_metrics = (
+    summarize_df.handle_errors(task_instance_id="foot_patrol_metrics")
+    .partial(
+        groupby_cols=["patrol_cat_types"],
+        summary_params=[
+            {
+                "display_name": "no_of_patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "distance_km",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+            {
+                "display_name": "duration_hrs",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+        ],
+        reset_index=True,
+        **foot_patrol_metrics_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=filter_foot_patrols)
+)
+
+
+# %% [markdown]
+# ## Persist foot patrol coverage
+
+# %%
+# parameters
+
+persist_fps_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_fps_df = (
+    persist_df.handle_errors(task_instance_id="persist_fps_df")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_fps_df_params
+    )
+    .mapvalues(argnames=["df"], argvalues=foot_patrol_metrics)
+)
+
+
+# %% [markdown]
 # ## Apply Colormap to foot patrol
 
 # %%
@@ -1484,6 +1582,77 @@ filter_vehicle_patrols = (
 
 
 # %% [markdown]
+# ## Summarize vehicle patrol metrics
+
+# %%
+# parameters
+
+vh_patrol_metrics_params = dict()
+
+# %%
+# call the task
+
+
+vh_patrol_metrics = (
+    summarize_df.handle_errors(task_instance_id="vh_patrol_metrics")
+    .partial(
+        groupby_cols=["patrol_cat_types"],
+        summary_params=[
+            {
+                "display_name": "no_of_patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "distance_km",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+            {
+                "display_name": "duration_hrs",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+            {
+                "display_name": "average_speed",
+                "aggregator": "mean",
+                "column": "speed_kmhr",
+            },
+        ],
+        reset_index=True,
+        **vh_patrol_metrics_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=filter_vehicle_patrols)
+)
+
+
+# %% [markdown]
+# ## Persist foot patrol coverage
+
+# %%
+# parameters
+
+persist_vh_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_vh_df = (
+    persist_df.handle_errors(task_instance_id="persist_vh_df")
+    .partial(root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_vh_df_params)
+    .mapvalues(argnames=["df"], argvalues=vh_patrol_metrics)
+)
+
+
+# %% [markdown]
 # ## Apply Colormap to vh patrol
 
 # %%
@@ -1704,6 +1873,77 @@ filter_motor_patrols = (
         **filter_motor_patrols_params,
     )
     .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
+)
+
+
+# %% [markdown]
+# ## Summarize motor patrol metrics
+
+# %%
+# parameters
+
+mb_patrol_metrics_params = dict()
+
+# %%
+# call the task
+
+
+mb_patrol_metrics = (
+    summarize_df.handle_errors(task_instance_id="mb_patrol_metrics")
+    .partial(
+        groupby_cols=["patrol_cat_types"],
+        summary_params=[
+            {
+                "display_name": "no_of_patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "distance_km",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+            {
+                "display_name": "duration_hrs",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+            {
+                "display_name": "average_speed",
+                "aggregator": "mean",
+                "column": "speed_kmhr",
+            },
+        ],
+        reset_index=True,
+        **mb_patrol_metrics_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=filter_motor_patrols)
+)
+
+
+# %% [markdown]
+# ## Persist foot patrol coverage
+
+# %%
+# parameters
+
+persist_mb_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_mb_df = (
+    persist_df.handle_errors(task_instance_id="persist_mb_df")
+    .partial(root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_mb_df_params)
+    .mapvalues(argnames=["df"], argvalues=mb_patrol_metrics)
 )
 
 
@@ -2003,7 +2243,12 @@ generate_grid_layers = (
         unpack_depth=1,
     )
     .partial(
-        layer_style={"fill_color_column": "density_colors", "opacity": 0.55},
+        layer_style={
+            "fill_color_column": "density_colors",
+            "opacity": 0.25,
+            "get_line_width": 1,
+            "stroked": True,
+        },
         legend={"label_column": "density_bins", "color_column": "density_colors"},
         tooltip_columns=["density_bins", "density_colors"],
         **generate_grid_layers_params,
@@ -2324,6 +2569,315 @@ convert_patgr_html_to_png = (
         **convert_patgr_html_to_png_params,
     )
     .mapvalues(argnames=["html_path"], argvalues=persist_grid_ecomap_urls)
+)
+
+
+# %% [markdown]
+# ## Zip total events df and patrol summary df
+
+# %%
+# parameters
+
+zip_tevents_ps_params = dict()
+
+# %%
+# call the task
+
+
+zip_tevents_ps = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_tevents_ps")
+    .partial(
+        left=total_events_recorded, right=foot_patrol_metrics, **zip_tevents_ps_params
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip total events df ,patrol summary df and vehicle patrols
+
+# %%
+# parameters
+
+zip_tps_vh_params = dict()
+
+# %%
+# call the task
+
+
+zip_tps_vh = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_tps_vh")
+    .partial(left=zip_tevents_ps, right=vh_patrol_metrics, **zip_tps_vh_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip total events df ,patrol summary df,vehicle patrols and motor patrols
+
+# %%
+# parameters
+
+zip_tpsvhmp_params = dict()
+
+# %%
+# call the task
+
+
+zip_tpsvhmp = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_tpsvhmp")
+    .partial(left=zip_tps_vh, right=mb_patrol_metrics, **zip_tpsvhmp_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip total events df ,patrol summary df,vehicle patrols,motor and patrol purpose
+
+# %%
+# parameters
+
+zip_patrol_purpose_params = dict()
+
+# %%
+# call the task
+
+
+zip_patrol_purpose = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_patrol_purpose")
+    .partial(left=zip_tpsvhmp, right=patrol_info_summary, **zip_patrol_purpose_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip ranger metrics
+
+# %%
+# parameters
+
+zip_ranger_metrics_params = dict()
+
+# %%
+# call the task
+
+
+zip_ranger_metrics = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_ranger_metrics")
+    .partial(
+        left=zip_patrol_purpose,
+        right=ranger_patrol_metrics,
+        **zip_ranger_metrics_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip temperature image
+
+# %%
+# parameters
+
+zip_temp_urls_params = dict()
+
+# %%
+# call the task
+
+
+zip_temp_urls = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_temp_urls")
+    .partial(
+        left=zip_ranger_metrics, right=convert_temp_html_to_png, **zip_temp_urls_params
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip precipitation image
+
+# %%
+# parameters
+
+zip_precip_urls_params = dict()
+
+# %%
+# call the task
+
+
+zip_precip_urls = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_precip_urls")
+    .partial(
+        left=zip_temp_urls, right=convert_prec_html_to_png, **zip_precip_urls_params
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip total events image
+
+# %%
+# parameters
+
+zip_events_urls_params = dict()
+
+# %%
+# call the task
+
+
+zip_events_urls = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_events_urls")
+    .partial(
+        left=zip_precip_urls, right=convert_tev_html_to_png, **zip_events_urls_params
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip foot patrols image
+
+# %%
+# parameters
+
+zip_footp_urls_params = dict()
+
+# %%
+# call the task
+
+
+zip_footp_urls = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_footp_urls")
+    .partial(
+        left=zip_events_urls, right=convert_footp_html_to_png, **zip_footp_urls_params
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip vehicle patrols image
+
+# %%
+# parameters
+
+zip_vhp_urls_params = dict()
+
+# %%
+# call the task
+
+
+zip_vhp_urls = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_vhp_urls")
+    .partial(left=zip_footp_urls, right=convert_vhp_html_to_png, **zip_vhp_urls_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip motorbike patrols image
+
+# %%
+# parameters
+
+zip_mb_urls_params = dict()
+
+# %%
+# call the task
+
+
+zip_mb_urls = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_mb_urls")
+    .partial(left=zip_vhp_urls, right=convert_mbp_html_to_png, **zip_mb_urls_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Zip patrols coverage ecomap
+
+# %%
+# parameters
+
+zip_patrolcov_urls_params = dict()
+
+# %%
+# call the task
+
+
+zip_patrolcov_urls = (
+    zip_grouped_by_key.handle_errors(task_instance_id="zip_patrolcov_urls")
+    .partial(
+        left=zip_mb_urls, right=convert_patgr_html_to_png, **zip_patrolcov_urls_params
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Flatten zipped  context inputs
+
+# %%
+# parameters
+
+flatten_zipped_context_params = dict()
+
+# %%
+# call the task
+
+
+flatten_zipped_context = (
+    flatten_tuple.handle_errors(task_instance_id="flatten_zipped_context")
+    .partial(**flatten_zipped_context_params)
+    .mapvalues(argnames=["nested"], argvalues=zip_patrolcov_urls)
+)
+
+
+# %% [markdown]
+# ## Create Mara North Context template
+
+# %%
+# parameters
+
+mnc_context_params = dict(
+    validate_images=...,
+    box_h_cm=...,
+    box_w_cm=...,
+    filename=...,
+)
+
+# %%
+# call the task
+
+
+mnc_context = (
+    create_mnc_context.handle_errors(task_instance_id="mnc_context")
+    .partial(
+        template_path=persist_mnc_tpt,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        time_period=time_range,
+        **mnc_context_params,
+    )
+    .mapvalues(
+        argnames=[
+            "total_events_df",
+            "foot_patrols_summary_df",
+            "vehicle_patrols_summary_df",
+            "motor_patrols_summary_df",
+            "patrol_purpose_summary_df",
+            "patrol_effort_summary_df",
+            "temperature_chart",
+            "precipitation_chart",
+            "total_events_chart",
+            "foot_patrols_map",
+            "vehicle_patrols_map",
+            "motorbike_patrols_map",
+            "patrols_coverage_map",
+        ],
+        argvalues=flatten_zipped_context,
+    )
 )
 
 

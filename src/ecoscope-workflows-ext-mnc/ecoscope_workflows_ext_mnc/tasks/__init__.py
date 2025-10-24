@@ -20,7 +20,12 @@ from ._map_utils import (
     create_map_layers_from_annotated_dict,
 )
 from ._pw_html_to_png import ScreenshotConfig, html_to_png_pw
+from ._download_file import  download_file_and_persist
+from ._mnc_context import create_mnc_context
+
 __all__ = [
+    "create_mnc_context",
+    "download_file_and_persist",
     "ScreenshotConfig",
     "html_to_png_pw",
     "add_totals_row",

@@ -7,6 +7,7 @@ from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection
 from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps
+from ecoscope_workflows_ext_mnc.tasks import download_file_and_persist
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_subjectgroup_observations
 from ecoscope_workflows_core.tasks.transformation import extract_value_from_json_column
 from ecoscope_workflows_core.tasks.transformation import extract_column_as_type
@@ -43,6 +44,8 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_classific
 from ecoscope_workflows_ext_ecoscope.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import html_to_png_pw
+from ecoscope_workflows_ext_mnc.tasks import flatten_tuple
+from ecoscope_workflows_ext_mnc.tasks import create_mnc_context
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 
 from ..params import Params
@@ -85,6 +88,18 @@ def main(params: Params):
         set_base_maps.validate()
         .handle_errors(task_instance_id="configure_base_maps")
         .partial(**(params_dict.get("configure_base_maps") or {}))
+        .call()
+    )
+
+    persist_mnc_tpt = (
+        download_file_and_persist.validate()
+        .handle_errors(task_instance_id="persist_mnc_tpt")
+        .partial(
+            url="https://www.dropbox.com/scl/fi/v9vnkxuagrtixs0xdh34p/mara_north_conservancy_report_template_v2.docx?rlkey=c8db8wfezrhu9ekd85ggypf89&st=8xf73hzy&dl=0",
+            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            overwrite_existing=False,
+            **(params_dict.get("persist_mnc_tpt") or {}),
+        )
         .call()
     )
 
@@ -697,6 +712,48 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
     )
 
+    foot_patrol_metrics = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="foot_patrol_metrics")
+        .partial(
+            groupby_cols=["patrol_cat_types"],
+            summary_params=[
+                {
+                    "display_name": "no_of_patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "distance_km",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "duration_hrs",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+            ],
+            reset_index=True,
+            **(params_dict.get("foot_patrol_metrics") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=filter_foot_patrols)
+    )
+
+    persist_fps_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_fps_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_fps_df") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=foot_patrol_metrics)
+    )
+
     apply_footp_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_footp_colormap")
@@ -819,6 +876,53 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
     )
 
+    vh_patrol_metrics = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="vh_patrol_metrics")
+        .partial(
+            groupby_cols=["patrol_cat_types"],
+            summary_params=[
+                {
+                    "display_name": "no_of_patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "distance_km",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "duration_hrs",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+                {
+                    "display_name": "average_speed",
+                    "aggregator": "mean",
+                    "column": "speed_kmhr",
+                },
+            ],
+            reset_index=True,
+            **(params_dict.get("vh_patrol_metrics") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=filter_vehicle_patrols)
+    )
+
+    persist_vh_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_vh_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_vh_df") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=vh_patrol_metrics)
+    )
+
     apply_vhp_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_vhp_colormap")
@@ -938,6 +1042,53 @@ def main(params: Params):
             **(params_dict.get("filter_motor_patrols") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=split_trajectories_by_group)
+    )
+
+    mb_patrol_metrics = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="mb_patrol_metrics")
+        .partial(
+            groupby_cols=["patrol_cat_types"],
+            summary_params=[
+                {
+                    "display_name": "no_of_patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "distance_km",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "duration_hrs",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+                {
+                    "display_name": "average_speed",
+                    "aggregator": "mean",
+                    "column": "speed_kmhr",
+                },
+            ],
+            reset_index=True,
+            **(params_dict.get("mb_patrol_metrics") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=filter_motor_patrols)
+    )
+
+    persist_mb_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_mb_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_mb_df") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=mb_patrol_metrics)
     )
 
     apply_mocp_colormap = (
@@ -1093,7 +1244,12 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            layer_style={"fill_color_column": "density_colors", "opacity": 0.55},
+            layer_style={
+                "fill_color_column": "density_colors",
+                "opacity": 0.25,
+                "get_line_width": 1,
+                "stroked": True,
+            },
             legend={"label_column": "density_bins", "color_column": "density_colors"},
             tooltip_columns=["density_bins", "density_colors"],
             **(params_dict.get("generate_grid_layers") or {}),
@@ -1252,6 +1408,174 @@ def main(params: Params):
             **(params_dict.get("convert_patgr_html_to_png") or {}),
         )
         .mapvalues(argnames=["html_path"], argvalues=persist_grid_ecomap_urls)
+    )
+
+    zip_tevents_ps = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_tevents_ps")
+        .partial(
+            left=total_events_recorded,
+            right=foot_patrol_metrics,
+            **(params_dict.get("zip_tevents_ps") or {}),
+        )
+        .call()
+    )
+
+    zip_tps_vh = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_tps_vh")
+        .partial(
+            left=zip_tevents_ps,
+            right=vh_patrol_metrics,
+            **(params_dict.get("zip_tps_vh") or {}),
+        )
+        .call()
+    )
+
+    zip_tpsvhmp = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_tpsvhmp")
+        .partial(
+            left=zip_tps_vh,
+            right=mb_patrol_metrics,
+            **(params_dict.get("zip_tpsvhmp") or {}),
+        )
+        .call()
+    )
+
+    zip_patrol_purpose = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_patrol_purpose")
+        .partial(
+            left=zip_tpsvhmp,
+            right=patrol_info_summary,
+            **(params_dict.get("zip_patrol_purpose") or {}),
+        )
+        .call()
+    )
+
+    zip_ranger_metrics = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_ranger_metrics")
+        .partial(
+            left=zip_patrol_purpose,
+            right=ranger_patrol_metrics,
+            **(params_dict.get("zip_ranger_metrics") or {}),
+        )
+        .call()
+    )
+
+    zip_temp_urls = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_temp_urls")
+        .partial(
+            left=zip_ranger_metrics,
+            right=convert_temp_html_to_png,
+            **(params_dict.get("zip_temp_urls") or {}),
+        )
+        .call()
+    )
+
+    zip_precip_urls = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_precip_urls")
+        .partial(
+            left=zip_temp_urls,
+            right=convert_prec_html_to_png,
+            **(params_dict.get("zip_precip_urls") or {}),
+        )
+        .call()
+    )
+
+    zip_events_urls = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_events_urls")
+        .partial(
+            left=zip_precip_urls,
+            right=convert_tev_html_to_png,
+            **(params_dict.get("zip_events_urls") or {}),
+        )
+        .call()
+    )
+
+    zip_footp_urls = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_footp_urls")
+        .partial(
+            left=zip_events_urls,
+            right=convert_footp_html_to_png,
+            **(params_dict.get("zip_footp_urls") or {}),
+        )
+        .call()
+    )
+
+    zip_vhp_urls = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_vhp_urls")
+        .partial(
+            left=zip_footp_urls,
+            right=convert_vhp_html_to_png,
+            **(params_dict.get("zip_vhp_urls") or {}),
+        )
+        .call()
+    )
+
+    zip_mb_urls = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_mb_urls")
+        .partial(
+            left=zip_vhp_urls,
+            right=convert_mbp_html_to_png,
+            **(params_dict.get("zip_mb_urls") or {}),
+        )
+        .call()
+    )
+
+    zip_patrolcov_urls = (
+        zip_grouped_by_key.validate()
+        .handle_errors(task_instance_id="zip_patrolcov_urls")
+        .partial(
+            left=zip_mb_urls,
+            right=convert_patgr_html_to_png,
+            **(params_dict.get("zip_patrolcov_urls") or {}),
+        )
+        .call()
+    )
+
+    flatten_zipped_context = (
+        flatten_tuple.validate()
+        .handle_errors(task_instance_id="flatten_zipped_context")
+        .partial(**(params_dict.get("flatten_zipped_context") or {}))
+        .mapvalues(argnames=["nested"], argvalues=zip_patrolcov_urls)
+    )
+
+    mnc_context = (
+        create_mnc_context.validate()
+        .handle_errors(task_instance_id="mnc_context")
+        .partial(
+            template_path=persist_mnc_tpt,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            time_period=time_range,
+            **(params_dict.get("mnc_context") or {}),
+        )
+        .mapvalues(
+            argnames=[
+                "total_events_df",
+                "foot_patrols_summary_df",
+                "vehicle_patrols_summary_df",
+                "motor_patrols_summary_df",
+                "patrol_purpose_summary_df",
+                "patrol_effort_summary_df",
+                "temperature_chart",
+                "precipitation_chart",
+                "total_events_chart",
+                "foot_patrols_map",
+                "vehicle_patrols_map",
+                "motorbike_patrols_map",
+                "patrols_coverage_map",
+            ],
+            argvalues=flatten_zipped_context,
+        )
     )
 
     weather_dashboard = (

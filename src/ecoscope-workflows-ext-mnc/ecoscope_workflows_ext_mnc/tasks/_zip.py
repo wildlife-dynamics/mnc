@@ -1,7 +1,5 @@
 from ecoscope_workflows_core.decorators import task
-from typing import Sequence, TypeVar,Iterable,Tuple,Union,List,Iterator,Optional
-
-from typing import Iterable, Tuple, List, Union, Optional
+from typing import Sequence, TypeVar,Tuple,Union
 
 GroupKey = Tuple  # normalized group key as a tuple
 V = Union[tuple, list, str, int, float, object]
@@ -46,7 +44,6 @@ def flatten_tuple(nested: tuple) -> Tuple[JsonPrimitive, ...]:
             f"Unsupported leaf type in nested tuple: {type(item)!r}. "
             "Allowed leaf types: str, int, float, bool, None."
         )
-
     return tuple(flat_list)
 
 @task

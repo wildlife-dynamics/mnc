@@ -20,6 +20,7 @@ from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection
 from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps
+from ecoscope_workflows_ext_mnc.tasks import download_file_and_persist
 
 get_subjectgroup_observations = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -68,6 +69,8 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_classific
 from ecoscope_workflows_ext_ecoscope.tasks.results import create_polygon_layer
 from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import html_to_png_pw
+from ecoscope_workflows_ext_mnc.tasks import flatten_tuple
+from ecoscope_workflows_ext_mnc.tasks import create_mnc_context
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 
 from ..params import Params
@@ -84,6 +87,7 @@ def main(params: Params):
         "groupers": [],
         "er_client_name": [],
         "configure_base_maps": [],
+        "persist_mnc_tpt": [],
         "subject_observations": ["er_client_name", "time_range"],
         "extract_precipitation": ["subject_observations"],
         "extract_temperature": ["extract_precipitation"],
@@ -125,6 +129,8 @@ def main(params: Params):
         "ranger_patrol_metrics": ["split_trajectories_by_group"],
         "persist_total_df": ["ranger_patrol_metrics"],
         "filter_foot_patrols": ["split_trajectories_by_group"],
+        "foot_patrol_metrics": ["filter_foot_patrols"],
+        "persist_fps_df": ["foot_patrol_metrics"],
         "apply_footp_colormap": ["filter_foot_patrols"],
         "generate_footp_layers": ["apply_footp_colormap"],
         "zoom_footp_traj_view": ["apply_footp_colormap"],
@@ -134,6 +140,8 @@ def main(params: Params):
         "create_footp_widgets": ["persist_footp_ecomap_urls"],
         "merge_footp_widgets": ["create_footp_widgets"],
         "filter_vehicle_patrols": ["split_trajectories_by_group"],
+        "vh_patrol_metrics": ["filter_vehicle_patrols"],
+        "persist_vh_df": ["vh_patrol_metrics"],
         "apply_vhp_colormap": ["filter_vehicle_patrols"],
         "generate_vhp_layers": ["apply_vhp_colormap"],
         "zoom_vhp_traj_view": ["apply_vhp_colormap"],
@@ -143,6 +151,8 @@ def main(params: Params):
         "create_vhp_widgets": ["persist_vhp_ecomap_urls"],
         "merge_vhp_widgets": ["create_vhp_widgets"],
         "filter_motor_patrols": ["split_trajectories_by_group"],
+        "mb_patrol_metrics": ["filter_motor_patrols"],
+        "persist_mb_df": ["mb_patrol_metrics"],
         "apply_mocp_colormap": ["filter_motor_patrols"],
         "generate_mocp_layers": ["apply_mocp_colormap"],
         "zoom_mocp_traj_view": ["apply_mocp_colormap"],
@@ -169,6 +179,20 @@ def main(params: Params):
         "convert_prec_html_to_png": ["persist_precipitation"],
         "convert_tev_html_to_png": ["persist_total_events"],
         "convert_patgr_html_to_png": ["persist_grid_ecomap_urls"],
+        "zip_tevents_ps": ["total_events_recorded", "foot_patrol_metrics"],
+        "zip_tps_vh": ["zip_tevents_ps", "vh_patrol_metrics"],
+        "zip_tpsvhmp": ["zip_tps_vh", "mb_patrol_metrics"],
+        "zip_patrol_purpose": ["zip_tpsvhmp", "patrol_info_summary"],
+        "zip_ranger_metrics": ["zip_patrol_purpose", "ranger_patrol_metrics"],
+        "zip_temp_urls": ["zip_ranger_metrics", "convert_temp_html_to_png"],
+        "zip_precip_urls": ["zip_temp_urls", "convert_prec_html_to_png"],
+        "zip_events_urls": ["zip_precip_urls", "convert_tev_html_to_png"],
+        "zip_footp_urls": ["zip_events_urls", "convert_footp_html_to_png"],
+        "zip_vhp_urls": ["zip_footp_urls", "convert_vhp_html_to_png"],
+        "zip_mb_urls": ["zip_vhp_urls", "convert_mbp_html_to_png"],
+        "zip_patrolcov_urls": ["zip_mb_urls", "convert_patgr_html_to_png"],
+        "flatten_zipped_context": ["zip_patrolcov_urls"],
+        "mnc_context": ["persist_mnc_tpt", "time_range", "flatten_zipped_context"],
         "weather_dashboard": [
             "workflow_details",
             "grouped_precipitation_widget",
@@ -220,6 +244,18 @@ def main(params: Params):
             .handle_errors(task_instance_id="configure_base_maps")
             .set_executor("lithops"),
             partial=(params_dict.get("configure_base_maps") or {}),
+            method="call",
+        ),
+        "persist_mnc_tpt": Node(
+            async_task=download_file_and_persist.validate()
+            .handle_errors(task_instance_id="persist_mnc_tpt")
+            .set_executor("lithops"),
+            partial={
+                "url": "https://www.dropbox.com/scl/fi/v9vnkxuagrtixs0xdh34p/mara_north_conservancy_report_template_v2.docx?rlkey=c8db8wfezrhu9ekd85ggypf89&st=8xf73hzy&dl=0",
+                "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "overwrite_existing": False,
+            }
+            | (params_dict.get("persist_mnc_tpt") or {}),
             method="call",
         ),
         "subject_observations": Node(
@@ -913,6 +949,56 @@ def main(params: Params):
                 "argvalues": DependsOn("split_trajectories_by_group"),
             },
         ),
+        "foot_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="foot_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_cat_types"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "distance_km",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "duration_hrs",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("foot_patrol_metrics") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("filter_foot_patrols"),
+            },
+        ),
+        "persist_fps_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_fps_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_fps_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("foot_patrol_metrics"),
+            },
+        ),
         "apply_footp_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_footp_colormap")
@@ -1068,6 +1154,61 @@ def main(params: Params):
                 "argvalues": DependsOn("split_trajectories_by_group"),
             },
         ),
+        "vh_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="vh_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_cat_types"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "distance_km",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "duration_hrs",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                    {
+                        "display_name": "average_speed",
+                        "aggregator": "mean",
+                        "column": "speed_kmhr",
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("vh_patrol_metrics") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("filter_vehicle_patrols"),
+            },
+        ),
+        "persist_vh_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_vh_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_vh_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("vh_patrol_metrics"),
+            },
+        ),
         "apply_vhp_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_vhp_colormap")
@@ -1221,6 +1362,61 @@ def main(params: Params):
             kwargs={
                 "argnames": ["df"],
                 "argvalues": DependsOn("split_trajectories_by_group"),
+            },
+        ),
+        "mb_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="mb_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_cat_types"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "distance_km",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "duration_hrs",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                    {
+                        "display_name": "average_speed",
+                        "aggregator": "mean",
+                        "column": "speed_kmhr",
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("mb_patrol_metrics") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("filter_motor_patrols"),
+            },
+        ),
+        "persist_mb_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_mb_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_mb_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("mb_patrol_metrics"),
             },
         ),
         "apply_mocp_colormap": Node(
@@ -1420,7 +1616,12 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "layer_style": {"fill_color_column": "density_colors", "opacity": 0.55},
+                "layer_style": {
+                    "fill_color_column": "density_colors",
+                    "opacity": 0.25,
+                    "get_line_width": 1,
+                    "stroked": True,
+                },
                 "legend": {
                     "label_column": "density_bins",
                     "color_column": "density_colors",
@@ -1637,6 +1838,179 @@ def main(params: Params):
             kwargs={
                 "argnames": ["html_path"],
                 "argvalues": DependsOn("persist_grid_ecomap_urls"),
+            },
+        ),
+        "zip_tevents_ps": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_tevents_ps")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("total_events_recorded"),
+                "right": DependsOn("foot_patrol_metrics"),
+            }
+            | (params_dict.get("zip_tevents_ps") or {}),
+            method="call",
+        ),
+        "zip_tps_vh": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_tps_vh")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_tevents_ps"),
+                "right": DependsOn("vh_patrol_metrics"),
+            }
+            | (params_dict.get("zip_tps_vh") or {}),
+            method="call",
+        ),
+        "zip_tpsvhmp": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_tpsvhmp")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_tps_vh"),
+                "right": DependsOn("mb_patrol_metrics"),
+            }
+            | (params_dict.get("zip_tpsvhmp") or {}),
+            method="call",
+        ),
+        "zip_patrol_purpose": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_patrol_purpose")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_tpsvhmp"),
+                "right": DependsOn("patrol_info_summary"),
+            }
+            | (params_dict.get("zip_patrol_purpose") or {}),
+            method="call",
+        ),
+        "zip_ranger_metrics": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_ranger_metrics")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_patrol_purpose"),
+                "right": DependsOn("ranger_patrol_metrics"),
+            }
+            | (params_dict.get("zip_ranger_metrics") or {}),
+            method="call",
+        ),
+        "zip_temp_urls": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_temp_urls")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_ranger_metrics"),
+                "right": DependsOn("convert_temp_html_to_png"),
+            }
+            | (params_dict.get("zip_temp_urls") or {}),
+            method="call",
+        ),
+        "zip_precip_urls": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_precip_urls")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_temp_urls"),
+                "right": DependsOn("convert_prec_html_to_png"),
+            }
+            | (params_dict.get("zip_precip_urls") or {}),
+            method="call",
+        ),
+        "zip_events_urls": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_events_urls")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_precip_urls"),
+                "right": DependsOn("convert_tev_html_to_png"),
+            }
+            | (params_dict.get("zip_events_urls") or {}),
+            method="call",
+        ),
+        "zip_footp_urls": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_footp_urls")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_events_urls"),
+                "right": DependsOn("convert_footp_html_to_png"),
+            }
+            | (params_dict.get("zip_footp_urls") or {}),
+            method="call",
+        ),
+        "zip_vhp_urls": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_vhp_urls")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_footp_urls"),
+                "right": DependsOn("convert_vhp_html_to_png"),
+            }
+            | (params_dict.get("zip_vhp_urls") or {}),
+            method="call",
+        ),
+        "zip_mb_urls": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_mb_urls")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_vhp_urls"),
+                "right": DependsOn("convert_mbp_html_to_png"),
+            }
+            | (params_dict.get("zip_mb_urls") or {}),
+            method="call",
+        ),
+        "zip_patrolcov_urls": Node(
+            async_task=zip_grouped_by_key.validate()
+            .handle_errors(task_instance_id="zip_patrolcov_urls")
+            .set_executor("lithops"),
+            partial={
+                "left": DependsOn("zip_mb_urls"),
+                "right": DependsOn("convert_patgr_html_to_png"),
+            }
+            | (params_dict.get("zip_patrolcov_urls") or {}),
+            method="call",
+        ),
+        "flatten_zipped_context": Node(
+            async_task=flatten_tuple.validate()
+            .handle_errors(task_instance_id="flatten_zipped_context")
+            .set_executor("lithops"),
+            partial=(params_dict.get("flatten_zipped_context") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["nested"],
+                "argvalues": DependsOn("zip_patrolcov_urls"),
+            },
+        ),
+        "mnc_context": Node(
+            async_task=create_mnc_context.validate()
+            .handle_errors(task_instance_id="mnc_context")
+            .set_executor("lithops"),
+            partial={
+                "template_path": DependsOn("persist_mnc_tpt"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "time_period": DependsOn("time_range"),
+            }
+            | (params_dict.get("mnc_context") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": [
+                    "total_events_df",
+                    "foot_patrols_summary_df",
+                    "vehicle_patrols_summary_df",
+                    "motor_patrols_summary_df",
+                    "patrol_purpose_summary_df",
+                    "patrol_effort_summary_df",
+                    "temperature_chart",
+                    "precipitation_chart",
+                    "total_events_chart",
+                    "foot_patrols_map",
+                    "vehicle_patrols_map",
+                    "motorbike_patrols_map",
+                    "patrols_coverage_map",
+                ],
+                "argvalues": DependsOn("flatten_zipped_context"),
             },
         ),
         "weather_dashboard": Node(

@@ -13,6 +13,7 @@ from pydantic import (
     Field,
     RootModel,
     confloat,
+    conint,
     constr,
 )
 
@@ -199,6 +200,20 @@ class ConfigureBaseMaps(BaseModel):
     )
 
 
+class PersistMncTpt(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    retries: Optional[conint(ge=0)] = Field(
+        3, description="Number of retries on failure", title="Retries"
+    )
+    unzip: Optional[bool] = Field(
+        False,
+        description="Whether to unzip the file if it's a zip archive",
+        title="Unzip",
+    )
+
+
 class SubjectObservations(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -324,6 +339,43 @@ class PersistTotalDf(BaseModel):
     filetype: Optional[Filetype] = Field(
         "csv", description="The output format", title="Filetype"
     )
+
+
+class PersistFpsDf(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filetype: Optional[Filetype] = Field(
+        "csv", description="The output format", title="Filetype"
+    )
+
+
+class PersistVhDf(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filetype: Optional[Filetype] = Field(
+        "csv", description="The output format", title="Filetype"
+    )
+
+
+class PersistMbDf(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filetype: Optional[Filetype] = Field(
+        "csv", description="The output format", title="Filetype"
+    )
+
+
+class MncContext(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    validate_images: Optional[bool] = Field(True, title="Validate Images")
+    box_h_cm: Optional[float] = Field(6.5, title="Box H Cm")
+    box_w_cm: Optional[float] = Field(11.11, title="Box W Cm")
+    filename: Optional[str] = Field(None, title="Filename")
 
 
 class TemporalGrouper(RootModel[str]):
@@ -477,6 +529,9 @@ class Params(BaseModel):
     configure_base_maps: Optional[ConfigureBaseMaps] = Field(
         None, title="Configure Base Map Layers"
     )
+    persist_mnc_tpt: Optional[PersistMncTpt] = Field(
+        None, title="Download MNC template and persist"
+    )
     subject_observations: Optional[SubjectObservations] = Field(
         None, title="Get subject observations from ER"
     )
@@ -508,6 +563,18 @@ class Params(BaseModel):
     persist_total_df: Optional[PersistTotalDf] = Field(
         None, title="Persist total patrol coverage"
     )
+    persist_fps_df: Optional[PersistFpsDf] = Field(
+        None, title="Persist foot patrol coverage"
+    )
+    persist_vh_df: Optional[PersistVhDf] = Field(
+        None, title="Persist foot patrol coverage"
+    )
+    persist_mb_df: Optional[PersistMbDf] = Field(
+        None, title="Persist foot patrol coverage"
+    )
     apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
         None, title="Apply bin classification on grids"
+    )
+    mnc_context: Optional[MncContext] = Field(
+        None, title="Create Mara North Context template"
     )

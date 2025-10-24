@@ -284,6 +284,27 @@
       "required": [],
       "title": "Configure Base Map Layers"
     },
+    "persist_mnc_tpt": {
+      "additionalProperties": false,
+      "properties": {
+        "retries": {
+          "default": 3,
+          "minimum": 0,
+          "title": "Retries",
+          "type": "integer",
+          "description": "Number of retries on failure"
+        },
+        "unzip": {
+          "default": false,
+          "title": "Unzip",
+          "type": "boolean",
+          "description": "Whether to unzip the file if it's a zip archive"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Download MNC template and persist"
+    },
     "subject_observations": {
       "additionalProperties": false,
       "properties": {
@@ -509,6 +530,63 @@
       "type": "object",
       "title": "Persist total patrol coverage"
     },
+    "persist_fps_df": {
+      "additionalProperties": false,
+      "properties": {
+        "filetype": {
+          "default": "csv",
+          "enum": [
+            "csv",
+            "gpkg",
+            "geoparquet"
+          ],
+          "title": "Filetype",
+          "type": "string",
+          "description": "The output format"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Persist foot patrol coverage"
+    },
+    "persist_vh_df": {
+      "additionalProperties": false,
+      "properties": {
+        "filetype": {
+          "default": "csv",
+          "enum": [
+            "csv",
+            "gpkg",
+            "geoparquet"
+          ],
+          "title": "Filetype",
+          "type": "string",
+          "description": "The output format"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Persist foot patrol coverage"
+    },
+    "persist_mb_df": {
+      "additionalProperties": false,
+      "properties": {
+        "filetype": {
+          "default": "csv",
+          "enum": [
+            "csv",
+            "gpkg",
+            "geoparquet"
+          ],
+          "title": "Filetype",
+          "type": "string",
+          "description": "The output format"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Persist foot patrol coverage"
+    },
     "apply_classification_grid": {
       "additionalProperties": false,
       "properties": {
@@ -556,6 +634,41 @@
       "required": [],
       "type": "object",
       "title": "Apply bin classification on grids"
+    },
+    "mnc_context": {
+      "additionalProperties": false,
+      "properties": {
+        "validate_images": {
+          "default": true,
+          "title": "Validate Images",
+          "type": "boolean"
+        },
+        "box_h_cm": {
+          "default": 6.5,
+          "title": "Box H Cm",
+          "type": "number"
+        },
+        "box_w_cm": {
+          "default": 11.11,
+          "title": "Box W Cm",
+          "type": "number"
+        },
+        "filename": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Filename"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Create Mara North Context template"
     }
   },
   "$defs": {
@@ -818,6 +931,12 @@
         "until"
       ]
     },
+    "persist_mnc_tpt": {
+      "ui:order": [
+        "retries",
+        "unzip"
+      ]
+    },
     "df_with_temporal_index": {
       "ui:order": [
         "cast_to_datetime",
@@ -848,12 +967,21 @@
         "classification_options"
       ]
     },
+    "mnc_context": {
+      "ui:order": [
+        "validate_images",
+        "box_h_cm",
+        "box_w_cm",
+        "filename"
+      ]
+    },
     "ui:order": [
       "workflow_details",
       "time_range",
       "groupers",
       "er_client_name",
       "configure_base_maps",
+      "persist_mnc_tpt",
       "subject_observations",
       "df_with_temporal_index",
       "get_events_data",
@@ -865,7 +993,11 @@
       "patrol_observations",
       "convert_to_trajectories",
       "persist_total_df",
-      "apply_classification_grid"
+      "persist_fps_df",
+      "persist_vh_df",
+      "persist_mb_df",
+      "apply_classification_grid",
+      "mnc_context"
     ]
   },
   "additionalProperties": false

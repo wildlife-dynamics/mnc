@@ -41,6 +41,16 @@ workflow:
     id: configure_base_maps
     task: set_base_maps
 
+  # Download mnc template and persist
+  - name: Download MNC template and persist
+    id: persist_mnc_tpt
+    task: download_file_and_persist
+    partial:
+      url: https://www.dropbox.com/scl/fi/v9vnkxuagrtixs0xdh34p/mara_north_conservancy_report_template_v2.docx?rlkey=c8db8wfezrhu9ekd85ggypf89&st=8xf73hzy&dl=0
+      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      overwrite_existing: false
+
+
   # 1. Weather report 
   # Retrieve observations from ER
   - name: Get subject observations from ER 
@@ -590,6 +600,40 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.split_trajectories_by_group.return }}
 
+  - name: Summarize foot patrol metrics
+    id: foot_patrol_metrics
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - patrol_cat_types
+      summary_params:
+        - display_name: no_of_patrols
+          aggregator: nunique
+          column: patrol_id
+        - display_name: distance_km
+          aggregator: sum
+          column: dist_meters
+          original_unit: m
+          new_unit: km
+        - display_name: duration_hrs
+          aggregator: sum
+          column: timespan_seconds
+          original_unit: s
+          new_unit: h
+      reset_index: true
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.filter_foot_patrols.return }}
+
+  - name: Persist foot patrol coverage 
+    id: persist_fps_df
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: df 
+      argvalues: ${{ workflow.foot_patrol_metrics.return }}
+      
   - name: Apply Colormap to foot patrol
     id: apply_footp_colormap
     task: apply_color_map
@@ -703,6 +747,44 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.split_trajectories_by_group.return }}
 
+  - name: Summarize vehicle patrol metrics
+    id: vh_patrol_metrics
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - patrol_cat_types
+      summary_params:
+        - display_name: no_of_patrols
+          aggregator: nunique
+          column: patrol_id
+        - display_name: distance_km
+          aggregator: sum
+          column: dist_meters
+          original_unit: m
+          new_unit: km
+        - display_name: duration_hrs
+          aggregator: sum
+          column: timespan_seconds
+          original_unit: s
+          new_unit: h
+        - display_name: average_speed
+          aggregator: mean
+          column: speed_kmhr
+
+      reset_index: true
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.filter_vehicle_patrols.return }}
+
+  - name: Persist foot patrol coverage 
+    id: persist_vh_df
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: df 
+      argvalues: ${{ workflow.vh_patrol_metrics.return }}
+
   - name: Apply Colormap to vh patrol
     id: apply_vhp_colormap
     task: apply_color_map
@@ -815,6 +897,43 @@ workflow:
     mapvalues:
       argnames: df
       argvalues: ${{ workflow.split_trajectories_by_group.return }}
+
+  - name: Summarize motor patrol metrics
+    id: mb_patrol_metrics
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - patrol_cat_types
+      summary_params:
+        - display_name: no_of_patrols
+          aggregator: nunique
+          column: patrol_id
+        - display_name: distance_km
+          aggregator: sum
+          column: dist_meters
+          original_unit: m
+          new_unit: km
+        - display_name: duration_hrs
+          aggregator: sum
+          column: timespan_seconds
+          original_unit: s
+          new_unit: h
+        - display_name: average_speed
+          aggregator: mean
+          column: speed_kmhr
+      reset_index: true
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.filter_motor_patrols.return }}
+
+  - name: Persist foot patrol coverage 
+    id: persist_mb_df
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: df 
+      argvalues: ${{ workflow.mb_patrol_metrics.return }}
 
   - name: Apply Colormap to motorcycle patrol
     id: apply_mocp_colormap
@@ -959,7 +1078,9 @@ workflow:
     partial:
       layer_style: 
         fill_color_column: density_colors
-        opacity: 0.55
+        opacity: 0.25
+        get_line_width: 1
+        stroked: true
       legend:
         label_column: density_bins
         color_column: density_colors
@@ -1126,7 +1247,138 @@ workflow:
       argnames: html_path
       argvalues: ${{ workflow.persist_grid_ecomap_urls.return }}
 
+  # zip up these files to form a context then flatten them and add to context 
 
+  # total_events_df
+  # foot_patrols_summary_df
+  - name: Zip total events df and patrol summary df
+    id: zip_tevents_ps
+    task: zip_grouped_by_key
+    partial: 
+      left: ${{ workflow.total_events_recorded.return }}
+      right: ${{workflow.foot_patrol_metrics.return }}
+  
+  # vehicle_patrols_summary_df
+  - name: Zip total events df ,patrol summary df and vehicle patrols
+    id: zip_tps_vh
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_tevents_ps.return }}
+      right: ${{ workflow.vh_patrol_metrics.return }}
+  
+  # motor_patrols_summary_df
+  - name: Zip total events df ,patrol summary df,vehicle patrols and motor patrols
+    id: zip_tpsvhmp
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_tps_vh.return }}
+      right: ${{ workflow.mb_patrol_metrics.return }}
+
+  # patrol_purpose_summary_df
+  - name: Zip total events df ,patrol summary df,vehicle patrols,motor and patrol purpose
+    id: zip_patrol_purpose
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_tpsvhmp.return }}
+      right: ${{ workflow.patrol_info_summary.return }}
+
+  # patrol_effort_summary_df
+  - name: Zip ranger metrics
+    id: zip_ranger_metrics
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_patrol_purpose.return }}
+      right: ${{ workflow.ranger_patrol_metrics.return }}
+
+  # temperature_chart
+  - name: Zip temperature image
+    id: zip_temp_urls
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_ranger_metrics.return }}
+      right: ${{ workflow.convert_temp_html_to_png.return }}
+
+  # precipitation_chart
+  - name: Zip precipitation image
+    id: zip_precip_urls
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_temp_urls.return }}
+      right: ${{ workflow.convert_prec_html_to_png.return }}
+  
+  # total_events_chart 
+  - name: Zip total events image
+    id: zip_events_urls
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_precip_urls.return }}
+      right: ${{ workflow.convert_tev_html_to_png.return }}
+
+
+  # foot_patrols_map
+  - name: Zip foot patrols image
+    id: zip_footp_urls
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_events_urls.return }}
+      right: ${{ workflow.convert_footp_html_to_png.return }}
+
+  
+  #vehicle_patrols_map
+  - name: Zip vehicle patrols image
+    id: zip_vhp_urls
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_footp_urls.return }}
+      right: ${{ workflow.convert_vhp_html_to_png.return }}
+
+  #motorbike_patrols_map
+  - name: Zip motorbike patrols image
+    id: zip_mb_urls
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_vhp_urls.return }}
+      right: ${{ workflow.convert_mbp_html_to_png.return }}
+
+  #patrols_coverage_map
+  - name: Zip patrols coverage ecomap
+    id: zip_patrolcov_urls
+    task: zip_grouped_by_key
+    partial:
+      left: ${{ workflow.zip_mb_urls.return }}
+      right: ${{ workflow.convert_patgr_html_to_png.return }}
+
+  #flatten tuple
+  - name: Flatten zipped  context inputs
+    id: flatten_zipped_context
+    task: flatten_tuple
+    mapvalues:
+      argnames: nested
+      argvalues: ${{ workflow.zip_patrolcov_urls.return }}
+
+  - name: Create Mara North Context template 
+    id: mnc_context
+    task: create_mnc_context
+    partial:
+      template_path: ${{ workflow.persist_mnc_tpt.return }}
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      time_period: ${{ workflow.time_range.return }}
+    mapvalues:
+      argnames: 
+        - total_events_df
+        - foot_patrols_summary_df
+        - vehicle_patrols_summary_df
+        - motor_patrols_summary_df
+        - patrol_purpose_summary_df
+        - patrol_effort_summary_df
+        - temperature_chart
+        - precipitation_chart
+        - total_events_chart
+        - foot_patrols_map
+        - vehicle_patrols_map
+        - motorbike_patrols_map
+        - patrols_coverage_map
+      argvalues: ${{ workflow.flatten_zipped_context.return }}
 
   - name: Create A Weather Dashboard
     id: weather_dashboard
