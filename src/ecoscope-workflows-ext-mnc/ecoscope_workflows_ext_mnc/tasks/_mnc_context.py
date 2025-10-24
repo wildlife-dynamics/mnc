@@ -44,7 +44,7 @@ def _load_df(df: Union[str, Path, AnyDataFrame]) -> AnyDataFrame:
     p = Path(normalized_path)
     
     if not p.exists():
-        print(f"⚠️ Warning: File not found: {p}")
+        print(f"Warning: File not found: {p}")
         return pd.DataFrame()
     
     if p.suffix.lower() in {".csv"}:
@@ -60,7 +60,7 @@ def _safe_extract_value(df: pd.DataFrame, column: str, default= 0):
         return default
     
     if column not in df.columns:
-        print(f"⚠️ Warning: Column '{column}' not found in DataFrame")
+        print(f"Warning: Column '{column}' not found in DataFrame")
         return default
     
     try:
@@ -142,8 +142,8 @@ def create_mnc_context(
     template_path = normalize_file_url(template_path)
     output_dir = normalize_file_url(output_dir)
 
-    print(f"\n📁 Template Path: {template_path}")
-    print(f"📁 Output Directory: {output_dir}")
+    print(f"\nTemplate Path: {template_path}")
+    print(f"Output Directory: {output_dir}")
     
     # Validate paths
     if not template_path.strip():
@@ -167,7 +167,7 @@ def create_mnc_context(
     if not filename:
         filename = f"mnc_report_{uuid.uuid4().hex[:8]}.docx"
     output_path = Path(output_dir) / filename
-    print(f"📄 Output File: {output_path}")
+    print(f"Output File: {output_path}")
     
     # Process time period
     time_period_str = None
@@ -178,8 +178,8 @@ def create_mnc_context(
         # Duration period - dates only
         date_fmt = "%Y-%m-%d"
         duration_period_str = f"{time_period.since.strftime(date_fmt)} to {time_period.until.strftime(date_fmt)}"
-        print(f"\n📅 Time Range: {time_period_str}")
-        print(f"📅 Duration Period: {duration_period_str}")
+        print(f"\nTime Range: {time_period_str}")
+        print(f"Duration Period: {duration_period_str}")
     
     # Extract total events
     print("\n" + "=" * 80)
@@ -192,10 +192,10 @@ def create_mnc_context(
         total_events_recorded = str(total_events_loaded.iloc[0, 0])
     else:
         total_events_recorded = "0"
-    print(f"\n📊 Total Events: {total_events_recorded}")
+    print(f"\nTotal Events: {total_events_recorded}")
     
     # Extract foot patrol data
-    print("\n🚶 FOOT PATROLS:")
+    print("\nFOOT PATROLS:")
     foot_patrol_count = str(_safe_extract_value(foot_patrols_summary_loaded, "no_of_patrols", 0))
     foot_patrol_hours = str(round(float(_safe_extract_value(foot_patrols_summary_loaded, "duration_hrs", 0)), 2))
     foot_patrol_distance = str(round(float(_safe_extract_value(foot_patrols_summary_loaded, "distance_km", 0)), 2))
@@ -204,7 +204,7 @@ def create_mnc_context(
     print(f"  • Distance: {foot_patrol_distance} km")
     
     # Extract vehicle patrol data
-    print("\n🚗 VEHICLE PATROLS:")
+    print("\nVEHICLE PATROLS:")
     vehicle_patrol_count = str(_safe_extract_value(vehicle_patrols_summary_loaded, "no_of_patrols", 0))
     vehicle_patrol_hours = str(round(float(_safe_extract_value(vehicle_patrols_summary_loaded, "duration_hrs", 0)), 2))
     vehicle_patrol_distance = str(round(float(_safe_extract_value(vehicle_patrols_summary_loaded, "distance_km", 0)), 2))
@@ -216,7 +216,7 @@ def create_mnc_context(
     print(f"  • Avg Speed: {average_vehicle_speed} km/h")
     
     # Extract motorbike patrol data
-    print("\n🏍️ MOTORBIKE PATROLS:")
+    print("\nMOTORBIKE PATROLS:")
     motor_patrol_count = str(_safe_extract_value(motor_patrols_summary_loaded, "no_of_patrols", 0))
     motor_patrol_hours = str(round(float(_safe_extract_value(motor_patrols_summary_loaded, "duration_hrs", 0)), 2))
     motor_patrol_distance = str(round(float(_safe_extract_value(motor_patrols_summary_loaded, "distance_km", 0)), 2))
@@ -228,7 +228,7 @@ def create_mnc_context(
     print(f"  • Avg Speed: {average_motor_speed} km/h")
     
     # Convert summary DataFrames to dictionaries
-    print("\n📋 PATROL SUMMARIES:")
+    print("\nPATROL SUMMARIES:")
     patrol_purpose_summary_dict = (
         patrol_purpose_summary_loaded.to_dict('records') 
         if not patrol_purpose_summary_loaded.empty 
@@ -281,7 +281,7 @@ def create_mnc_context(
     
     # Validate images if requested
     if validate_images:
-        print("\n🖼️ VALIDATING IMAGES:")
+        print("\nVALIDATING IMAGES:")
         image_fields = [
             'temperature_chart', 'precipitation_chart', 'total_events_chart',
             'foot_patrols_map', 'vehicle_patrols_map', 'motorbike_patrols_map',
@@ -294,13 +294,13 @@ def create_mnc_context(
                 p = Path(value)
                 if p.suffix.lower() in (".png", ".jpg", ".jpeg", ".gif"):
                     if p.exists() and p.is_file():
-                        print(f"  ✅ {field_name}: {value}")
+                        print(f"{field_name}: {value}")
                     else:
-                        print(f"  ❌ {field_name}: NOT FOUND - {value}")
+                        print(f"{field_name}: NOT FOUND - {value}")
                 else:
-                    print(f"  ⚠️ {field_name}: Not an image path - {value}")
+                    print(f"{field_name}: Not an image path - {value}")
             else:
-                print(f"  ⏭️ {field_name}: Not provided")
+                print(f"{field_name}: Not provided")
     
     # Convert context to dictionary and prepare image fields
     context_dict = asdict(ctx)
@@ -320,9 +320,9 @@ def create_mnc_context(
             display_value = str(value)
             if len(display_value) > 100:
                 display_value = display_value[:97] + "..."
-            print(f"  ✓ {key}: {display_value}")
+            print(f"summary:{key}: {display_value}")
         else:
-            print(f"  ✗ {key}: None")
+            print(f"err:{key}: None")
     
     # Render template
     print("\n" + "=" * 80)
@@ -332,10 +332,10 @@ def create_mnc_context(
     try:
         tpl.render(result)
         tpl.save(output_path)
-        print(f"\n✅ Document generated successfully!")
-        print(f"📄 Output: {output_path}")
+        print(f"\nDocument generated successfully!")
+        print(f"Output: {output_path}")
         print("=" * 80)
         return str(output_path)
     except Exception as e:
-        print(f"\n❌ Error rendering document: {str(e)}")
+        print(f"\nError rendering document: {str(e)}")
         raise
