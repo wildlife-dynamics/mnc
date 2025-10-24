@@ -117,9 +117,10 @@ class MncContext:
 
 @task
 def create_mnc_context(
-    generated_by: str,
+
     template_path: str,
     output_dir: str,
+    generated_by: Optional[str]=None,
     total_events_df: Optional[str] = None,
     foot_patrols_summary_df: Optional[str] = None,
     vehicle_patrols_summary_df: Optional[str] = None,
@@ -165,7 +166,7 @@ def create_mnc_context(
         raise FileNotFoundError(f"Template file not found: {template_path}")
     
     os.makedirs(output_dir, exist_ok=True)
-    
+
     # Load all DataFrames
     total_events_loaded = _load_df(total_events_df)
     foot_patrols_summary_loaded = _load_df(foot_patrols_summary_df)

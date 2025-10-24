@@ -2003,6 +2003,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="mnc_context")
             .set_executor("lithops"),
             partial={
+                "generated_by": "Ecoscope",
                 "template_path": DependsOn("persist_mnc_tpt"),
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "time_period": DependsOn("time_range"),

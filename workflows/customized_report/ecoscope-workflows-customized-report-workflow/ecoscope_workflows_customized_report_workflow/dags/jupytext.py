@@ -2872,6 +2872,7 @@ mnc_context_params = dict(
 mnc_context = (
     create_mnc_context.handle_errors(task_instance_id="mnc_context")
     .partial(
+        generated_by="Ecoscope",
         template_path=persist_mnc_tpt,
         output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         time_period=time_range,
