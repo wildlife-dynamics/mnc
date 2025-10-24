@@ -95,7 +95,7 @@ def main(params: Params):
         download_file_and_persist.validate()
         .handle_errors(task_instance_id="persist_mnc_tpt")
         .partial(
-            url="https://www.dropbox.com/scl/fi/v9vnkxuagrtixs0xdh34p/mara_north_conservancy_report_template_v2.docx?rlkey=c8db8wfezrhu9ekd85ggypf89&st=8xf73hzy&dl=0",
+            url="https://www.dropbox.com/scl/fi/kkpkakyre8oj9tdrexuwa/mara_north_conservancy_report_template_v3.docx?rlkey=9fuhuwmvsnvdn91qffe9whjfw&st=ar50cswm&dl=0",
             output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             overwrite_existing=False,
             **(params_dict.get("persist_mnc_tpt") or {}),
