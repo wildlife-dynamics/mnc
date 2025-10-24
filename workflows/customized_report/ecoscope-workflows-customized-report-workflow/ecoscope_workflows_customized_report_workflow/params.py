@@ -267,6 +267,13 @@ class EventsWtemporal(BaseModel):
     )
 
 
+class AddTotalEventsRow(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    label: Optional[str] = Field("Total", title="Label")
+
+
 class Filetype(str, Enum):
     csv = "csv"
     gpkg = "gpkg"
@@ -541,6 +548,9 @@ class Params(BaseModel):
     get_events_data: Optional[GetEventsData] = Field(None, title="Get events")
     events_wtemporal: Optional[EventsWtemporal] = Field(
         None, title="Add temporal index on events"
+    )
+    add_total_events_row: Optional[AddTotalEventsRow] = Field(
+        None, title="Add total row on total events recorded"
     )
     persist_tevents_df: Optional[PersistTeventsDf] = Field(
         None, title="Persist total events df"

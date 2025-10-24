@@ -386,6 +386,19 @@
       "type": "object",
       "title": "Add temporal index on events"
     },
+    "add_total_events_row": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "default": "Total",
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Add total row on total events recorded"
+    },
     "persist_tevents_df": {
       "additionalProperties": false,
       "properties": {
@@ -986,6 +999,7 @@
       "df_with_temporal_index",
       "get_events_data",
       "events_wtemporal",
+      "add_total_events_row",
       "persist_tevents_df",
       "draw_events_chart",
       "include_pat_totals",

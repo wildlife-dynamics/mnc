@@ -315,6 +315,16 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.split_event_groups.return }}
   
+  - name: Add total row on total events recorded
+    id: add_total_events_row
+    task: add_totals_row
+    partial:
+      label_col:
+        - date 
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.total_events_recorded.return }}
+
   - name: Persist total events df 
     id: persist_tevents_df
     task: persist_df 
@@ -322,7 +332,7 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
     mapvalues:
       argnames: df
-      argvalues: ${{ workflow.total_events_recorded.return }}
+      argvalues: ${{ workflow.add_total_events_row.return }}
 
   - name: Draw total events line chart 
     id: draw_events_chart 
@@ -1108,14 +1118,6 @@ workflow:
     partial:
       left:  ${{ workflow.generate_grid_layers.return }}
       right: ${{ workflow.zoom_grid_view.return }} 
-
-  - name: print zip value outputs
-    id: print_zip_values
-    task: print_output
-    mapvalues:
-      argnames: value
-      argvalues: ${{ workflow.zip_grid_zoom_values.return }}
-
       
   - name: Draw grid ecomaps
     id: draw_grid_ecomap
@@ -1255,8 +1257,8 @@ workflow:
     id: zip_tevents_ps
     task: zip_grouped_by_key
     partial: 
-      left: ${{ workflow.total_events_recorded.return }}
-      right: ${{workflow.foot_patrol_metrics.return }}
+      left: ${{ workflow.persist_tevents_df.return }}
+      right: ${{workflow.persist_fps_df.return }}
   
   # vehicle_patrols_summary_df
   - name: Zip total events df ,patrol summary df and vehicle patrols
@@ -1264,7 +1266,7 @@ workflow:
     task: zip_grouped_by_key
     partial:
       left: ${{ workflow.zip_tevents_ps.return }}
-      right: ${{ workflow.vh_patrol_metrics.return }}
+      right: ${{ workflow.persist_vh_df.return }}
   
   # motor_patrols_summary_df
   - name: Zip total events df ,patrol summary df,vehicle patrols and motor patrols
@@ -1272,7 +1274,7 @@ workflow:
     task: zip_grouped_by_key
     partial:
       left: ${{ workflow.zip_tps_vh.return }}
-      right: ${{ workflow.mb_patrol_metrics.return }}
+      right: ${{ workflow.persist_mb_df.return }}
 
   # patrol_purpose_summary_df
   - name: Zip total events df ,patrol summary df,vehicle patrols,motor and patrol purpose
@@ -1280,7 +1282,7 @@ workflow:
     task: zip_grouped_by_key
     partial:
       left: ${{ workflow.zip_tpsvhmp.return }}
-      right: ${{ workflow.patrol_info_summary.return }}
+      right: ${{ workflow.persist_patrol_df.return }}
 
   # patrol_effort_summary_df
   - name: Zip ranger metrics
@@ -1288,7 +1290,7 @@ workflow:
     task: zip_grouped_by_key
     partial:
       left: ${{ workflow.zip_patrol_purpose.return }}
-      right: ${{ workflow.ranger_patrol_metrics.return }}
+      right: ${{ workflow.persist_total_df.return }}
 
   # temperature_chart
   - name: Zip temperature image
@@ -1356,6 +1358,13 @@ workflow:
       argnames: nested
       argvalues: ${{ workflow.zip_patrolcov_urls.return }}
 
+  - name: print outputs 
+    id: print_flattened_outputs
+    task: print_output
+    mapvalues:
+      argnames: value
+      argvalues: ${{ workflow.flatten_zipped_context.return }}
+      
   - name: Create Mara North Context template 
     id: mnc_context
     task: create_mnc_context

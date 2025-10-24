@@ -29,10 +29,10 @@ from ecoscope_workflows_core.tasks.io import persist_text
 from ecoscope_workflows_core.tasks.results import create_plot_widget_single_view
 from ecoscope_workflows_core.tasks.results import merge_widget_views
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_events
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_mnc.tasks import filter_by_value
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_patrol_observations
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import process_relocations
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
@@ -51,9 +51,9 @@ from ecoscope_workflows_core.tasks.skip import never
 from ecoscope_workflows_ext_mnc.tasks import create_patrol_coverage_grid
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_classification
 from ecoscope_workflows_ext_ecoscope.tasks.results import create_polygon_layer
-from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import html_to_png_pw
 from ecoscope_workflows_ext_mnc.tasks import flatten_tuple
+from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import create_mnc_context
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 
@@ -759,6 +759,27 @@ total_events_recorded = (
 
 
 # %% [markdown]
+# ## Add total row on total events recorded
+
+# %%
+# parameters
+
+add_total_events_row_params = dict(
+    label=...,
+)
+
+# %%
+# call the task
+
+
+add_total_events_row = (
+    add_totals_row.handle_errors(task_instance_id="add_total_events_row")
+    .partial(label_col=["date"], **add_total_events_row_params)
+    .mapvalues(argnames=["df"], argvalues=total_events_recorded)
+)
+
+
+# %% [markdown]
 # ## Persist total events df
 
 # %%
@@ -778,7 +799,7 @@ persist_tevents_df = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_tevents_df_params
     )
-    .mapvalues(argnames=["df"], argvalues=total_events_recorded)
+    .mapvalues(argnames=["df"], argvalues=add_total_events_row)
 )
 
 
@@ -2298,25 +2319,6 @@ zip_grid_zoom_values = (
 
 
 # %% [markdown]
-# ## print zip value outputs
-
-# %%
-# parameters
-
-print_zip_values_params = dict()
-
-# %%
-# call the task
-
-
-print_zip_values = (
-    print_output.handle_errors(task_instance_id="print_zip_values")
-    .partial(**print_zip_values_params)
-    .mapvalues(argnames=["value"], argvalues=zip_grid_zoom_values)
-)
-
-
-# %% [markdown]
 # ## Draw grid ecomaps
 
 # %%
@@ -2586,9 +2588,7 @@ zip_tevents_ps_params = dict()
 
 zip_tevents_ps = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_tevents_ps")
-    .partial(
-        left=total_events_recorded, right=foot_patrol_metrics, **zip_tevents_ps_params
-    )
+    .partial(left=persist_tevents_df, right=persist_fps_df, **zip_tevents_ps_params)
     .call()
 )
 
@@ -2607,7 +2607,7 @@ zip_tps_vh_params = dict()
 
 zip_tps_vh = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_tps_vh")
-    .partial(left=zip_tevents_ps, right=vh_patrol_metrics, **zip_tps_vh_params)
+    .partial(left=zip_tevents_ps, right=persist_vh_df, **zip_tps_vh_params)
     .call()
 )
 
@@ -2626,7 +2626,7 @@ zip_tpsvhmp_params = dict()
 
 zip_tpsvhmp = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_tpsvhmp")
-    .partial(left=zip_tps_vh, right=mb_patrol_metrics, **zip_tpsvhmp_params)
+    .partial(left=zip_tps_vh, right=persist_mb_df, **zip_tpsvhmp_params)
     .call()
 )
 
@@ -2645,7 +2645,7 @@ zip_patrol_purpose_params = dict()
 
 zip_patrol_purpose = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_patrol_purpose")
-    .partial(left=zip_tpsvhmp, right=patrol_info_summary, **zip_patrol_purpose_params)
+    .partial(left=zip_tpsvhmp, right=persist_patrol_df, **zip_patrol_purpose_params)
     .call()
 )
 
@@ -2665,9 +2665,7 @@ zip_ranger_metrics_params = dict()
 zip_ranger_metrics = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_ranger_metrics")
     .partial(
-        left=zip_patrol_purpose,
-        right=ranger_patrol_metrics,
-        **zip_ranger_metrics_params,
+        left=zip_patrol_purpose, right=persist_total_df, **zip_ranger_metrics_params
     )
     .call()
 )
@@ -2832,6 +2830,25 @@ flatten_zipped_context = (
     flatten_tuple.handle_errors(task_instance_id="flatten_zipped_context")
     .partial(**flatten_zipped_context_params)
     .mapvalues(argnames=["nested"], argvalues=zip_patrolcov_urls)
+)
+
+
+# %% [markdown]
+# ## print outputs
+
+# %%
+# parameters
+
+print_flattened_outputs_params = dict()
+
+# %%
+# call the task
+
+
+print_flattened_outputs = (
+    print_output.handle_errors(task_instance_id="print_flattened_outputs")
+    .partial(**print_flattened_outputs_params)
+    .mapvalues(argnames=["value"], argvalues=flatten_zipped_context)
 )
 
 

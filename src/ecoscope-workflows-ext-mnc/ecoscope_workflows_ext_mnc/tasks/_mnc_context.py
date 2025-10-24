@@ -1,8 +1,9 @@
 import os
 import uuid
+import pandas as pd
 from pathlib import Path
 from docx.shared import Cm
-from typing import Optional
+from typing import Optional, Union
 from dataclasses import dataclass, asdict
 from docxtpl import DocxTemplate, InlineImage
 from ecoscope_workflows_core.decorators import task
@@ -28,6 +29,45 @@ def normalize_file_url(path: str) -> str:
     
     return path
 
+def _load_df(df: Union[str, Path, AnyDataFrame]) -> AnyDataFrame:
+    """Load DataFrame from file path or return existing DataFrame."""
+    # Check if it's already a DataFrame
+    if isinstance(df, pd.DataFrame):
+        return df
+    
+    # If it's None, return empty DataFrame
+    if df is None:
+        return pd.DataFrame()
+    
+    # Normalize the path and convert to Path object
+    normalized_path = normalize_file_url(str(df))
+    p = Path(normalized_path)
+    
+    if not p.exists():
+        print(f"⚠️ Warning: File not found: {p}")
+        return pd.DataFrame()
+    
+    if p.suffix.lower() in {".csv"}:
+        return pd.read_csv(p)
+    elif p.suffix.lower() in {".parquet"}:
+        return pd.read_parquet(p)
+    else:
+        return pd.read_csv(p)
+
+def _safe_extract_value(df: pd.DataFrame, column: str, default= 0):
+    """Safely extract a value from DataFrame column."""
+    if df is None or df.empty:
+        return default
+    
+    if column not in df.columns:
+        print(f"⚠️ Warning: Column '{column}' not found in DataFrame")
+        return default
+    
+    try:
+        value = df[column].iloc[0]
+        return value if pd.notna(value) else default
+    except (IndexError, KeyError):
+        return default
 
 @dataclass
 class MncContext:
@@ -69,12 +109,12 @@ class MncContext:
 def create_mnc_context(
     template_path: str,
     output_dir: str,
-    total_events_df: AnyDataFrame,
-    foot_patrols_summary_df: AnyDataFrame,
-    vehicle_patrols_summary_df: AnyDataFrame,
-    motor_patrols_summary_df: AnyDataFrame,
-    patrol_purpose_summary_df: AnyDataFrame,
-    patrol_effort_summary_df: AnyDataFrame,
+    total_events_df: Optional[str] = None,
+    foot_patrols_summary_df: Optional[str] = None,
+    vehicle_patrols_summary_df: Optional[str] = None,
+    motor_patrols_summary_df: Optional[str] = None,
+    patrol_purpose_summary_df: Optional[str] = None,
+    patrol_effort_summary_df: Optional[str] = None,
     temperature_chart: Optional[str] = None,
     precipitation_chart: Optional[str] = None,
     total_events_chart: Optional[str] = None,
@@ -101,6 +141,7 @@ def create_mnc_context(
     # Normalize paths
     template_path = normalize_file_url(template_path)
     output_dir = normalize_file_url(output_dir)
+
     print(f"\n📁 Template Path: {template_path}")
     print(f"📁 Output Directory: {output_dir}")
     
@@ -113,6 +154,14 @@ def create_mnc_context(
         raise FileNotFoundError(f"Template file not found: {template_path}")
     
     os.makedirs(output_dir, exist_ok=True)
+    
+    # Load all DataFrames
+    total_events_loaded = _load_df(total_events_df)
+    foot_patrols_summary_loaded = _load_df(foot_patrols_summary_df)
+    vehicle_patrols_summary_loaded = _load_df(vehicle_patrols_summary_df)
+    motor_patrols_summary_loaded = _load_df(motor_patrols_summary_df)
+    patrol_purpose_summary_loaded = _load_df(patrol_purpose_summary_df)
+    patrol_effort_summary_loaded = _load_df(patrol_effort_summary_df)
     
     # Generate output filename
     if not filename:
@@ -138,27 +187,28 @@ def create_mnc_context(
     print("=" * 80)
     
     # Total events - handle both single value and DataFrame
-    if hasattr(total_events_df, 'iloc'):
-        total_events_recorded = str(total_events_df.iloc[0, 0]) if not total_events_df.empty else "0"
+    if not total_events_loaded.empty:
+        # Assume first row, first column contains the total
+        total_events_recorded = str(total_events_loaded.iloc[0, 0])
     else:
-        total_events_recorded = str(total_events_df)
+        total_events_recorded = "0"
     print(f"\n📊 Total Events: {total_events_recorded}")
     
     # Extract foot patrol data
     print("\n🚶 FOOT PATROLS:")
-    foot_patrol_count = str(foot_patrols_summary_df.get("no_of_patrols", 0))
-    foot_patrol_hours = str(round(float(foot_patrols_summary_df.get("duration_hrs", 0)), 2))
-    foot_patrol_distance = str(round(float(foot_patrols_summary_df.get("distance_km", 0)), 2))
+    foot_patrol_count = str(_safe_extract_value(foot_patrols_summary_loaded, "no_of_patrols", 0))
+    foot_patrol_hours = str(round(float(_safe_extract_value(foot_patrols_summary_loaded, "duration_hrs", 0)), 2))
+    foot_patrol_distance = str(round(float(_safe_extract_value(foot_patrols_summary_loaded, "distance_km", 0)), 2))
     print(f"  • Count: {foot_patrol_count}")
     print(f"  • Hours: {foot_patrol_hours}")
     print(f"  • Distance: {foot_patrol_distance} km")
     
     # Extract vehicle patrol data
     print("\n🚗 VEHICLE PATROLS:")
-    vehicle_patrol_count = str(vehicle_patrols_summary_df.get("no_of_patrols", 0))
-    vehicle_patrol_hours = str(round(float(vehicle_patrols_summary_df.get("duration_hrs", 0)), 2))
-    vehicle_patrol_distance = str(round(float(vehicle_patrols_summary_df.get("distance_km", 0)), 2))
-    average_vehicle_speed = str(round(float(vehicle_patrols_summary_df.get("average_speed", 0)), 2))
+    vehicle_patrol_count = str(_safe_extract_value(vehicle_patrols_summary_loaded, "no_of_patrols", 0))
+    vehicle_patrol_hours = str(round(float(_safe_extract_value(vehicle_patrols_summary_loaded, "duration_hrs", 0)), 2))
+    vehicle_patrol_distance = str(round(float(_safe_extract_value(vehicle_patrols_summary_loaded, "distance_km", 0)), 2))
+    average_vehicle_speed = str(round(float(_safe_extract_value(vehicle_patrols_summary_loaded, "average_speed", 0)), 2))
     
     print(f"  • Count: {vehicle_patrol_count}")
     print(f"  • Hours: {vehicle_patrol_hours}")
@@ -167,10 +217,10 @@ def create_mnc_context(
     
     # Extract motorbike patrol data
     print("\n🏍️ MOTORBIKE PATROLS:")
-    motor_patrol_count = str(motor_patrols_summary_df.get("no_of_patrols", 0))
-    motor_patrol_hours = str(round(float(motor_patrols_summary_df.get("duration_hrs", 0)), 2))
-    motor_patrol_distance = str(round(float(motor_patrols_summary_df.get("distance_km", 0)), 2))
-    average_motor_speed = str(round(float(motor_patrols_summary_df.get("average_speed", 0)), 2))
+    motor_patrol_count = str(_safe_extract_value(motor_patrols_summary_loaded, "no_of_patrols", 0))
+    motor_patrol_hours = str(round(float(_safe_extract_value(motor_patrols_summary_loaded, "duration_hrs", 0)), 2))
+    motor_patrol_distance = str(round(float(_safe_extract_value(motor_patrols_summary_loaded, "distance_km", 0)), 2))
+    average_motor_speed = str(round(float(_safe_extract_value(motor_patrols_summary_loaded, "average_speed", 0)), 2))
     
     print(f"  • Count: {motor_patrol_count}")
     print(f"  • Hours: {motor_patrol_hours}")
@@ -179,10 +229,18 @@ def create_mnc_context(
     
     # Convert summary DataFrames to dictionaries
     print("\n📋 PATROL SUMMARIES:")
-    patrol_purpose_summary_dict = patrol_purpose_summary_df.to_dict('records') if hasattr(patrol_purpose_summary_df, 'to_dict') else {}
-    patrol_effort_summary_dict = patrol_effort_summary_df.to_dict('records') if hasattr(patrol_effort_summary_df, 'to_dict') else {}
-    print(f"  • Purpose Summary: {len(patrol_purpose_summary_dict) if isinstance(patrol_purpose_summary_dict, list) else 'N/A'} records")
-    print(f"  • Effort Summary: {len(patrol_effort_summary_dict) if isinstance(patrol_effort_summary_dict, list) else 'N/A'} records")
+    patrol_purpose_summary_dict = (
+        patrol_purpose_summary_loaded.to_dict('records') 
+        if not patrol_purpose_summary_loaded.empty 
+        else []
+    )
+    patrol_effort_summary_dict = (
+        patrol_effort_summary_loaded.to_dict('records') 
+        if not patrol_effort_summary_loaded.empty 
+        else []
+    )
+    print(f"  • Purpose Summary: {len(patrol_purpose_summary_dict)} records")
+    print(f"  • Effort Summary: {len(patrol_effort_summary_dict)} records")
     
     # Create context object
     print("\n" + "=" * 80)
@@ -244,14 +302,13 @@ def create_mnc_context(
             else:
                 print(f"  ⏭️ {field_name}: Not provided")
     
-    # Convert context to dictionary
+    # Convert context to dictionary and prepare image fields
     context_dict = asdict(ctx)
     for key, value in context_dict.items():
-        if isinstance(value, str) and Path(value).suffix.lower() in (".png", ".jpg", ".jpeg"):
+        if isinstance(value, str) and Path(value).exists() and Path(value).suffix.lower() in (".png", ".jpg", ".jpeg"):
             result[key] = InlineImage(tpl, value, width=Cm(box_w_cm), height=Cm(box_h_cm))
         else:
             result[key] = value
-
 
     # Print full context summary
     print("\n" + "=" * 80)
@@ -271,9 +328,14 @@ def create_mnc_context(
     print("\n" + "=" * 80)
     print("RENDERING DOCUMENT")
     print("=" * 80)
-    print(f"\n✅ Document generated successfully!")
-    print(f"📄 Output: {output_path}")
-    print("=" * 80)
-    tpl.render(result)
-    tpl.save(output_path)
-    return str(output_path)
+    
+    try:
+        tpl.render(result)
+        tpl.save(output_path)
+        print(f"\n✅ Document generated successfully!")
+        print(f"📄 Output: {output_path}")
+        print("=" * 80)
+        return str(output_path)
+    except Exception as e:
+        print(f"\n❌ Error rendering document: {str(e)}")
+        raise

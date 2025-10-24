@@ -41,10 +41,10 @@ get_events = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
     func_name="get_events",  # 🧪
 )  # 🧪
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_mnc.tasks import filter_by_value
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row
 
 get_patrol_observations = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -67,9 +67,9 @@ from ecoscope_workflows_core.tasks.skip import never
 from ecoscope_workflows_ext_mnc.tasks import create_patrol_coverage_grid
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_classification
 from ecoscope_workflows_ext_ecoscope.tasks.results import create_polygon_layer
-from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import html_to_png_pw
 from ecoscope_workflows_ext_mnc.tasks import flatten_tuple
+from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import create_mnc_context
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 
@@ -109,7 +109,8 @@ def main(params: Params):
         "events_wtemporal": ["extract_event_date", "groupers"],
         "split_event_groups": ["events_wtemporal", "groupers"],
         "total_events_recorded": ["split_event_groups"],
-        "persist_tevents_df": ["total_events_recorded"],
+        "add_total_events_row": ["total_events_recorded"],
+        "persist_tevents_df": ["add_total_events_row"],
         "draw_events_chart": ["total_events_recorded"],
         "persist_total_events": ["draw_events_chart"],
         "tevents_chart_widget": ["persist_total_events"],
@@ -167,7 +168,6 @@ def main(params: Params):
         "generate_grid_layers": ["apply_grid_colormap"],
         "zoom_grid_view": ["apply_grid_colormap"],
         "zip_grid_zoom_values": ["generate_grid_layers", "zoom_grid_view"],
-        "print_zip_values": ["zip_grid_zoom_values"],
         "draw_grid_ecomap": ["configure_base_maps", "zip_grid_zoom_values"],
         "persist_grid_ecomap_urls": ["draw_grid_ecomap"],
         "create_grid_widgets": ["persist_grid_ecomap_urls"],
@@ -179,11 +179,11 @@ def main(params: Params):
         "convert_prec_html_to_png": ["persist_precipitation"],
         "convert_tev_html_to_png": ["persist_total_events"],
         "convert_patgr_html_to_png": ["persist_grid_ecomap_urls"],
-        "zip_tevents_ps": ["total_events_recorded", "foot_patrol_metrics"],
-        "zip_tps_vh": ["zip_tevents_ps", "vh_patrol_metrics"],
-        "zip_tpsvhmp": ["zip_tps_vh", "mb_patrol_metrics"],
-        "zip_patrol_purpose": ["zip_tpsvhmp", "patrol_info_summary"],
-        "zip_ranger_metrics": ["zip_patrol_purpose", "ranger_patrol_metrics"],
+        "zip_tevents_ps": ["persist_tevents_df", "persist_fps_df"],
+        "zip_tps_vh": ["zip_tevents_ps", "persist_vh_df"],
+        "zip_tpsvhmp": ["zip_tps_vh", "persist_mb_df"],
+        "zip_patrol_purpose": ["zip_tpsvhmp", "persist_patrol_df"],
+        "zip_ranger_metrics": ["zip_patrol_purpose", "persist_total_df"],
         "zip_temp_urls": ["zip_ranger_metrics", "convert_temp_html_to_png"],
         "zip_precip_urls": ["zip_temp_urls", "convert_prec_html_to_png"],
         "zip_events_urls": ["zip_precip_urls", "convert_tev_html_to_png"],
@@ -192,6 +192,7 @@ def main(params: Params):
         "zip_mb_urls": ["zip_vhp_urls", "convert_mbp_html_to_png"],
         "zip_patrolcov_urls": ["zip_mb_urls", "convert_patgr_html_to_png"],
         "flatten_zipped_context": ["zip_patrolcov_urls"],
+        "print_flattened_outputs": ["flatten_zipped_context"],
         "mnc_context": ["persist_mnc_tpt", "time_range", "flatten_zipped_context"],
         "weather_dashboard": [
             "workflow_details",
@@ -604,6 +605,20 @@ def main(params: Params):
                 "argvalues": DependsOn("split_event_groups"),
             },
         ),
+        "add_total_events_row": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="add_total_events_row")
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["date"],
+            }
+            | (params_dict.get("add_total_events_row") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("total_events_recorded"),
+            },
+        ),
         "persist_tevents_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_tevents_df")
@@ -615,7 +630,7 @@ def main(params: Params):
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
-                "argvalues": DependsOn("total_events_recorded"),
+                "argvalues": DependsOn("add_total_events_row"),
             },
         ),
         "draw_events_chart": Node(
@@ -1661,17 +1676,6 @@ def main(params: Params):
             | (params_dict.get("zip_grid_zoom_values") or {}),
             method="call",
         ),
-        "print_zip_values": Node(
-            async_task=print_output.validate()
-            .handle_errors(task_instance_id="print_zip_values")
-            .set_executor("lithops"),
-            partial=(params_dict.get("print_zip_values") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["value"],
-                "argvalues": DependsOn("zip_grid_zoom_values"),
-            },
-        ),
         "draw_grid_ecomap": Node(
             async_task=draw_ecomap.validate()
             .handle_errors(task_instance_id="draw_grid_ecomap")
@@ -1845,8 +1849,8 @@ def main(params: Params):
             .handle_errors(task_instance_id="zip_tevents_ps")
             .set_executor("lithops"),
             partial={
-                "left": DependsOn("total_events_recorded"),
-                "right": DependsOn("foot_patrol_metrics"),
+                "left": DependsOn("persist_tevents_df"),
+                "right": DependsOn("persist_fps_df"),
             }
             | (params_dict.get("zip_tevents_ps") or {}),
             method="call",
@@ -1857,7 +1861,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "left": DependsOn("zip_tevents_ps"),
-                "right": DependsOn("vh_patrol_metrics"),
+                "right": DependsOn("persist_vh_df"),
             }
             | (params_dict.get("zip_tps_vh") or {}),
             method="call",
@@ -1868,7 +1872,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "left": DependsOn("zip_tps_vh"),
-                "right": DependsOn("mb_patrol_metrics"),
+                "right": DependsOn("persist_mb_df"),
             }
             | (params_dict.get("zip_tpsvhmp") or {}),
             method="call",
@@ -1879,7 +1883,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "left": DependsOn("zip_tpsvhmp"),
-                "right": DependsOn("patrol_info_summary"),
+                "right": DependsOn("persist_patrol_df"),
             }
             | (params_dict.get("zip_patrol_purpose") or {}),
             method="call",
@@ -1890,7 +1894,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "left": DependsOn("zip_patrol_purpose"),
-                "right": DependsOn("ranger_patrol_metrics"),
+                "right": DependsOn("persist_total_df"),
             }
             | (params_dict.get("zip_ranger_metrics") or {}),
             method="call",
@@ -1981,6 +1985,17 @@ def main(params: Params):
             kwargs={
                 "argnames": ["nested"],
                 "argvalues": DependsOn("zip_patrolcov_urls"),
+            },
+        ),
+        "print_flattened_outputs": Node(
+            async_task=print_output.validate()
+            .handle_errors(task_instance_id="print_flattened_outputs")
+            .set_executor("lithops"),
+            partial=(params_dict.get("print_flattened_outputs") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["value"],
+                "argvalues": DependsOn("flatten_zipped_context"),
             },
         ),
         "mnc_context": Node(

@@ -20,10 +20,10 @@ from ecoscope_workflows_core.tasks.io import persist_text
 from ecoscope_workflows_core.tasks.results import create_plot_widget_single_view
 from ecoscope_workflows_core.tasks.results import merge_widget_views
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_events
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
 from ecoscope_workflows_ext_mnc.tasks import filter_by_value
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_patrol_observations
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import process_relocations
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
@@ -42,9 +42,9 @@ from ecoscope_workflows_core.tasks.skip import never
 from ecoscope_workflows_ext_mnc.tasks import create_patrol_coverage_grid
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_classification
 from ecoscope_workflows_ext_ecoscope.tasks.results import create_polygon_layer
-from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import html_to_png_pw
 from ecoscope_workflows_ext_mnc.tasks import flatten_tuple
+from ecoscope_workflows_ext_mnc.tasks import print_output
 from ecoscope_workflows_ext_mnc.tasks import create_mnc_context
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 
@@ -417,6 +417,13 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=split_event_groups)
     )
 
+    add_total_events_row = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="add_total_events_row")
+        .partial(label_col=["date"], **(params_dict.get("add_total_events_row") or {}))
+        .mapvalues(argnames=["df"], argvalues=total_events_recorded)
+    )
+
     persist_tevents_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_tevents_df")
@@ -424,7 +431,7 @@ def main(params: Params):
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             **(params_dict.get("persist_tevents_df") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=total_events_recorded)
+        .mapvalues(argnames=["df"], argvalues=add_total_events_row)
     )
 
     draw_events_chart = (
@@ -1275,13 +1282,6 @@ def main(params: Params):
         .call()
     )
 
-    print_zip_values = (
-        print_output.validate()
-        .handle_errors(task_instance_id="print_zip_values")
-        .partial(**(params_dict.get("print_zip_values") or {}))
-        .mapvalues(argnames=["value"], argvalues=zip_grid_zoom_values)
-    )
-
     draw_grid_ecomap = (
         draw_ecomap.validate()
         .handle_errors(task_instance_id="draw_grid_ecomap")
@@ -1414,8 +1414,8 @@ def main(params: Params):
         zip_grouped_by_key.validate()
         .handle_errors(task_instance_id="zip_tevents_ps")
         .partial(
-            left=total_events_recorded,
-            right=foot_patrol_metrics,
+            left=persist_tevents_df,
+            right=persist_fps_df,
             **(params_dict.get("zip_tevents_ps") or {}),
         )
         .call()
@@ -1426,7 +1426,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="zip_tps_vh")
         .partial(
             left=zip_tevents_ps,
-            right=vh_patrol_metrics,
+            right=persist_vh_df,
             **(params_dict.get("zip_tps_vh") or {}),
         )
         .call()
@@ -1437,7 +1437,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="zip_tpsvhmp")
         .partial(
             left=zip_tps_vh,
-            right=mb_patrol_metrics,
+            right=persist_mb_df,
             **(params_dict.get("zip_tpsvhmp") or {}),
         )
         .call()
@@ -1448,7 +1448,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="zip_patrol_purpose")
         .partial(
             left=zip_tpsvhmp,
-            right=patrol_info_summary,
+            right=persist_patrol_df,
             **(params_dict.get("zip_patrol_purpose") or {}),
         )
         .call()
@@ -1459,7 +1459,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="zip_ranger_metrics")
         .partial(
             left=zip_patrol_purpose,
-            right=ranger_patrol_metrics,
+            right=persist_total_df,
             **(params_dict.get("zip_ranger_metrics") or {}),
         )
         .call()
@@ -1547,6 +1547,13 @@ def main(params: Params):
         .handle_errors(task_instance_id="flatten_zipped_context")
         .partial(**(params_dict.get("flatten_zipped_context") or {}))
         .mapvalues(argnames=["nested"], argvalues=zip_patrolcov_urls)
+    )
+
+    print_flattened_outputs = (
+        print_output.validate()
+        .handle_errors(task_instance_id="print_flattened_outputs")
+        .partial(**(params_dict.get("print_flattened_outputs") or {}))
+        .mapvalues(argnames=["value"], argvalues=flatten_zipped_context)
     )
 
     mnc_context = (
