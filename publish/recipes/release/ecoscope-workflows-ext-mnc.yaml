@@ -27,7 +27,7 @@ requirements:
     - ecoscope-workflows-core
     - ecoscope
     - ecoscope-workflows-ext-ecoscope
-    - ecoscope-workflows-ext-custom
+    #- ecoscope-workflows-ext-custom
     - geopandas
     - shapely
     - docxtpl # for word document template generation

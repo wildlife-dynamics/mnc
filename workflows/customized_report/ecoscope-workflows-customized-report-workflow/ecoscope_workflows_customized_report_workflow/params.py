@@ -3,11 +3,18 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import Enum
 from typing import List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel, confloat, constr
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    RootModel,
+    confloat,
+    constr,
+)
 
 
 class WorkflowDetails(BaseModel):
@@ -16,6 +23,14 @@ class WorkflowDetails(BaseModel):
     )
     name: str = Field(..., title="Workflow Name")
     description: Optional[str] = Field("", title="Workflow Description")
+
+
+class TimeRange(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    since: AwareDatetime = Field(..., description="The start time", title="Since")
+    until: AwareDatetime = Field(..., description="The end time", title="Until")
 
 
 class Url(str, Enum):
@@ -213,7 +228,7 @@ class GetEventsData(BaseModel):
     )
     event_types: List[str] = Field(
         ...,
-        description="Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types.",
+        description="Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types. Only V1 Event Types can be analyzed at this time.",
         title="Event Types",
     )
     include_null_geometry: Optional[bool] = Field(
@@ -296,14 +311,9 @@ class PatrolObservations(BaseModel):
         title="Patrol Types",
     )
     status: Optional[List[StatusEnum]] = Field(
-        ["done"],
-        description="Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
-        title="Patrol Status",
-    )
-    sub_page_size: Optional[int] = Field(
         None,
-        description="        Manually set the page size for underlying ER API requests.\n        If left as None, this will use the underlying client default value (4000)\n        ",
-        title="Sub Page Size",
+        description="Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
+        title="Status",
     )
 
 
@@ -314,13 +324,6 @@ class PersistTotalDf(BaseModel):
     filetype: Optional[Filetype] = Field(
         "csv", description="The output format", title="Filetype"
     )
-
-
-class TimezoneInfo(BaseModel):
-    label: str = Field(..., title="Label")
-    tzCode: str = Field(..., title="Tzcode")
-    name: str = Field(..., title="Name")
-    utc: str = Field(..., title="Utc")
 
 
 class TemporalGrouper(RootModel[str]):
@@ -394,15 +397,6 @@ class SharedArgs(BaseModel):
 class StdMeanArgs(BaseModel):
     multiples: Optional[List[int]] = Field([-2, -1, 1, 2], title="Multiples")
     anchor: Optional[bool] = Field(False, title="Anchor")
-
-
-class TimeRange(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    since: datetime = Field(..., description="The start time", title="Since")
-    until: datetime = Field(..., description="The end time", title="Until")
-    timezone: Optional[TimezoneInfo] = Field(None, title="Timezone")
 
 
 class Groupers(BaseModel):

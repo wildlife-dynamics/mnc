@@ -4,9 +4,9 @@ requirements:
     version: "0.14.0"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
-  - name: ecoscope-workflows-ext-custom
-    version: "0.0.3.*"
-    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+  # - name: ecoscope-workflows-ext-custom
+  #   version: "0.0.3.*"
+  #   channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
     version: "*"
@@ -1047,7 +1047,7 @@ workflow:
 
   - name: Convert foot patrol html to png 
     id: convert_footp_html_to_png
-    task: html_to_png
+    task: html_to_png_pw
     partial:
       output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       config:
@@ -1058,7 +1058,7 @@ workflow:
   
   - name: Convert vehicle patrol html to png 
     id: convert_vhp_html_to_png
-    task: html_to_png
+    task: html_to_png_pw
     partial:
       output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       config:
@@ -1070,7 +1070,7 @@ workflow:
 
   - name: Convert motorbike patrol html to png 
     id: convert_mbp_html_to_png
-    task: html_to_png
+    task: html_to_png_pw
     partial:
       output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       config:
@@ -1082,7 +1082,7 @@ workflow:
 
   - name: Convert temperature html to png 
     id: convert_temp_html_to_png
-    task: html_to_png
+    task: html_to_png_pw
     partial:
       output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       config:
@@ -1094,7 +1094,7 @@ workflow:
 
   - name: Convert precipitation html to png 
     id: convert_prec_html_to_png
-    task: html_to_png
+    task: html_to_png_pw
     partial:
       output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       config:
@@ -1105,7 +1105,7 @@ workflow:
 
   - name: Convert total events html to png 
     id: convert_tev_html_to_png
-    task: html_to_png
+    task: html_to_png_pw
     partial:
       output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       config:
@@ -1117,7 +1117,7 @@ workflow:
 
   - name: Convert patrol coverage html to png 
     id: convert_patgr_html_to_png
-    task: html_to_png
+    task: html_to_png_pw
     partial:
       output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       config:

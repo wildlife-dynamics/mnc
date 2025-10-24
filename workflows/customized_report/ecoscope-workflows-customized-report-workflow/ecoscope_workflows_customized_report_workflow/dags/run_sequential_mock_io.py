@@ -10,94 +10,63 @@ that they would not be included (or would be different) in the production versio
 import json
 import os
 import warnings  # 🧪
+from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
+
 
 from ecoscope_workflows_core.tasks.config import set_workflow_details
 from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection
-from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
 from ecoscope_workflows_ext_ecoscope.tasks.results import set_base_maps
 
 get_subjectgroup_observations = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
     func_name="get_subjectgroup_observations",  # 🧪
 )  # 🧪
+from ecoscope_workflows_core.tasks.transformation import extract_value_from_json_column
+from ecoscope_workflows_core.tasks.transformation import extract_column_as_type
+from ecoscope_workflows_core.tasks.transformation import map_columns
+from ecoscope_workflows_core.tasks.transformation import add_temporal_index
 from ecoscope_workflows_core.tasks.groupby import split_groups
-from ecoscope_workflows_core.tasks.io import persist_text
-from ecoscope_workflows_core.tasks.results import (
-    create_plot_widget_single_view,
-    merge_widget_views,
-)
-from ecoscope_workflows_core.tasks.transformation import (
-    add_temporal_index,
-    extract_column_as_type,
-    extract_value_from_json_column,
-    map_columns,
-)
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
+from ecoscope_workflows_core.tasks.io import persist_text
+from ecoscope_workflows_core.tasks.results import create_plot_widget_single_view
+from ecoscope_workflows_core.tasks.results import merge_widget_views
 
 get_events = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
     func_name="get_events",  # 🧪
 )  # 🧪
-from ecoscope_workflows_core.tasks.groupby import split_groups
-from ecoscope_workflows_core.tasks.io import persist_text
-from ecoscope_workflows_core.tasks.results import (
-    create_plot_widget_single_view,
-    merge_widget_views,
-)
-from ecoscope_workflows_core.tasks.transformation import (
-    add_temporal_index,
-    extract_column_as_type,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
-from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
+from ecoscope_workflows_ext_mnc.tasks import filter_by_value
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row
 
 get_patrol_observations = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
     func_name="get_patrol_observations",  # 🧪
 )  # 🧪
-from ecoscope_workflows_core.tasks.groupby import split_groups
-from ecoscope_workflows_core.tasks.io import persist_text
-from ecoscope_workflows_core.tasks.results import (
-    create_map_widget_single_view,
-    gather_dashboard,
-    merge_widget_views,
-)
-from ecoscope_workflows_core.tasks.skip import (
-    any_dependency_skipped,
-    any_is_empty_df,
-    never,
-)
-from ecoscope_workflows_core.tasks.transformation import add_temporal_index, map_columns
-from ecoscope_workflows_ext_custom.tasks import html_to_png
-from ecoscope_workflows_ext_custom.tasks.results import create_polygon_layer
-from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
-from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
+from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import process_relocations
 from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
-    process_relocations,
     relocations_to_trajectory,
 )
-from ecoscope_workflows_ext_ecoscope.tasks.results import (
-    create_polyline_layer,
-    draw_ecomap,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
-    apply_classification,
-    apply_color_map,
-)
-from ecoscope_workflows_ext_mnc.tasks import (
-    classify_mnc_patrol,
-    create_patrol_coverage_grid,
-    create_view_state_from_gdf,
-    filter_by_value,
-    print_output,
-    zip_grouped_by_key,
-)
+from ecoscope_workflows_ext_mnc.tasks import classify_mnc_patrol
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_color_map
+from ecoscope_workflows_ext_ecoscope.tasks.results import create_polyline_layer
+from ecoscope_workflows_core.tasks.skip import any_is_empty_df
+from ecoscope_workflows_core.tasks.skip import any_dependency_skipped
+from ecoscope_workflows_ext_mnc.tasks import create_view_state_from_gdf
+from ecoscope_workflows_ext_mnc.tasks import zip_grouped_by_key
+from ecoscope_workflows_ext_ecoscope.tasks.results import draw_ecomap
+from ecoscope_workflows_core.tasks.results import create_map_widget_single_view
+from ecoscope_workflows_core.tasks.skip import never
+from ecoscope_workflows_ext_mnc.tasks import create_patrol_coverage_grid
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import apply_classification
+from ecoscope_workflows_ext_ecoscope.tasks.results import create_polygon_layer
+from ecoscope_workflows_ext_mnc.tasks import print_output
+from ecoscope_workflows_ext_mnc.tasks import html_to_png_pw
+from ecoscope_workflows_core.tasks.results import gather_dashboard
 
 from ..params import Params
 
@@ -1234,7 +1203,7 @@ def main(params: Params):
     )
 
     convert_footp_html_to_png = (
-        html_to_png.validate()
+        html_to_png_pw.validate()
         .handle_errors(task_instance_id="convert_footp_html_to_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1245,7 +1214,7 @@ def main(params: Params):
     )
 
     convert_vhp_html_to_png = (
-        html_to_png.validate()
+        html_to_png_pw.validate()
         .handle_errors(task_instance_id="convert_vhp_html_to_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1256,7 +1225,7 @@ def main(params: Params):
     )
 
     convert_mbp_html_to_png = (
-        html_to_png.validate()
+        html_to_png_pw.validate()
         .handle_errors(task_instance_id="convert_mbp_html_to_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1267,7 +1236,7 @@ def main(params: Params):
     )
 
     convert_temp_html_to_png = (
-        html_to_png.validate()
+        html_to_png_pw.validate()
         .handle_errors(task_instance_id="convert_temp_html_to_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1278,7 +1247,7 @@ def main(params: Params):
     )
 
     convert_prec_html_to_png = (
-        html_to_png.validate()
+        html_to_png_pw.validate()
         .handle_errors(task_instance_id="convert_prec_html_to_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1289,7 +1258,7 @@ def main(params: Params):
     )
 
     convert_tev_html_to_png = (
-        html_to_png.validate()
+        html_to_png_pw.validate()
         .handle_errors(task_instance_id="convert_tev_html_to_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1300,7 +1269,7 @@ def main(params: Params):
     )
 
     convert_patgr_html_to_png = (
-        html_to_png.validate()
+        html_to_png_pw.validate()
         .handle_errors(task_instance_id="convert_patgr_html_to_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],

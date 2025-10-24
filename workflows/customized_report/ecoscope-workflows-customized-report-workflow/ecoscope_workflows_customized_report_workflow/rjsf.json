@@ -34,15 +34,6 @@
           "title": "Until",
           "type": "string",
           "description": "The end time"
-        },
-        "timezone": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/TimezoneInfo"
-            }
-          ],
-          "default": null,
-          "title": "Timezone"
         }
       },
       "required": [
@@ -338,7 +329,7 @@
           },
           "title": "Event Types",
           "type": "array",
-          "description": "Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types."
+          "description": "Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types. Only V1 Event Types can be analyzed at this time."
         },
         "include_null_geometry": {
           "default": true,
@@ -451,9 +442,9 @@
           "description": "Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types."
         },
         "status": {
-          "default": [
-            "done"
-          ],
+          "default": null,
+          "description": "Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
+          "ecoscope:advanced": true,
           "items": {
             "enum": [
               "active",
@@ -463,17 +454,8 @@
             ],
             "type": "string"
           },
-          "title": "Patrol Status",
-          "type": "array",
-          "description": "Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
-          "ecoscope:advanced": true
-        },
-        "sub_page_size": {
-          "default": null,
-          "title": "Sub Page Size",
-          "type": "integer",
-          "description": "        Manually set the page size for underlying ER API requests.\n        If left as None, this will use the underlying client default value (4000)\n        ",
-          "ecoscope:advanced": true
+          "title": "Status",
+          "type": "array"
         }
       },
       "required": [
@@ -577,34 +559,6 @@
     }
   },
   "$defs": {
-    "TimezoneInfo": {
-      "properties": {
-        "label": {
-          "title": "Label",
-          "type": "string"
-        },
-        "tzCode": {
-          "title": "Tzcode",
-          "type": "string"
-        },
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "utc": {
-          "title": "Utc",
-          "type": "string"
-        }
-      },
-      "required": [
-        "label",
-        "tzCode",
-        "name",
-        "utc"
-      ],
-      "title": "TimezoneInfo",
-      "type": "object"
-    },
     "TemporalGrouper": {
       "oneOf": [
         {
@@ -861,8 +815,7 @@
     "time_range": {
       "ui:order": [
         "since",
-        "until",
-        "timezone"
+        "until"
       ]
     },
     "df_with_temporal_index": {
@@ -886,8 +839,7 @@
     "patrol_observations": {
       "ui:order": [
         "patrol_types",
-        "status",
-        "sub_page_size"
+        "status"
       ]
     },
     "apply_classification_grid": {

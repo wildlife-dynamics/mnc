@@ -19,8 +19,10 @@ from ._map_utils import (
     annotate_gdf_dict_with_geometry_type,
     create_map_layers_from_annotated_dict,
 )
-
+from ._pw_html_to_png import ScreenshotConfig, html_to_png_pw
 __all__ = [
+    "ScreenshotConfig",
+    "html_to_png_pw",
     "add_totals_row",
     "filter_by_value",
     "print_output",
