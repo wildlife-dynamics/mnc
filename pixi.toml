@@ -19,7 +19,8 @@ pip="*"
 
 [feature.compile.dependencies]
 # Include this if you add new tasks and the package has been built
-#ecoscope-workflows-ext-mnc = "*"
+ecoscope-workflows-ext-mnc = "*"
+ecoscope-workflows-ext-custom = "*"
 
 ecoscope-workflows-core = "0.14.0.*"
 # Here we don't specify the channel on purpose, as we want to use the local channel if it exists,
@@ -54,11 +55,10 @@ depends-on = ["build-release"]
 cmd = './dev/recompile.sh nest-monitoring --update'
 depends-on = ["build-release"]
 
-
-[feature.compile.tasks.compile-customized_report]
-cmd = './dev/recompile.sh customized_report --install'
+[feature.compile.tasks.compile-mara_north_event_report]
+cmd = './dev/recompile.sh mara_north_event_report --install'
 depends-on = ["build-release"]
 
-[feature.compile.tasks.recompile-customized_report]
-cmd = './dev/recompile.sh customized_report --update'
+[feature.compile.tasks.recompile-mara_north_event_report]
+cmd = './dev/recompile.sh mara_north_event_report --update'
 depends-on = ["build-release"]

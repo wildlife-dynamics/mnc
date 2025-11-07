@@ -3,19 +3,11 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from enum import Enum
-from typing import List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import (
-    AwareDatetime,
-    BaseModel,
-    ConfigDict,
-    Field,
-    RootModel,
-    confloat,
-    conint,
-    constr,
-)
+from pydantic import BaseModel, ConfigDict, Field, confloat, conint, constr
 
 
 class WorkflowDetails(BaseModel):
@@ -24,14 +16,6 @@ class WorkflowDetails(BaseModel):
     )
     name: str = Field(..., title="Workflow Name")
     description: Optional[str] = Field("", title="Workflow Description")
-
-
-class TimeRange(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    since: AwareDatetime = Field(..., description="The start time", title="Since")
-    until: AwareDatetime = Field(..., description="The end time", title="Until")
 
 
 class Url(str, Enum):
@@ -157,12 +141,12 @@ class BaseMaps6(BaseModel):
         title="Custom Layer Opacity",
     )
     max_zoom: Optional[int] = Field(
-        None,
+        20,
         description="Set the maximum zoom level to fetch tiles for.",
         title="Custom Layer Max Zoom",
     )
     min_zoom: Optional[int] = Field(
-        None,
+        0,
         description="Set the minimum zoom level to fetch tiles for.",
         title="Custom Layer Min Zoom",
     )
@@ -189,10 +173,12 @@ class ConfigureBaseMaps(BaseModel):
             {
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
                 "opacity": 1,
+                "max_zoom": 20,
             },
             {
                 "url": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
                 "opacity": 0.5,
+                "max_zoom": 20,
             },
         ],
         description="Select tile layers to use as base layers in map outputs. The first layer in the list will be the bottommost layer displayed.",
@@ -201,6 +187,20 @@ class ConfigureBaseMaps(BaseModel):
 
 
 class PersistMncTpt(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    retries: Optional[conint(ge=0)] = Field(
+        3, description="Number of retries on failure", title="Retries"
+    )
+    unzip: Optional[bool] = Field(
+        False,
+        description="Whether to unzip the file if it's a zip archive",
+        title="Unzip",
+    )
+
+
+class PersistMncGpkg(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
@@ -240,11 +240,6 @@ class DfWithTemporalIndex(BaseModel):
 class GetEventsData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
-    )
-    event_types: List[str] = Field(
-        ...,
-        description="Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types. Only V1 Event Types can be analyzed at this time.",
-        title="Event Types",
     )
     include_null_geometry: Optional[bool] = Field(
         True, title="Include Events Without a Geometry (point or polygon)"
@@ -316,30 +311,7 @@ class PersistPatrolDf(BaseModel):
     )
 
 
-class StatusEnum(str, Enum):
-    active = "active"
-    overdue = "overdue"
-    done = "done"
-    cancelled = "cancelled"
-
-
-class PatrolObservations(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    patrol_types: List[str] = Field(
-        ...,
-        description="Specify the patrol type(s) to analyze (optional). Leave empty to analyze all patrol types.",
-        title="Patrol Types",
-    )
-    status: Optional[List[StatusEnum]] = Field(
-        None,
-        description="Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
-        title="Status",
-    )
-
-
-class PersistTotalDf(BaseModel):
+class PersistFootDf(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
@@ -348,7 +320,16 @@ class PersistTotalDf(BaseModel):
     )
 
 
-class PersistFpsDf(BaseModel):
+class DrawFootPatrolMap(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    title: Optional[str] = Field(
+        None, description="Title drawn on the canvas.", title="Title"
+    )
+
+
+class PersistVehicleDf(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
@@ -357,7 +338,16 @@ class PersistFpsDf(BaseModel):
     )
 
 
-class PersistVhDf(BaseModel):
+class DrawVehiclePatrolMap(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    title: Optional[str] = Field(
+        None, description="Title drawn on the canvas.", title="Title"
+    )
+
+
+class PersistMotorDf(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
@@ -366,35 +356,38 @@ class PersistVhDf(BaseModel):
     )
 
 
-class PersistMbDf(BaseModel):
+class DrawMotorPatrolMap(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
+    title: Optional[str] = Field(
+        None, description="Title drawn on the canvas.", title="Title"
     )
 
 
-class MncContext(BaseModel):
+class DrawGridMap(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    validate_images: Optional[bool] = Field(True, title="Validate Images")
-    box_h_cm: Optional[float] = Field(6.5, title="Box H Cm")
-    box_w_cm: Optional[float] = Field(11.11, title="Box W Cm")
-    filename: Optional[str] = Field(None, title="Filename")
+    title: Optional[str] = Field(
+        None, description="Title drawn on the canvas.", title="Title"
+    )
 
 
-class TemporalGrouper(RootModel[str]):
-    root: str = Field(..., title="Time")
-
-
-class ValueGrouper(RootModel[str]):
-    root: str = Field(..., title="Category")
+class TimezoneInfo(BaseModel):
+    label: str = Field(..., title="Label")
+    tzCode: str = Field(..., title="Tzcode")
+    name: str = Field(..., title="Name")
+    utc: str = Field(..., title="Utc")
 
 
 class EarthRangerConnection(BaseModel):
     name: str = Field(..., title="Data Source")
+
+
+class MapStyleConfig(BaseModel):
+    styles: Optional[Dict[str, Dict[str, Any]]] = Field(None, title="Styles")
+    legend: Optional[Dict[str, List[str]]] = Field(None, title="Legend")
 
 
 class TrajectorySegmentFilter(BaseModel):
@@ -458,15 +451,13 @@ class StdMeanArgs(BaseModel):
     anchor: Optional[bool] = Field(False, title="Anchor")
 
 
-class Groupers(BaseModel):
+class TimeRange(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    groupers: Optional[List[Union[ValueGrouper, TemporalGrouper]]] = Field(
-        None,
-        description="            Specify how the data should be grouped to create the views for your dashboard.\n            This field is optional; if left blank, all the data will appear in a single view.\n            ",
-        title=" ",
-    )
+    since: datetime = Field(..., description="The start time", title="Since")
+    until: datetime = Field(..., description="The end time", title="Until")
+    timezone: Optional[TimezoneInfo] = Field(None, title="Timezone")
 
 
 class ErClientName(BaseModel):
@@ -478,7 +469,54 @@ class ErClientName(BaseModel):
     )
 
 
-class ConvertToTrajectories(BaseModel):
+class CreateCustomMapLayers(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    style_config: MapStyleConfig = Field(..., title="Style Config")
+
+
+class FootTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
+        default_factory=lambda: TrajectorySegmentFilter.model_validate(
+            {
+                "min_length_meters": 0.001,
+                "max_length_meters": 100000,
+                "min_time_secs": 1,
+                "max_time_secs": 172800,
+                "min_speed_kmhr": 0.01,
+                "max_speed_kmhr": 500,
+            }
+        ),
+        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+        title=" ",
+    )
+
+
+class VehicleTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
+        default_factory=lambda: TrajectorySegmentFilter.model_validate(
+            {
+                "min_length_meters": 0.001,
+                "max_length_meters": 100000,
+                "min_time_secs": 1,
+                "max_time_secs": 172800,
+                "min_speed_kmhr": 0.01,
+                "max_speed_kmhr": 500,
+            }
+        ),
+        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+        title=" ",
+    )
+
+
+class MotorTrajs(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
@@ -519,7 +557,7 @@ class ApplyClassificationGrid(BaseModel):
     ] = Field({"k": 5}, title="Classification Options")
 
 
-class Params(BaseModel):
+class FormData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
@@ -531,13 +569,18 @@ class Params(BaseModel):
     time_range: Optional[TimeRange] = Field(
         None, description="Choose the period of time to analyze.", title="Time Range"
     )
-    groupers: Optional[Groupers] = Field(None, title="Set Groupers")
     er_client_name: Optional[ErClientName] = Field(None, title="Connect to ER")
     configure_base_maps: Optional[ConfigureBaseMaps] = Field(
         None, title="Configure Base Map Layers"
     )
     persist_mnc_tpt: Optional[PersistMncTpt] = Field(
         None, title="Download MNC template and persist"
+    )
+    persist_mnc_gpkg: Optional[PersistMncGpkg] = Field(
+        None, title="Download MNC shapefile"
+    )
+    create_custom_map_layers: Optional[CreateCustomMapLayers] = Field(
+        None, title="Create Map Layers"
     )
     subject_observations: Optional[SubjectObservations] = Field(
         None, title="Get subject observations from ER"
@@ -564,27 +607,34 @@ class Params(BaseModel):
     persist_patrol_df: Optional[PersistPatrolDf] = Field(
         None, title="Persist patrol summary table"
     )
-    patrol_observations: Optional[PatrolObservations] = Field(
-        None, title="Get Patrol observations"
+    foot_trajs: Optional[FootTrajs] = Field(
+        None, title="Convert foot relocations to trajectories"
     )
-    convert_to_trajectories: Optional[ConvertToTrajectories] = Field(
-        None, title="Convert Relocations to Trajectories"
+    vehicle_trajs: Optional[VehicleTrajs] = Field(
+        None, title="Convert vehicle relocations to trajectories"
     )
-    persist_total_df: Optional[PersistTotalDf] = Field(
-        None, title="Persist total patrol coverage"
+    motor_trajs: Optional[MotorTrajs] = Field(
+        None, title="Convert motorbike relocations to trajectories"
     )
-    persist_fps_df: Optional[PersistFpsDf] = Field(
-        None, title="Persist foot patrol coverage"
+    persist_foot_df: Optional[PersistFootDf] = Field(
+        None, title="Persist foot patrol metrics"
     )
-    persist_vh_df: Optional[PersistVhDf] = Field(
-        None, title="Persist foot patrol coverage"
+    draw_foot_patrol_map: Optional[DrawFootPatrolMap] = Field(
+        None, title="Draw foot patrol pydeck map"
     )
-    persist_mb_df: Optional[PersistMbDf] = Field(
-        None, title="Persist foot patrol coverage"
+    persist_vehicle_df: Optional[PersistVehicleDf] = Field(
+        None, title="Persist vehicle patrol metrics"
+    )
+    draw_vehicle_patrol_map: Optional[DrawVehiclePatrolMap] = Field(
+        None, title="Draw vehicle patrol pydeck map"
+    )
+    persist_motor_df: Optional[PersistMotorDf] = Field(
+        None, title="Persist motorbike patrol metrics"
+    )
+    draw_motor_patrol_map: Optional[DrawMotorPatrolMap] = Field(
+        None, title="Draw motor patrol pydeck map"
     )
     apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
         None, title="Apply bin classification on grids"
     )
-    mnc_context: Optional[MncContext] = Field(
-        None, title="Create Mara North Context template"
-    )
+    draw_grid_map: Optional[DrawGridMap] = Field(None, title="Draw grid ecomaps")

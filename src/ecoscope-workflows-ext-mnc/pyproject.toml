@@ -70,7 +70,6 @@ ecoscope-workflows-ext-ecoscope=">=0.14.0"
 
 # additional dependencies added by this extension
 
-
 [tool.mypy]
 plugins = ["pandera.mypy", "pydantic.mypy"]
 [tool.pixi.feature.mypy]
