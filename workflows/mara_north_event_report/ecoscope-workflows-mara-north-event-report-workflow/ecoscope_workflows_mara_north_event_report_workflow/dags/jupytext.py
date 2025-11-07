@@ -1938,7 +1938,7 @@ foot_patrol_metrics_params = dict()
 foot_patrol_metrics = (
     summarize_df.handle_errors(task_instance_id="foot_patrol_metrics")
     .partial(
-        groupby_cols=["patrol_cat_types"],
+        groupby_cols=["patrol_type_value"],
         summary_params=[
             {
                 "display_name": "no_of_patrols",
@@ -2247,7 +2247,7 @@ vehicle_patrol_metrics_params = dict()
 vehicle_patrol_metrics = (
     summarize_df.handle_errors(task_instance_id="vehicle_patrol_metrics")
     .partial(
-        groupby_cols=["patrol_cat_types"],
+        groupby_cols=["patrol_type_value"],
         summary_params=[
             {
                 "display_name": "no_of_patrols",
@@ -2555,7 +2555,7 @@ motor_patrol_metrics_params = dict()
 motor_patrol_metrics = (
     summarize_df.handle_errors(task_instance_id="motor_patrol_metrics")
     .partial(
-        groupby_cols=["patrol_cat_types"],
+        groupby_cols=["patrol_type_value"],
         summary_params=[
             {
                 "display_name": "no_of_patrols",

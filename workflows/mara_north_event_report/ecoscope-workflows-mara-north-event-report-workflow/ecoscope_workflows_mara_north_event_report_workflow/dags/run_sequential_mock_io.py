@@ -1166,7 +1166,7 @@ def main(params: Params):
         summarize_df.validate()
         .handle_errors(task_instance_id="foot_patrol_metrics")
         .partial(
-            groupby_cols=["patrol_cat_types"],
+            groupby_cols=["patrol_type_value"],
             summary_params=[
                 {
                     "display_name": "no_of_patrols",
@@ -1340,7 +1340,7 @@ def main(params: Params):
         summarize_df.validate()
         .handle_errors(task_instance_id="vehicle_patrol_metrics")
         .partial(
-            groupby_cols=["patrol_cat_types"],
+            groupby_cols=["patrol_type_value"],
             summary_params=[
                 {
                     "display_name": "no_of_patrols",
@@ -1509,7 +1509,7 @@ def main(params: Params):
         summarize_df.validate()
         .handle_errors(task_instance_id="motor_patrol_metrics")
         .partial(
-            groupby_cols=["patrol_cat_types"],
+            groupby_cols=["patrol_type_value"],
             summary_params=[
                 {
                     "display_name": "no_of_patrols",

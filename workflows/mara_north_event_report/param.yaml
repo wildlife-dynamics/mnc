@@ -42,11 +42,11 @@ motor_trajs:
     max_speed_kmhr: 100.0
     min_speed_kmhr: 10.0
 
-configure_base_maps:
-  base_maps:
-    - url: "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"
-      opacity: 0.7
-    - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
-      opacity: 0.2
-      max_zoom: 15
-      min_zoom: null
+# configure_base_maps:
+#   base_maps:
+#     - url: "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}"
+#       opacity: 0.7
+#     - url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+#       opacity: 0.2
+#       max_zoom: 15
+#       min_zoom: null
