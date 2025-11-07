@@ -2022,17 +2022,20 @@ apply_footp_colormap = (
 # %%
 # parameters
 
-view_foot_patrol_info_params = dict()
+view_foot_patrol_info_params = dict(
+    filename=...,
+)
 
 # %%
 # call the task
 
 
 view_foot_patrol_info = (
-    view_df.handle_errors(task_instance_id="view_foot_patrol_info")
+    persist_df.handle_errors(task_instance_id="view_foot_patrol_info")
     .partial(
-        gdf=apply_footp_colormap,
-        name="Foot patrol trajs with colormap",
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        df=apply_footp_colormap,
         **view_foot_patrol_info_params,
     )
     .call()

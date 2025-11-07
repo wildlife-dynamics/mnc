@@ -1483,12 +1483,13 @@ def main(params: Params):
             },
         ),
         "view_foot_patrol_info": Node(
-            async_task=view_df.validate()
+            async_task=persist_df.validate()
             .handle_errors(task_instance_id="view_foot_patrol_info")
             .set_executor("lithops"),
             partial={
-                "gdf": DependsOn("apply_footp_colormap"),
-                "name": "Foot patrol trajs with colormap",
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("apply_footp_colormap"),
             }
             | (params_dict.get("view_foot_patrol_info") or {}),
             method="call",
