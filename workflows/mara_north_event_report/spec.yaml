@@ -971,11 +971,11 @@ workflow:
       argvalues: ${{ workflow.split_foot_traj_group.return }}
 
   - name: view dataframe info
-    id: view_foot_patrol_info
+    id: persist_foot_patrol_trajs
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filetype: csv
+      filetype: gpkg
       df: ${{ workflow.apply_footp_colormap.return }}
       #name: Foot patrol trajs with colormap
 

@@ -180,7 +180,7 @@ def main(params: Params):
         "foot_patrol_metrics": ["split_foot_traj_group"],
         "persist_foot_df": ["foot_patrol_metrics"],
         "apply_footp_colormap": ["split_foot_traj_group"],
-        "view_foot_patrol_info": ["apply_footp_colormap"],
+        "persist_foot_patrol_trajs": ["apply_footp_colormap"],
         "generate_foot_layers": ["apply_footp_colormap"],
         "zoom_foot_patrols": ["apply_footp_colormap"],
         "combine_custom_foot_patrols": [
@@ -1482,16 +1482,16 @@ def main(params: Params):
                 "argvalues": DependsOn("split_foot_traj_group"),
             },
         ),
-        "view_foot_patrol_info": Node(
+        "persist_foot_patrol_trajs": Node(
             async_task=persist_df.validate()
-            .handle_errors(task_instance_id="view_foot_patrol_info")
+            .handle_errors(task_instance_id="persist_foot_patrol_trajs")
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "filetype": "csv",
+                "filetype": "gpkg",
                 "df": DependsOn("apply_footp_colormap"),
             }
-            | (params_dict.get("view_foot_patrol_info") or {}),
+            | (params_dict.get("persist_foot_patrol_trajs") or {}),
             method="call",
         ),
         "generate_foot_layers": Node(

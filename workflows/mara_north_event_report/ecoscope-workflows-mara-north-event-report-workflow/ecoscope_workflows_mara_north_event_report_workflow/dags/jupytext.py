@@ -2022,7 +2022,7 @@ apply_footp_colormap = (
 # %%
 # parameters
 
-view_foot_patrol_info_params = dict(
+persist_foot_patrol_trajs_params = dict(
     filename=...,
 )
 
@@ -2030,13 +2030,13 @@ view_foot_patrol_info_params = dict(
 # call the task
 
 
-view_foot_patrol_info = (
-    persist_df.handle_errors(task_instance_id="view_foot_patrol_info")
+persist_foot_patrol_trajs = (
+    persist_df.handle_errors(task_instance_id="persist_foot_patrol_trajs")
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        filetype="csv",
+        filetype="gpkg",
         df=apply_footp_colormap,
-        **view_foot_patrol_info_params,
+        **persist_foot_patrol_trajs_params,
     )
     .call()
 )

@@ -1182,14 +1182,14 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=split_foot_traj_group)
     )
 
-    view_foot_patrol_info = (
+    persist_foot_patrol_trajs = (
         persist_df.validate()
-        .handle_errors(task_instance_id="view_foot_patrol_info")
+        .handle_errors(task_instance_id="persist_foot_patrol_trajs")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
+            filetype="gpkg",
             df=apply_footp_colormap,
-            **(params_dict.get("view_foot_patrol_info") or {}),
+            **(params_dict.get("persist_foot_patrol_trajs") or {}),
         )
         .call()
     )
