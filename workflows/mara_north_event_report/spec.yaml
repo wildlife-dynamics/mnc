@@ -82,7 +82,7 @@ workflow:
     task: create_map_layers
     partial:
       file_dict: ${{ workflow.load_local_shapefiles.return }}
-      styles_config:
+      style_config:
         styles:
           community_conservancy: 
             stroked: true

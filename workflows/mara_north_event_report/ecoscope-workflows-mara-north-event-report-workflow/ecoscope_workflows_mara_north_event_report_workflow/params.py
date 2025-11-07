@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import List, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, confloat, constr
 
@@ -236,11 +236,6 @@ class EarthRangerConnection(BaseModel):
     name: str = Field(..., title="Data Source")
 
 
-class MapStyleConfig(BaseModel):
-    styles: Optional[Dict[str, Dict[str, Any]]] = Field(None, title="Styles")
-    legend: Optional[Dict[str, List[str]]] = Field(None, title="Legend")
-
-
 class TrajectorySegmentFilter(BaseModel):
     min_length_meters: Optional[confloat(ge=0.001)] = Field(
         0.001, title="Minimum Segment Length (Meters)"
@@ -278,13 +273,6 @@ class ErClientName(BaseModel):
     data_source: EarthRangerConnection = Field(
         ..., description="Select one of your configured data sources.", title=""
     )
-
-
-class CreateCustomMapLayers(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    style_config: MapStyleConfig = Field(..., title="Style Config")
 
 
 class FootTrajs(BaseModel):
@@ -362,9 +350,6 @@ class Params(BaseModel):
     er_client_name: Optional[ErClientName] = Field(None, title="Connect to ER")
     configure_base_maps: Optional[ConfigureBaseMaps] = Field(
         None, title="Configure Base Map Layers"
-    )
-    create_custom_map_layers: Optional[CreateCustomMapLayers] = Field(
-        None, title="Create Map Layers"
     )
     subject_observations: Optional[SubjectObservations] = Field(
         None, title="Get subject observations from ER"

@@ -270,20 +270,6 @@
       "required": [],
       "title": "Configure Base Map Layers"
     },
-    "create_custom_map_layers": {
-      "additionalProperties": false,
-      "properties": {
-        "style_config": {
-          "$ref": "#/$defs/MapStyleConfig",
-          "title": "Style Config"
-        }
-      },
-      "required": [
-        "style_config"
-      ],
-      "type": "object",
-      "title": "Create Map Layers"
-    },
     "subject_observations": {
       "additionalProperties": false,
       "properties": {
@@ -463,29 +449,6 @@
       "title": "EarthRangerConnection",
       "type": "object"
     },
-    "MapStyleConfig": {
-      "properties": {
-        "styles": {
-          "additionalProperties": {
-            "type": "object"
-          },
-          "title": "Styles",
-          "type": "object"
-        },
-        "legend": {
-          "additionalProperties": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "title": "Legend",
-          "type": "object"
-        }
-      },
-      "title": "MapStyleConfig",
-      "type": "object"
-    },
     "TrajectorySegmentFilter": {
       "properties": {
         "min_length_meters": {
@@ -566,7 +529,6 @@
       "time_range",
       "er_client_name",
       "configure_base_maps",
-      "create_custom_map_layers",
       "subject_observations",
       "df_with_temporal_index",
       "events_wtemporal",

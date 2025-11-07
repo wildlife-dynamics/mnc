@@ -319,7 +319,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "file_dict": DependsOn("load_local_shapefiles"),
-                "styles_config": {
+                "style_config": {
                     "styles": {
                         "community_conservancy": {
                             "stroked": True,

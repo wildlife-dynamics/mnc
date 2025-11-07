@@ -149,7 +149,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="create_custom_map_layers")
         .partial(
             file_dict=load_local_shapefiles,
-            styles_config={
+            style_config={
                 "styles": {
                     "community_conservancy": {
                         "stroked": True,

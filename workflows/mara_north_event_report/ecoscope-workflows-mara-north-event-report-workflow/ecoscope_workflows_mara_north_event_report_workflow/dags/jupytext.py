@@ -260,9 +260,7 @@ load_local_shapefiles = (
 # %%
 # parameters
 
-create_custom_map_layers_params = dict(
-    style_config=...,
-)
+create_custom_map_layers_params = dict()
 
 # %%
 # call the task
@@ -272,7 +270,7 @@ create_custom_map_layers = (
     create_map_layers.handle_errors(task_instance_id="create_custom_map_layers")
     .partial(
         file_dict=load_local_shapefiles,
-        styles_config={
+        style_config={
             "styles": {
                 "community_conservancy": {
                     "stroked": True,
