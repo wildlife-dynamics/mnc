@@ -1032,12 +1032,13 @@ workflow:
     task: draw_custom_map
     partial:
       tile_layers: 
-        - layer_name: "TERRAIN"
-          opacity: 0.35
-          max_zoom: 15
-        - layer_name: "USGS HILLSHADE"
-          opacity: 0.75
-          max_zoom: 15
+        base_maps:
+          - layer_name: "TERRAIN"
+            opacity: 0.35
+            max_zoom: 15
+          - layer_name: "USGS HILLSHADE"
+            opacity: 0.75
+            max_zoom: 15
 
       static: false
       title: null

@@ -2145,10 +2145,12 @@ draw_foot_patrol_map_params = dict(
 draw_foot_patrol_map = (
     draw_custom_map.handle_errors(task_instance_id="draw_foot_patrol_map")
     .partial(
-        tile_layers=[
-            {"layer_name": "TERRAIN", "opacity": 0.35, "max_zoom": 15},
-            {"layer_name": "USGS HILLSHADE", "opacity": 0.75, "max_zoom": 15},
-        ],
+        tile_layers={
+            "base_maps": [
+                {"layer_name": "TERRAIN", "opacity": 0.35, "max_zoom": 15},
+                {"layer_name": "USGS HILLSHADE", "opacity": 0.75, "max_zoom": 15},
+            ]
+        },
         static=False,
         title=None,
         max_zoom=15,
