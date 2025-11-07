@@ -970,6 +970,13 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.split_foot_traj_group.return }}
 
+  - name: view dataframe info
+    id: view_foot_patrol_info
+    task: view_df
+    partial:
+      gdf: ${{ workflow.apply_footp_colormap.return }}
+      name: Foot patrol trajs with colormap
+
   - name: Generate  foot patrol layers
     id: generate_foot_layers
     task: create_path_layer

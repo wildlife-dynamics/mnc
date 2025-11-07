@@ -1217,6 +1217,17 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=split_foot_traj_group)
     )
 
+    view_foot_patrol_info = (
+        view_df.validate()
+        .handle_errors(task_instance_id="view_foot_patrol_info")
+        .partial(
+            gdf=apply_footp_colormap,
+            name="Foot patrol trajs with colormap",
+            **(params_dict.get("view_foot_patrol_info") or {}),
+        )
+        .call()
+    )
+
     generate_foot_layers = (
         create_path_layer.validate()
         .handle_errors(task_instance_id="generate_foot_layers")

@@ -2017,6 +2017,29 @@ apply_footp_colormap = (
 
 
 # %% [markdown]
+# ## view dataframe info
+
+# %%
+# parameters
+
+view_foot_patrol_info_params = dict()
+
+# %%
+# call the task
+
+
+view_foot_patrol_info = (
+    view_df.handle_errors(task_instance_id="view_foot_patrol_info")
+    .partial(
+        gdf=apply_footp_colormap,
+        name="Foot patrol trajs with colormap",
+        **view_foot_patrol_info_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Generate  foot patrol layers
 
 # %%

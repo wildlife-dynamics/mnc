@@ -180,6 +180,7 @@ def main(params: Params):
         "foot_patrol_metrics": ["split_foot_traj_group"],
         "persist_foot_df": ["foot_patrol_metrics"],
         "apply_footp_colormap": ["split_foot_traj_group"],
+        "view_foot_patrol_info": ["apply_footp_colormap"],
         "generate_foot_layers": ["apply_footp_colormap"],
         "zoom_foot_patrols": ["apply_footp_colormap"],
         "combine_custom_foot_patrols": [
@@ -1480,6 +1481,17 @@ def main(params: Params):
                 "argnames": ["df"],
                 "argvalues": DependsOn("split_foot_traj_group"),
             },
+        ),
+        "view_foot_patrol_info": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_foot_patrol_info")
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("apply_footp_colormap"),
+                "name": "Foot patrol trajs with colormap",
+            }
+            | (params_dict.get("view_foot_patrol_info") or {}),
+            method="call",
         ),
         "generate_foot_layers": Node(
             async_task=create_path_layer.validate()
