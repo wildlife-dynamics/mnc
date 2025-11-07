@@ -59,6 +59,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     merge_static_and_grouped_layers,
     select_koi,
     set_base_maps_aliased,
+    view_df,
     view_state_deck_gdf,
     zip_grouped_by_key,
 )
@@ -1082,6 +1083,17 @@ def main(params: Params):
         .call()
     )
 
+    view_df_info = (
+        view_df.validate()
+        .handle_errors(task_instance_id="view_df_info")
+        .partial(
+            gdf=rename_foot_trajs,
+            name="Foot patrol trajectories",
+            **(params_dict.get("view_df_info") or {}),
+        )
+        .call()
+    )
+
     split_foot_traj_group = (
         split_groups.validate()
         .handle_errors(task_instance_id="split_foot_traj_group")
@@ -1236,7 +1248,10 @@ def main(params: Params):
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_foot_patrol_map")
         .partial(
-            tile_layers=configure_base_maps,
+            tile_layers=[
+                {"layer_name": "TERRAIN", "opacity": 0.35, "max_zoom": 15},
+                {"layer_name": "USGS HILLSHADE", "opacity": 0.75, "max_zoom": 15},
+            ],
             static=False,
             title=None,
             max_zoom=15,

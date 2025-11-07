@@ -93,6 +93,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     get_patrols_from_combined_parameters,
     merge_multiple_df,
     merge_static_and_grouped_layers,
+    view_df,
     view_state_deck_gdf,
     zip_grouped_by_key,
 )
@@ -172,6 +173,7 @@ def main(params: Params):
         "rename_foot_trajs": ["temporal_foot_traj"],
         "rename_vehicle_trajs": ["temporal_vehicle_traj"],
         "rename_motor_trajs": ["temporal_motor_traj"],
+        "view_df_info": ["rename_foot_trajs"],
         "split_foot_traj_group": ["rename_foot_trajs", "groupers"],
         "split_vehicle_traj_group": ["rename_vehicle_trajs", "groupers"],
         "split_motor_traj_group": ["rename_motor_trajs", "groupers"],
@@ -186,7 +188,7 @@ def main(params: Params):
             "generate_foot_layers",
         ],
         "zip_foot_patrol_layers": ["combine_custom_foot_patrols", "zoom_foot_patrols"],
-        "draw_foot_patrol_map": ["configure_base_maps", "zip_foot_patrol_layers"],
+        "draw_foot_patrol_map": ["zip_foot_patrol_layers"],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
         "create_foot_patrol_widgets": ["persist_foot_patrol_urls"],
         "merge_foot_patrol_widgets": ["create_foot_patrol_widgets"],
@@ -1368,6 +1370,17 @@ def main(params: Params):
             | (params_dict.get("rename_motor_trajs") or {}),
             method="call",
         ),
+        "view_df_info": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_df_info")
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("rename_foot_trajs"),
+                "name": "Foot patrol trajectories",
+            }
+            | (params_dict.get("view_df_info") or {}),
+            method="call",
+        ),
         "split_foot_traj_group": Node(
             async_task=split_groups.validate()
             .handle_errors(task_instance_id="split_foot_traj_group")
@@ -1556,7 +1569,10 @@ def main(params: Params):
             .handle_errors(task_instance_id="draw_foot_patrol_map")
             .set_executor("lithops"),
             partial={
-                "tile_layers": DependsOn("configure_base_maps"),
+                "tile_layers": [
+                    {"layer_name": "TERRAIN", "opacity": 0.35, "max_zoom": 15},
+                    {"layer_name": "USGS HILLSHADE", "opacity": 0.75, "max_zoom": 15},
+                ],
                 "static": False,
                 "title": None,
                 "max_zoom": 15,
