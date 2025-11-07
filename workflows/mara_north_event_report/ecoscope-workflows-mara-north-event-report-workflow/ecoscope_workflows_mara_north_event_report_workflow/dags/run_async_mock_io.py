@@ -188,7 +188,7 @@ def main(params: Params):
             "generate_foot_layers",
         ],
         "zip_foot_patrol_layers": ["combine_custom_foot_patrols", "zoom_foot_patrols"],
-        "draw_foot_patrol_map": ["zip_foot_patrol_layers"],
+        "draw_foot_patrol_map": ["configure_base_maps", "zip_foot_patrol_layers"],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
         "create_foot_patrol_widgets": ["persist_foot_patrol_urls"],
         "merge_foot_patrol_widgets": ["create_foot_patrol_widgets"],
@@ -1569,16 +1569,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="draw_foot_patrol_map")
             .set_executor("lithops"),
             partial={
-                "tile_layers": {
-                    "base_maps": [
-                        {"layer_name": "TERRAIN", "opacity": 0.35, "max_zoom": 15},
-                        {
-                            "layer_name": "USGS HILLSHADE",
-                            "opacity": 0.75,
-                            "max_zoom": 15,
-                        },
-                    ]
-                },
+                "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
                 "max_zoom": 15,

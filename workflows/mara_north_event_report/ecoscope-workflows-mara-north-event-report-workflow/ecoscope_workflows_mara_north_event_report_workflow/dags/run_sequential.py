@@ -1248,12 +1248,7 @@ def main(params: Params):
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_foot_patrol_map")
         .partial(
-            tile_layers={
-                "base_maps": [
-                    {"layer_name": "TERRAIN", "opacity": 0.35, "max_zoom": 15},
-                    {"layer_name": "USGS HILLSHADE", "opacity": 0.75, "max_zoom": 15},
-                ]
-            },
+            tile_layers=configure_base_maps,
             static=False,
             title=None,
             max_zoom=15,
