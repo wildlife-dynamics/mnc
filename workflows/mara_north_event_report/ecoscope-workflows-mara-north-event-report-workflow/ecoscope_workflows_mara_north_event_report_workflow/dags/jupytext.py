@@ -186,10 +186,7 @@ configure_base_maps = (
 # %%
 # parameters
 
-persist_mnc_tpt_params = dict(
-    retries=...,
-    unzip=...,
-)
+persist_mnc_tpt_params = dict()
 
 # %%
 # call the task
@@ -201,6 +198,8 @@ persist_mnc_tpt = (
         url="https://www.dropbox.com/scl/fi/wkzd2lm1t5rzidie9wl2j/mara_north_conservancy_report_template_v4.docx?rlkey=os9ffgdk737dc60n568jfrct2&st=zo3i4ovj&dl=0",
         output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         overwrite_existing=False,
+        retries=3,
+        unzip=False,
         **persist_mnc_tpt_params,
     )
     .call()
@@ -213,10 +212,7 @@ persist_mnc_tpt = (
 # %%
 # parameters
 
-persist_mnc_gpkg_params = dict(
-    retries=...,
-    unzip=...,
-)
+persist_mnc_gpkg_params = dict()
 
 # %%
 # call the task
@@ -228,6 +224,8 @@ persist_mnc_gpkg = (
         url="https://www.dropbox.com/scl/fi/ahgr1bjv72tdeuiwf3e4h/community-conservancy.gpkg?rlkey=1bla1c9to4nj4y39nnpwpjgsx&st=hj4k3zd7&dl=0",
         output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         overwrite_existing=False,
+        retries=3,
+        unzip=False,
         **persist_mnc_gpkg_params,
     )
     .call()
@@ -817,9 +815,7 @@ grouped_temperature_widget = (
 # %%
 # parameters
 
-get_events_data_params = dict(
-    include_null_geometry=...,
-)
+get_events_data_params = dict()
 
 # %%
 # call the task
@@ -842,10 +838,11 @@ get_events_data = (
             "event_details",
         ],
         event_types=[],
-        raise_on_empty=False,
+        raise_on_empty=True,
         include_details=True,
         include_updates=False,
         include_related_events=False,
+        include_null_geometry=False,
         **get_events_data_params,
     )
     .call()
@@ -955,9 +952,7 @@ total_events_recorded = (
 # %%
 # parameters
 
-add_total_events_row_params = dict(
-    label=...,
-)
+add_total_events_row_params = dict()
 
 # %%
 # call the task
@@ -965,7 +960,7 @@ add_total_events_row_params = dict(
 
 add_total_events_row = (
     add_totals_row.handle_errors(task_instance_id="add_total_events_row")
-    .partial(label_col=["date"], **add_total_events_row_params)
+    .partial(label_col=["date"], label="Total", **add_total_events_row_params)
     .mapvalues(argnames=["df"], argvalues=total_events_recorded)
 )
 
@@ -978,7 +973,6 @@ add_total_events_row = (
 
 persist_tevents_df_params = dict(
     filename=...,
-    filetype=...,
 )
 
 # %%
@@ -988,7 +982,9 @@ persist_tevents_df_params = dict(
 persist_tevents_df = (
     persist_df.handle_errors(task_instance_id="persist_tevents_df")
     .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_tevents_df_params
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        **persist_tevents_df_params,
     )
     .mapvalues(argnames=["df"], argvalues=add_total_events_row)
 )
@@ -1001,7 +997,6 @@ persist_tevents_df = (
 # parameters
 
 draw_events_chart_params = dict(
-    category_column=...,
     widget_id=...,
 )
 
@@ -1014,6 +1009,7 @@ draw_events_chart = (
     .partial(
         x_column="date",
         y_column="no_of_events",
+        category_column=None,
         line_kwargs={"shape": "linear", "color": "cornflowerblue"},
         layout_kwargs={
             "title": "Total events recorded",
@@ -1177,9 +1173,7 @@ patrol_info_summary = (
 # %%
 # parameters
 
-include_pat_totals_params = dict(
-    label=...,
-)
+include_pat_totals_params = dict()
 
 # %%
 # call the task
@@ -1187,7 +1181,11 @@ include_pat_totals_params = dict(
 
 include_pat_totals = (
     add_totals_row.handle_errors(task_instance_id="include_pat_totals")
-    .partial(label_col=["event_details__patrol_purpose"], **include_pat_totals_params)
+    .partial(
+        label_col=["event_details__patrol_purpose"],
+        label="Total",
+        **include_pat_totals_params,
+    )
     .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
 )
 
@@ -1200,7 +1198,6 @@ include_pat_totals = (
 
 persist_patrol_df_params = dict(
     filename=...,
-    filetype=...,
 )
 
 # %%
@@ -1210,7 +1207,9 @@ persist_patrol_df_params = dict(
 persist_patrol_df = (
     persist_df.handle_errors(task_instance_id="persist_patrol_df")
     .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_patrol_df_params
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        **persist_patrol_df_params,
     )
     .mapvalues(argnames=["df"], argvalues=include_pat_totals)
 )
@@ -1956,7 +1955,6 @@ foot_patrol_metrics = (
 
 persist_foot_df_params = dict(
     filename=...,
-    filetype=...,
 )
 
 # %%
@@ -1966,7 +1964,9 @@ persist_foot_df_params = dict(
 persist_foot_df = (
     persist_df.handle_errors(task_instance_id="persist_foot_df")
     .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_foot_df_params
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        **persist_foot_df_params,
     )
     .mapvalues(argnames=["df"], argvalues=foot_patrol_metrics)
 )
@@ -2115,7 +2115,6 @@ zip_foot_patrol_layers = (
 # parameters
 
 draw_foot_patrol_map_params = dict(
-    title=...,
     widget_id=...,
 )
 
@@ -2128,6 +2127,7 @@ draw_foot_patrol_map = (
     .partial(
         tile_layers=configure_base_maps,
         static=False,
+        title=None,
         max_zoom=15,
         legend_style={"placement": "bottom-right", "title": "Foot patrol types"},
         **draw_foot_patrol_map_params,
@@ -2259,7 +2259,6 @@ vehicle_patrol_metrics = (
 
 persist_vehicle_df_params = dict(
     filename=...,
-    filetype=...,
 )
 
 # %%
@@ -2269,7 +2268,9 @@ persist_vehicle_df_params = dict(
 persist_vehicle_df = (
     persist_df.handle_errors(task_instance_id="persist_vehicle_df")
     .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_vehicle_df_params
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        **persist_vehicle_df_params,
     )
     .mapvalues(argnames=["df"], argvalues=vehicle_patrol_metrics)
 )
@@ -2418,7 +2419,6 @@ zip_vehicle_patrol_layers = (
 # parameters
 
 draw_vehicle_patrol_map_params = dict(
-    title=...,
     widget_id=...,
 )
 
@@ -2431,6 +2431,7 @@ draw_vehicle_patrol_map = (
     .partial(
         tile_layers=configure_base_maps,
         static=False,
+        title=None,
         max_zoom=15,
         legend_style={"placement": "bottom-right", "title": "Vehicle patrol types"},
         **draw_vehicle_patrol_map_params,
@@ -2566,7 +2567,6 @@ motor_patrol_metrics = (
 
 persist_motor_df_params = dict(
     filename=...,
-    filetype=...,
 )
 
 # %%
@@ -2576,7 +2576,9 @@ persist_motor_df_params = dict(
 persist_motor_df = (
     persist_df.handle_errors(task_instance_id="persist_motor_df")
     .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_motor_df_params
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        **persist_motor_df_params,
     )
     .mapvalues(argnames=["df"], argvalues=motor_patrol_metrics)
 )
@@ -2725,7 +2727,6 @@ zip_motor_patrol_layers = (
 # parameters
 
 draw_motor_patrol_map_params = dict(
-    title=...,
     widget_id=...,
 )
 
@@ -2738,6 +2739,7 @@ draw_motor_patrol_map = (
     .partial(
         tile_layers=configure_base_maps,
         static=False,
+        title=None,
         max_zoom=15,
         legend_style={"placement": "bottom-right", "title": "Motorbike patrol types"},
         **draw_motor_patrol_map_params,
@@ -2912,7 +2914,6 @@ ranger_patrol_metrics = (
 
 persist_total_df_params = dict(
     filename=...,
-    filetype=...,
 )
 
 # %%
@@ -2922,7 +2923,9 @@ persist_total_df_params = dict(
 persist_total_df = (
     persist_df.handle_errors(task_instance_id="persist_total_df")
     .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_total_df_params
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        **persist_total_df_params,
     )
     .mapvalues(argnames=["df"], argvalues=ranger_patrol_metrics)
 )
@@ -2953,10 +2956,7 @@ patrol_grid_visits = (
 # %%
 # parameters
 
-apply_classification_grid_params = dict(
-    label_options=...,
-    classification_options=...,
-)
+apply_classification_grid_params = dict()
 
 # %%
 # call the task
@@ -2967,6 +2967,8 @@ apply_classification_grid = (
     .partial(
         input_column_name="unique_patrol_count",
         output_column_name="density_bins",
+        label_options={"label_ranges": False, "label_decimals": 1},
+        classification_options={"k": 5, "scheme": "equal_interval"},
         **apply_classification_grid_params,
     )
     .mapvalues(argnames=["df"], argvalues=patrol_grid_visits)
@@ -3104,7 +3106,6 @@ zip_grid_zoom_values = (
 # parameters
 
 draw_grid_map_params = dict(
-    title=...,
     widget_id=...,
 )
 
@@ -3117,6 +3118,7 @@ draw_grid_map = (
     .partial(
         tile_layers=configure_base_maps,
         static=False,
+        title=None,
         max_zoom=15,
         legend_style={"placement": "bottom-right", "title": "Grid visits"},
         **draw_grid_map_params,

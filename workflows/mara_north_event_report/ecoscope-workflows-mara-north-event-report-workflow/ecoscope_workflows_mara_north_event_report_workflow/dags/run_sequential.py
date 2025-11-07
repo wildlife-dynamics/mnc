@@ -113,6 +113,8 @@ def main(params: Params):
             url="https://www.dropbox.com/scl/fi/wkzd2lm1t5rzidie9wl2j/mara_north_conservancy_report_template_v4.docx?rlkey=os9ffgdk737dc60n568jfrct2&st=zo3i4ovj&dl=0",
             output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             overwrite_existing=False,
+            retries=3,
+            unzip=False,
             **(params_dict.get("persist_mnc_tpt") or {}),
         )
         .call()
@@ -125,6 +127,8 @@ def main(params: Params):
             url="https://www.dropbox.com/scl/fi/ahgr1bjv72tdeuiwf3e4h/community-conservancy.gpkg?rlkey=1bla1c9to4nj4y39nnpwpjgsx&st=hj4k3zd7&dl=0",
             output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             overwrite_existing=False,
+            retries=3,
+            unzip=False,
             **(params_dict.get("persist_mnc_gpkg") or {}),
         )
         .call()
@@ -466,10 +470,11 @@ def main(params: Params):
                 "event_details",
             ],
             event_types=[],
-            raise_on_empty=False,
+            raise_on_empty=True,
             include_details=True,
             include_updates=False,
             include_related_events=False,
+            include_null_geometry=False,
             **(params_dict.get("get_events_data") or {}),
         )
         .call()
@@ -532,7 +537,11 @@ def main(params: Params):
     add_total_events_row = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="add_total_events_row")
-        .partial(label_col=["date"], **(params_dict.get("add_total_events_row") or {}))
+        .partial(
+            label_col=["date"],
+            label="Total",
+            **(params_dict.get("add_total_events_row") or {}),
+        )
         .mapvalues(argnames=["df"], argvalues=total_events_recorded)
     )
 
@@ -541,6 +550,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_tevents_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
             **(params_dict.get("persist_tevents_df") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=add_total_events_row)
@@ -552,6 +562,7 @@ def main(params: Params):
         .partial(
             x_column="date",
             y_column="no_of_events",
+            category_column=None,
             line_kwargs={"shape": "linear", "color": "cornflowerblue"},
             layout_kwargs={
                 "title": "Total events recorded",
@@ -647,6 +658,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="include_pat_totals")
         .partial(
             label_col=["event_details__patrol_purpose"],
+            label="Total",
             **(params_dict.get("include_pat_totals") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=patrol_info_summary)
@@ -657,6 +669,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_patrol_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
             **(params_dict.get("persist_patrol_df") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=include_pat_totals)
@@ -1139,6 +1152,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_foot_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
             **(params_dict.get("persist_foot_df") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=foot_patrol_metrics)
@@ -1224,6 +1238,7 @@ def main(params: Params):
         .partial(
             tile_layers=configure_base_maps,
             static=False,
+            title=None,
             max_zoom=15,
             legend_style={"placement": "bottom-right", "title": "Foot patrol types"},
             **(params_dict.get("draw_foot_patrol_map") or {}),
@@ -1306,6 +1321,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_vehicle_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
             **(params_dict.get("persist_vehicle_df") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=vehicle_patrol_metrics)
@@ -1391,6 +1407,7 @@ def main(params: Params):
         .partial(
             tile_layers=configure_base_maps,
             static=False,
+            title=None,
             max_zoom=15,
             legend_style={"placement": "bottom-right", "title": "Vehicle patrol types"},
             **(params_dict.get("draw_vehicle_patrol_map") or {}),
@@ -1473,6 +1490,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_motor_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
             **(params_dict.get("persist_motor_df") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=motor_patrol_metrics)
@@ -1558,6 +1576,7 @@ def main(params: Params):
         .partial(
             tile_layers=configure_base_maps,
             static=False,
+            title=None,
             max_zoom=15,
             legend_style={
                 "placement": "bottom-right",
@@ -1666,6 +1685,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_total_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
             **(params_dict.get("persist_total_df") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=ranger_patrol_metrics)
@@ -1684,6 +1704,8 @@ def main(params: Params):
         .partial(
             input_column_name="unique_patrol_count",
             output_column_name="density_bins",
+            label_options={"label_ranges": False, "label_decimals": 1},
+            classification_options={"k": 5, "scheme": "equal_interval"},
             **(params_dict.get("apply_classification_grid") or {}),
         )
         .mapvalues(argnames=["df"], argvalues=patrol_grid_visits)
@@ -1759,6 +1781,7 @@ def main(params: Params):
         .partial(
             tile_layers=configure_base_maps,
             static=False,
+            title=None,
             max_zoom=15,
             legend_style={"placement": "bottom-right", "title": "Grid visits"},
             **(params_dict.get("draw_grid_map") or {}),

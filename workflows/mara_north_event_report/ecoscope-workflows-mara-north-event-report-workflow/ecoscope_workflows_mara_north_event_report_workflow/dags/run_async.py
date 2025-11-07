@@ -281,6 +281,8 @@ def main(params: Params):
                 "url": "https://www.dropbox.com/scl/fi/wkzd2lm1t5rzidie9wl2j/mara_north_conservancy_report_template_v4.docx?rlkey=os9ffgdk737dc60n568jfrct2&st=zo3i4ovj&dl=0",
                 "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "overwrite_existing": False,
+                "retries": 3,
+                "unzip": False,
             }
             | (params_dict.get("persist_mnc_tpt") or {}),
             method="call",
@@ -293,6 +295,8 @@ def main(params: Params):
                 "url": "https://www.dropbox.com/scl/fi/ahgr1bjv72tdeuiwf3e4h/community-conservancy.gpkg?rlkey=1bla1c9to4nj4y39nnpwpjgsx&st=hj4k3zd7&dl=0",
                 "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "overwrite_existing": False,
+                "retries": 3,
+                "unzip": False,
             }
             | (params_dict.get("persist_mnc_gpkg") or {}),
             method="call",
@@ -667,10 +671,11 @@ def main(params: Params):
                     "event_details",
                 ],
                 "event_types": [],
-                "raise_on_empty": False,
+                "raise_on_empty": True,
                 "include_details": True,
                 "include_updates": False,
                 "include_related_events": False,
+                "include_null_geometry": False,
             }
             | (params_dict.get("get_events_data") or {}),
             method="call",
@@ -739,6 +744,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "label_col": ["date"],
+                "label": "Total",
             }
             | (params_dict.get("add_total_events_row") or {}),
             method="mapvalues",
@@ -753,6 +759,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
             }
             | (params_dict.get("persist_tevents_df") or {}),
             method="mapvalues",
@@ -768,6 +775,7 @@ def main(params: Params):
             partial={
                 "x_column": "date",
                 "y_column": "no_of_events",
+                "category_column": None,
                 "line_kwargs": {"shape": "linear", "color": "cornflowerblue"},
                 "layout_kwargs": {
                     "title": "Total events recorded",
@@ -889,6 +897,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "label_col": ["event_details__patrol_purpose"],
+                "label": "Total",
             }
             | (params_dict.get("include_pat_totals") or {}),
             method="mapvalues",
@@ -903,6 +912,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
             }
             | (params_dict.get("persist_patrol_df") or {}),
             method="mapvalues",
@@ -1398,6 +1408,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
             }
             | (params_dict.get("persist_foot_df") or {}),
             method="mapvalues",
@@ -1512,6 +1523,7 @@ def main(params: Params):
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
+                "title": None,
                 "max_zoom": 15,
                 "legend_style": {
                     "placement": "bottom-right",
@@ -1611,6 +1623,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
             }
             | (params_dict.get("persist_vehicle_df") or {}),
             method="mapvalues",
@@ -1725,6 +1738,7 @@ def main(params: Params):
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
+                "title": None,
                 "max_zoom": 15,
                 "legend_style": {
                     "placement": "bottom-right",
@@ -1824,6 +1838,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
             }
             | (params_dict.get("persist_motor_df") or {}),
             method="mapvalues",
@@ -1938,6 +1953,7 @@ def main(params: Params):
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
+                "title": None,
                 "max_zoom": 15,
                 "legend_style": {
                     "placement": "bottom-right",
@@ -2066,6 +2082,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
             }
             | (params_dict.get("persist_total_df") or {}),
             method="mapvalues",
@@ -2095,6 +2112,8 @@ def main(params: Params):
             partial={
                 "input_column_name": "unique_patrol_count",
                 "output_column_name": "density_bins",
+                "label_options": {"label_ranges": False, "label_decimals": 1},
+                "classification_options": {"k": 5, "scheme": "equal_interval"},
             }
             | (params_dict.get("apply_classification_grid") or {}),
             method="mapvalues",
@@ -2202,6 +2221,7 @@ def main(params: Params):
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
+                "title": None,
                 "max_zoom": 15,
                 "legend_style": {"placement": "bottom-right", "title": "Grid visits"},
             }

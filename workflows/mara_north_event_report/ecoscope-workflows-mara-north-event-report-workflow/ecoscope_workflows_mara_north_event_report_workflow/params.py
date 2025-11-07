@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, confloat, conint, constr
+from pydantic import BaseModel, ConfigDict, Field, confloat, constr
 
 
 class WorkflowDetails(BaseModel):
@@ -186,34 +186,6 @@ class ConfigureBaseMaps(BaseModel):
     )
 
 
-class PersistMncTpt(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    retries: Optional[conint(ge=0)] = Field(
-        3, description="Number of retries on failure", title="Retries"
-    )
-    unzip: Optional[bool] = Field(
-        False,
-        description="Whether to unzip the file if it's a zip archive",
-        title="Unzip",
-    )
-
-
-class PersistMncGpkg(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    retries: Optional[conint(ge=0)] = Field(
-        3, description="Number of retries on failure", title="Retries"
-    )
-    unzip: Optional[bool] = Field(
-        False,
-        description="Whether to unzip the file if it's a zip archive",
-        title="Unzip",
-    )
-
-
 class SubjectObservations(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -237,15 +209,6 @@ class DfWithTemporalIndex(BaseModel):
     )
 
 
-class GetEventsData(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    include_null_geometry: Optional[bool] = Field(
-        True, title="Include Events Without a Geometry (point or polygon)"
-    )
-
-
 class EventsWtemporal(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -259,127 +222,6 @@ class EventsWtemporal(BaseModel):
         "mixed",
         description='            If `cast_to_datetime=True`, the format to pass to `pd.to_datetime`\n            when attempting to cast `time_col` to datetime. Defaults to "mixed".\n            ',
         title="Format",
-    )
-
-
-class AddTotalEventsRow(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    label: Optional[str] = Field("Total", title="Label")
-
-
-class Filetype(str, Enum):
-    csv = "csv"
-    gpkg = "gpkg"
-    geoparquet = "geoparquet"
-
-
-class PersistTeventsDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
-    )
-
-
-class DrawEventsChart(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    category_column: Optional[str] = Field(
-        None,
-        description="The column name in the dataframe to group by and plot separate traces.",
-        title="Category Column",
-    )
-
-
-class IncludePatTotals(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    label: Optional[str] = Field("Total", title="Label")
-
-
-class PersistPatrolDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
-    )
-
-
-class PersistFootDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
-    )
-
-
-class DrawFootPatrolMap(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    title: Optional[str] = Field(
-        None, description="Title drawn on the canvas.", title="Title"
-    )
-
-
-class PersistVehicleDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
-    )
-
-
-class DrawVehiclePatrolMap(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    title: Optional[str] = Field(
-        None, description="Title drawn on the canvas.", title="Title"
-    )
-
-
-class PersistMotorDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
-    )
-
-
-class DrawMotorPatrolMap(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    title: Optional[str] = Field(
-        None, description="Title drawn on the canvas.", title="Title"
-    )
-
-
-class PersistTotalDf(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    filetype: Optional[Filetype] = Field(
-        "csv", description="The output format", title="Filetype"
-    )
-
-
-class DrawGridMap(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    title: Optional[str] = Field(
-        None, description="Title drawn on the canvas.", title="Title"
     )
 
 
@@ -418,46 +260,6 @@ class TrajectorySegmentFilter(BaseModel):
     max_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
         500, title="Maximum Segment Speed (Kilometers per Hour)"
     )
-
-
-class CustomLabels(BaseModel):
-    label_prefix: Optional[str] = Field("", title="Label Prefix")
-    label_suffix: Optional[str] = Field("", title="Label Suffix")
-    labels: List[str] = Field(..., title="Labels")
-
-
-class DefaultLabels(BaseModel):
-    label_prefix: Optional[str] = Field("", title="Label Prefix")
-    label_suffix: Optional[str] = Field("", title="Label Suffix")
-    label_ranges: Optional[bool] = Field(False, title="Label Ranges")
-    label_decimals: Optional[int] = Field(1, title="Label Decimals")
-
-
-class FisherJenksArgs(BaseModel):
-    k: Optional[int] = Field(5, title="K")
-
-
-class MaxBreaksArgs(BaseModel):
-    k: Optional[int] = Field(5, title="K")
-    mindiff: Optional[float] = Field(0, title="Mindiff")
-
-
-class NaturalBreaksArgs(BaseModel):
-    k: Optional[int] = Field(5, title="K")
-    initial: Optional[int] = Field(10, title="Initial")
-
-
-class QuantileArgs(BaseModel):
-    k: Optional[int] = Field(5, title="K")
-
-
-class SharedArgs(BaseModel):
-    k: Optional[int] = Field(5, title="K")
-
-
-class StdMeanArgs(BaseModel):
-    multiples: Optional[List[int]] = Field([-2, -1, 1, 2], title="Multiples")
-    anchor: Optional[bool] = Field(False, title="Anchor")
 
 
 class TimeRange(BaseModel):
@@ -545,27 +347,6 @@ class MotorTrajs(BaseModel):
     )
 
 
-class ApplyClassificationGrid(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    label_options: Optional[Union[DefaultLabels, CustomLabels]] = Field(
-        None,
-        description="Optional specification or formatting of classification values.",
-        title="Label Options",
-    )
-    classification_options: Optional[
-        Union[
-            SharedArgs,
-            StdMeanArgs,
-            MaxBreaksArgs,
-            NaturalBreaksArgs,
-            QuantileArgs,
-            FisherJenksArgs,
-        ]
-    ] = Field({"k": 5}, title="Classification Options")
-
-
 class Params(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -582,12 +363,6 @@ class Params(BaseModel):
     configure_base_maps: Optional[ConfigureBaseMaps] = Field(
         None, title="Configure Base Map Layers"
     )
-    persist_mnc_tpt: Optional[PersistMncTpt] = Field(
-        None, title="Download MNC template and persist"
-    )
-    persist_mnc_gpkg: Optional[PersistMncGpkg] = Field(
-        None, title="Download MNC shapefile"
-    )
     create_custom_map_layers: Optional[CreateCustomMapLayers] = Field(
         None, title="Create Map Layers"
     )
@@ -597,24 +372,8 @@ class Params(BaseModel):
     df_with_temporal_index: Optional[DfWithTemporalIndex] = Field(
         None, title="Add temporal index"
     )
-    get_events_data: Optional[GetEventsData] = Field(None, title="Get events")
     events_wtemporal: Optional[EventsWtemporal] = Field(
         None, title="Add temporal index on events"
-    )
-    add_total_events_row: Optional[AddTotalEventsRow] = Field(
-        None, title="Add total row on total events recorded"
-    )
-    persist_tevents_df: Optional[PersistTeventsDf] = Field(
-        None, title="Persist total events df"
-    )
-    draw_events_chart: Optional[DrawEventsChart] = Field(
-        None, title="Draw total events line chart"
-    )
-    include_pat_totals: Optional[IncludePatTotals] = Field(
-        None, title="Add totals row in patrol info summary table"
-    )
-    persist_patrol_df: Optional[PersistPatrolDf] = Field(
-        None, title="Persist patrol summary table"
     )
     foot_trajs: Optional[FootTrajs] = Field(
         None, title="Convert foot relocations to trajectories"
@@ -625,28 +384,3 @@ class Params(BaseModel):
     motor_trajs: Optional[MotorTrajs] = Field(
         None, title="Convert motorbike relocations to trajectories"
     )
-    persist_foot_df: Optional[PersistFootDf] = Field(
-        None, title="Persist foot patrol metrics"
-    )
-    draw_foot_patrol_map: Optional[DrawFootPatrolMap] = Field(
-        None, title="Draw foot patrol pydeck map"
-    )
-    persist_vehicle_df: Optional[PersistVehicleDf] = Field(
-        None, title="Persist vehicle patrol metrics"
-    )
-    draw_vehicle_patrol_map: Optional[DrawVehiclePatrolMap] = Field(
-        None, title="Draw vehicle patrol pydeck map"
-    )
-    persist_motor_df: Optional[PersistMotorDf] = Field(
-        None, title="Persist motorbike patrol metrics"
-    )
-    draw_motor_patrol_map: Optional[DrawMotorPatrolMap] = Field(
-        None, title="Draw motor patrol pydeck map"
-    )
-    persist_total_df: Optional[PersistTotalDf] = Field(
-        None, title="Persist total patrol coverage"
-    )
-    apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
-        None, title="Apply bin classification on grids"
-    )
-    draw_grid_map: Optional[DrawGridMap] = Field(None, title="Draw grid ecomaps")
