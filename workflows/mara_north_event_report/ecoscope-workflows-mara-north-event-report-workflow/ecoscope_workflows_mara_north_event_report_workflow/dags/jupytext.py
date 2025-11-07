@@ -2100,7 +2100,7 @@ zip_foot_patrol_layers_params = dict()
 zip_foot_patrol_layers = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_foot_patrol_layers")
     .partial(
-        left=generate_foot_layers,
+        left=combine_custom_foot_patrols,
         right=zoom_foot_patrols,
         **zip_foot_patrol_layers_params,
     )
@@ -2403,7 +2403,7 @@ zip_vehicle_patrol_layers_params = dict()
 zip_vehicle_patrol_layers = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_vehicle_patrol_layers")
     .partial(
-        left=generate_vehicle_layers,
+        left=combine_custom_vehicle_patrols,
         right=zoom_foot_patrols,
         **zip_vehicle_patrol_layers_params,
     )
@@ -2710,7 +2710,7 @@ zip_motor_patrol_layers_params = dict()
 zip_motor_patrol_layers = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_motor_patrol_layers")
     .partial(
-        left=generate_motor_layers,
+        left=combine_custom_motor_patrols,
         right=zoom_foot_patrols,
         **zip_motor_patrol_layers_params,
     )
@@ -2857,6 +2857,74 @@ split_merged_trajs = (
     split_groups.handle_errors(task_instance_id="split_merged_trajs")
     .partial(df=merge_trajs, groupers=groupers, **split_merged_trajs_params)
     .call()
+)
+
+
+# %% [markdown]
+# ## Summarize overall ranger patrol metrics
+
+# %%
+# parameters
+
+ranger_patrol_metrics_params = dict()
+
+# %%
+# call the task
+
+
+ranger_patrol_metrics = (
+    summarize_df.handle_errors(task_instance_id="ranger_patrol_metrics")
+    .partial(
+        groupby_cols=["patrol_subject_name"],
+        summary_params=[
+            {
+                "display_name": "Number of Patrols",
+                "aggregator": "nunique",
+                "column": "patrol_id",
+            },
+            {
+                "display_name": "Distance (km)",
+                "aggregator": "sum",
+                "column": "dist_meters",
+                "original_unit": "m",
+                "new_unit": "km",
+            },
+            {
+                "display_name": "Duration (hrs)",
+                "aggregator": "sum",
+                "column": "timespan_seconds",
+                "original_unit": "s",
+                "new_unit": "h",
+            },
+        ],
+        reset_index=True,
+        **ranger_patrol_metrics_params,
+    )
+    .mapvalues(argnames=["df"], argvalues=split_merged_trajs)
+)
+
+
+# %% [markdown]
+# ## Persist total patrol coverage
+
+# %%
+# parameters
+
+persist_total_df_params = dict(
+    filename=...,
+    filetype=...,
+)
+
+# %%
+# call the task
+
+
+persist_total_df = (
+    persist_df.handle_errors(task_instance_id="persist_total_df")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"], **persist_total_df_params
+    )
+    .mapvalues(argnames=["df"], argvalues=ranger_patrol_metrics)
 )
 
 
@@ -3023,7 +3091,7 @@ zip_grid_zoom_values_params = dict()
 zip_grid_zoom_values = (
     zip_grouped_by_key.handle_errors(task_instance_id="zip_grid_zoom_values")
     .partial(
-        left=generate_grid_layers, right=zoom_grid_view, **zip_grid_zoom_values_params
+        left=combine_patrol_grid, right=zoom_grid_view, **zip_grid_zoom_values_params
     )
     .call()
 )
@@ -3288,19 +3356,19 @@ patrol_coverage_png = (
 
 
 # %% [markdown]
-# ## Create A Weather Dashboard
+# ## MNC event report dashboard
 
 # %%
 # parameters
 
-weather_dashboard_params = dict()
+mnc_events_dashboard_params = dict()
 
 # %%
 # call the task
 
 
-weather_dashboard = (
-    gather_dashboard.handle_errors(task_instance_id="weather_dashboard")
+mnc_events_dashboard = (
+    gather_dashboard.handle_errors(task_instance_id="mnc_events_dashboard")
     .partial(
         details=workflow_details,
         widgets=[
@@ -3314,7 +3382,7 @@ weather_dashboard = (
         ],
         time_range=time_range,
         groupers=groupers,
-        **weather_dashboard_params,
+        **mnc_events_dashboard_params,
     )
     .call()
 )

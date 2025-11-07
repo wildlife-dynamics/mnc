@@ -1006,7 +1006,7 @@ workflow:
     id: zip_foot_patrol_layers
     task: zip_grouped_by_key
     partial:
-      left: ${{ workflow.generate_foot_layers.return }} # geolayers
+      left: ${{ workflow.combine_custom_foot_patrols.return }} # geolayers
       right: ${{ workflow.zoom_foot_patrols.return }} # view_state
 
   - name: Draw foot patrol pydeck map 
@@ -1155,7 +1155,7 @@ workflow:
     id: zip_vehicle_patrol_layers
     task: zip_grouped_by_key
     partial:
-      left: ${{ workflow.generate_vehicle_layers.return }} # geolayers
+      left: ${{ workflow.combine_custom_vehicle_patrols.return }} # geolayers
       right: ${{ workflow.zoom_foot_patrols.return }} # view_state
 
   - name: Draw vehicle patrol pydeck map 
@@ -1304,7 +1304,7 @@ workflow:
     id: zip_motor_patrol_layers
     task: zip_grouped_by_key
     partial:
-      left: ${{ workflow.generate_motor_layers.return }} # geolayers
+      left: ${{ workflow.combine_custom_motor_patrols.return }} # geolayers
       right: ${{ workflow.zoom_foot_patrols.return }} # view_state
 
   - name: Draw motor patrol pydeck map 
@@ -1372,6 +1372,40 @@ workflow:
       df: ${{ workflow.merge_trajs.return }}
       groupers: ${{ workflow.groupers.return }}
 
+  - name: Summarize overall ranger patrol metrics
+    id: ranger_patrol_metrics
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - patrol_subject_name
+      summary_params:
+        - display_name: Number of Patrols
+          aggregator: nunique
+          column: patrol_id
+        - display_name: Distance (km)
+          aggregator: sum
+          column: dist_meters
+          original_unit: m
+          new_unit: km
+        - display_name: Duration (hrs)
+          aggregator: sum
+          column: timespan_seconds
+          original_unit: s
+          new_unit: h
+      reset_index: true
+    mapvalues:
+      argnames: df
+      argvalues: ${{ workflow.split_merged_trajs.return }}
+
+  - name: Persist total patrol coverage 
+    id: persist_total_df
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+    mapvalues:
+      argnames: df 
+      argvalues: ${{ workflow.ranger_patrol_metrics.return }}
+      
   - name: Compute patrol visits 
     id: patrol_grid_visits
     task: create_patrol_coverage_grid
@@ -1452,7 +1486,7 @@ workflow:
     id: zip_grid_zoom_values
     task: zip_grouped_by_key
     partial:
-      left:  ${{ workflow.generate_grid_layers.return }}
+      left:  ${{ workflow.combine_patrol_grid.return }}
       right: ${{ workflow.zoom_grid_view.return }} 
       
   - name: Draw grid ecomaps
@@ -1578,8 +1612,8 @@ workflow:
       argnames: html_path
       argvalues: ${{ workflow.persist_grid_map_urls.return }}
 
-  - name: Create A Weather Dashboard
-    id: weather_dashboard
+  - name: MNC event report dashboard
+    id: mnc_events_dashboard
     task: gather_dashboard
     partial:
       details: ${{ workflow.workflow_details.return}}

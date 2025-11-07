@@ -201,7 +201,7 @@ def main(params: Params):
             "custom_text_layer",
             "generate_foot_layers",
         ],
-        "zip_foot_patrol_layers": ["generate_foot_layers", "zoom_foot_patrols"],
+        "zip_foot_patrol_layers": ["combine_custom_foot_patrols", "zoom_foot_patrols"],
         "draw_foot_patrol_map": ["configure_base_maps", "zip_foot_patrol_layers"],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
         "create_foot_patrol_widgets": ["persist_foot_patrol_urls"],
@@ -216,7 +216,10 @@ def main(params: Params):
             "custom_text_layer",
             "generate_vehicle_layers",
         ],
-        "zip_vehicle_patrol_layers": ["generate_vehicle_layers", "zoom_foot_patrols"],
+        "zip_vehicle_patrol_layers": [
+            "combine_custom_vehicle_patrols",
+            "zoom_foot_patrols",
+        ],
         "draw_vehicle_patrol_map": ["configure_base_maps", "zip_vehicle_patrol_layers"],
         "persist_vehicle_patrol_urls": ["draw_vehicle_patrol_map"],
         "create_vehicle_patrol_widgets": ["persist_vehicle_patrol_urls"],
@@ -231,13 +234,18 @@ def main(params: Params):
             "custom_text_layer",
             "generate_motor_layers",
         ],
-        "zip_motor_patrol_layers": ["generate_motor_layers", "zoom_foot_patrols"],
+        "zip_motor_patrol_layers": [
+            "combine_custom_motor_patrols",
+            "zoom_foot_patrols",
+        ],
         "draw_motor_patrol_map": ["configure_base_maps", "zip_motor_patrol_layers"],
         "persist_motor_patrol_urls": ["draw_motor_patrol_map"],
         "create_motor_patrol_widgets": ["persist_motor_patrol_urls"],
         "merge_motor_patrol_widgets": ["create_motor_patrol_widgets"],
         "merge_trajs": ["foot_trajs", "vehicle_trajs", "motor_trajs"],
         "split_merged_trajs": ["merge_trajs", "groupers"],
+        "ranger_patrol_metrics": ["split_merged_trajs"],
+        "persist_total_df": ["ranger_patrol_metrics"],
         "patrol_grid_visits": ["split_merged_trajs"],
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
@@ -248,7 +256,7 @@ def main(params: Params):
             "custom_text_layer",
             "generate_grid_layers",
         ],
-        "zip_grid_zoom_values": ["generate_grid_layers", "zoom_grid_view"],
+        "zip_grid_zoom_values": ["combine_patrol_grid", "zoom_grid_view"],
         "draw_grid_map": ["configure_base_maps", "zip_grid_zoom_values"],
         "persist_grid_map_urls": ["draw_grid_map"],
         "create_grid_widgets": ["persist_grid_map_urls"],
@@ -260,7 +268,7 @@ def main(params: Params):
         "precipitation_chart_png": ["persist_precipitation"],
         "total_events_png": ["persist_total_events"],
         "patrol_coverage_png": ["persist_grid_map_urls"],
-        "weather_dashboard": [
+        "mnc_events_dashboard": [
             "workflow_details",
             "grouped_precipitation_widget",
             "grouped_temperature_widget",
@@ -1542,7 +1550,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="zip_foot_patrol_layers")
             .set_executor("lithops"),
             partial={
-                "left": DependsOn("generate_foot_layers"),
+                "left": DependsOn("combine_custom_foot_patrols"),
                 "right": DependsOn("zoom_foot_patrols"),
             }
             | (params_dict.get("zip_foot_patrol_layers") or {}),
@@ -1755,7 +1763,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="zip_vehicle_patrol_layers")
             .set_executor("lithops"),
             partial={
-                "left": DependsOn("generate_vehicle_layers"),
+                "left": DependsOn("combine_custom_vehicle_patrols"),
                 "right": DependsOn("zoom_foot_patrols"),
             }
             | (params_dict.get("zip_vehicle_patrol_layers") or {}),
@@ -1968,7 +1976,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="zip_motor_patrol_layers")
             .set_executor("lithops"),
             partial={
-                "left": DependsOn("generate_motor_layers"),
+                "left": DependsOn("combine_custom_motor_patrols"),
                 "right": DependsOn("zoom_foot_patrols"),
             }
             | (params_dict.get("zip_motor_patrol_layers") or {}),
@@ -2066,6 +2074,56 @@ def main(params: Params):
             }
             | (params_dict.get("split_merged_trajs") or {}),
             method="call",
+        ),
+        "ranger_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="ranger_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_subject_name"],
+                "summary_params": [
+                    {
+                        "display_name": "Number of Patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "Distance (km)",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "Duration (hrs)",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("ranger_patrol_metrics") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("split_merged_trajs"),
+            },
+        ),
+        "persist_total_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_total_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            }
+            | (params_dict.get("persist_total_df") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["df"],
+                "argvalues": DependsOn("ranger_patrol_metrics"),
+            },
         ),
         "patrol_grid_visits": Node(
             async_task=create_patrol_coverage_grid.validate()
@@ -2182,7 +2240,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="zip_grid_zoom_values")
             .set_executor("lithops"),
             partial={
-                "left": DependsOn("generate_grid_layers"),
+                "left": DependsOn("combine_patrol_grid"),
                 "right": DependsOn("zoom_grid_view"),
             }
             | (params_dict.get("zip_grid_zoom_values") or {}),
@@ -2354,9 +2412,9 @@ def main(params: Params):
                 "argvalues": DependsOn("persist_grid_map_urls"),
             },
         ),
-        "weather_dashboard": Node(
+        "mnc_events_dashboard": Node(
             async_task=gather_dashboard.validate()
-            .handle_errors(task_instance_id="weather_dashboard")
+            .handle_errors(task_instance_id="mnc_events_dashboard")
             .set_executor("lithops"),
             partial={
                 "details": DependsOn("workflow_details"),
@@ -2374,7 +2432,7 @@ def main(params: Params):
                 "time_range": DependsOn("time_range"),
                 "groupers": DependsOn("groupers"),
             }
-            | (params_dict.get("weather_dashboard") or {}),
+            | (params_dict.get("mnc_events_dashboard") or {}),
             method="call",
         ),
     }

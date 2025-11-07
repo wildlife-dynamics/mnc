@@ -655,6 +655,25 @@
       "type": "object",
       "title": "Draw motor patrol pydeck map"
     },
+    "persist_total_df": {
+      "additionalProperties": false,
+      "properties": {
+        "filetype": {
+          "default": "csv",
+          "enum": [
+            "csv",
+            "gpkg",
+            "geoparquet"
+          ],
+          "title": "Filetype",
+          "type": "string",
+          "description": "The output format"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Persist total patrol coverage"
+    },
     "apply_classification_grid": {
       "additionalProperties": false,
       "properties": {
@@ -1044,6 +1063,7 @@
       "draw_vehicle_patrol_map",
       "persist_motor_df",
       "draw_motor_patrol_map",
+      "persist_total_df",
       "apply_classification_grid",
       "draw_grid_map"
     ]

@@ -1211,7 +1211,7 @@ def main(params: Params):
         zip_grouped_by_key.validate()
         .handle_errors(task_instance_id="zip_foot_patrol_layers")
         .partial(
-            left=generate_foot_layers,
+            left=combine_custom_foot_patrols,
             right=zoom_foot_patrols,
             **(params_dict.get("zip_foot_patrol_layers") or {}),
         )
@@ -1378,7 +1378,7 @@ def main(params: Params):
         zip_grouped_by_key.validate()
         .handle_errors(task_instance_id="zip_vehicle_patrol_layers")
         .partial(
-            left=generate_vehicle_layers,
+            left=combine_custom_vehicle_patrols,
             right=zoom_foot_patrols,
             **(params_dict.get("zip_vehicle_patrol_layers") or {}),
         )
@@ -1545,7 +1545,7 @@ def main(params: Params):
         zip_grouped_by_key.validate()
         .handle_errors(task_instance_id="zip_motor_patrol_layers")
         .partial(
-            left=generate_motor_layers,
+            left=combine_custom_motor_patrols,
             right=zoom_foot_patrols,
             **(params_dict.get("zip_motor_patrol_layers") or {}),
         )
@@ -1629,6 +1629,48 @@ def main(params: Params):
         .call()
     )
 
+    ranger_patrol_metrics = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="ranger_patrol_metrics")
+        .partial(
+            groupby_cols=["patrol_subject_name"],
+            summary_params=[
+                {
+                    "display_name": "Number of Patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "Distance (km)",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "Duration (hrs)",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+            ],
+            reset_index=True,
+            **(params_dict.get("ranger_patrol_metrics") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=split_merged_trajs)
+    )
+
+    persist_total_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_total_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            **(params_dict.get("persist_total_df") or {}),
+        )
+        .mapvalues(argnames=["df"], argvalues=ranger_patrol_metrics)
+    )
+
     patrol_grid_visits = (
         create_patrol_coverage_grid.validate()
         .handle_errors(task_instance_id="patrol_grid_visits")
@@ -1704,7 +1746,7 @@ def main(params: Params):
         zip_grouped_by_key.validate()
         .handle_errors(task_instance_id="zip_grid_zoom_values")
         .partial(
-            left=generate_grid_layers,
+            left=combine_patrol_grid,
             right=zoom_grid_view,
             **(params_dict.get("zip_grid_zoom_values") or {}),
         )
@@ -1837,9 +1879,9 @@ def main(params: Params):
         .mapvalues(argnames=["html_path"], argvalues=persist_grid_map_urls)
     )
 
-    weather_dashboard = (
+    mnc_events_dashboard = (
         gather_dashboard.validate()
-        .handle_errors(task_instance_id="weather_dashboard")
+        .handle_errors(task_instance_id="mnc_events_dashboard")
         .partial(
             details=workflow_details,
             widgets=[
@@ -1853,9 +1895,9 @@ def main(params: Params):
             ],
             time_range=time_range,
             groupers=groupers,
-            **(params_dict.get("weather_dashboard") or {}),
+            **(params_dict.get("mnc_events_dashboard") or {}),
         )
         .call()
     )
 
-    return weather_dashboard
+    return mnc_events_dashboard

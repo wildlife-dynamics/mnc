@@ -365,6 +365,15 @@ class DrawMotorPatrolMap(BaseModel):
     )
 
 
+class PersistTotalDf(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filetype: Optional[Filetype] = Field(
+        "csv", description="The output format", title="Filetype"
+    )
+
+
 class DrawGridMap(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -633,6 +642,9 @@ class FormData(BaseModel):
     )
     draw_motor_patrol_map: Optional[DrawMotorPatrolMap] = Field(
         None, title="Draw motor patrol pydeck map"
+    )
+    persist_total_df: Optional[PersistTotalDf] = Field(
+        None, title="Persist total patrol coverage"
     )
     apply_classification_grid: Optional[ApplyClassificationGrid] = Field(
         None, title="Apply bin classification on grids"
