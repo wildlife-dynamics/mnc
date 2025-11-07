@@ -543,7 +543,7 @@ workflow:
 # --- Patrol Observations --- 
   - name: Get combined patrol and events params 
     id: get_patrol_events_params 
-    task: get_patrols_from_combined_params
+    task: get_patrols_from_combined_parameters #custom
     partial:
       combined_params:
         client: ${{ workflow.er_client_name.return }}
@@ -598,7 +598,7 @@ workflow:
 
   - name: Use combined patrol df to generate relevant patrols
     id: patrol_observations
-    task: get_patrol_observations_from_patrols_df_and_combined_params
+    task: get_patrol_observations_from_patrols_dataframe_and_combined_params
     partial:
       patrols_df: ${{ workflow.get_patrol_events_params.return }}
       combined_params:

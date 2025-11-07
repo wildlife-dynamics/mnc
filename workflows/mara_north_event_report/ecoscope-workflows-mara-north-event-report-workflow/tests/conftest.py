@@ -34,8 +34,6 @@ MATCHSPEC_OVERRIDE = "ecoscope-workflows-mara-north-event-report-workflow"
 IO_TASKS_IMPORTABLE_REFERENCES = [
     "ecoscope_workflows_ext_ecoscope.tasks.io.get_subjectgroup_observations",
     "ecoscope_workflows_ext_ecoscope.tasks.io.get_events",
-    "ecoscope_workflows_ext_ecoscope.tasks.io.get_patrols_from_combined_params",
-    "ecoscope_workflows_ext_ecoscope.tasks.io.get_patrol_observations_from_patrols_df_and_combined_params",
 ]
 
 yaml = ruamel.yaml.YAML(typ="safe")

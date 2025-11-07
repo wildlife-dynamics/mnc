@@ -38,8 +38,6 @@ from ecoscope_workflows_ext_custom.tasks.results import create_path_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
     get_events,
-    get_patrol_observations_from_patrols_df_and_combined_params,
-    get_patrols_from_combined_params,
     get_subjectgroup_observations,
     persist_df,
 )
@@ -63,6 +61,8 @@ from ecoscope_workflows_ext_mnc.tasks import (
     download_file_and_persist,
     draw_custom_map,
     filter_by_value,
+    get_patrol_observations_from_patrols_dataframe_and_combined_params,
+    get_patrols_from_combined_parameters,
     load_geospatial_files,
     make_text_layer,
     merge_multiple_df,
@@ -1226,7 +1226,7 @@ get_patrol_events_params_params = dict()
 
 
 get_patrol_events_params = (
-    get_patrols_from_combined_params.handle_errors(
+    get_patrols_from_combined_parameters.handle_errors(
         task_instance_id="get_patrol_events_params"
     )
     .partial(
@@ -1300,7 +1300,7 @@ patrol_observations_params = dict()
 
 
 patrol_observations = (
-    get_patrol_observations_from_patrols_df_and_combined_params.handle_errors(
+    get_patrol_observations_from_patrols_dataframe_and_combined_params.handle_errors(
         task_instance_id="patrol_observations"
     )
     .partial(

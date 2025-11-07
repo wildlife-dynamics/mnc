@@ -22,7 +22,11 @@ from ._mapdeck import (
     remove_invalid_point_geometries,
     merge_static_and_grouped_layers
 )
-
+from ._retrieve_patrols import (
+    get_patrol_observations_from_patrols_dataframe,
+    get_patrols_from_combined_parameters,
+    get_patrol_observations_from_patrols_dataframe_and_combined_params
+)
 __all__ = [
     "add_totals_row",
     "clean_file_keys",
@@ -37,6 +41,9 @@ __all__ = [
     "draw_custom_map",
     "filter_by_value",
     "flatten_tuple",
+    "get_patrol_observations_from_patrols_dataframe",
+    "get_patrols_from_combined_parameters",
+    "get_patrol_observations_from_patrols_dataframe_and_combined_params",
     "load_geospatial_files",
     "make_text_layer",
     "merge_multiple_df",

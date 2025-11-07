@@ -53,33 +53,8 @@ get_events = create_task_magicmock(  # 🧪
 from ecoscope_workflows_core.tasks.groupby import split_groups
 from ecoscope_workflows_core.tasks.io import persist_text
 from ecoscope_workflows_core.tasks.results import (
-    create_plot_widget_single_view,
-    merge_widget_views,
-)
-from ecoscope_workflows_core.tasks.transformation import (
-    add_temporal_index,
-    extract_column_as_type,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
-from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
-from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
-from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
-
-get_patrols_from_combined_params = create_task_magicmock(  # 🧪
-    anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
-    func_name="get_patrols_from_combined_params",  # 🧪
-)  # 🧪
-get_patrol_observations_from_patrols_df_and_combined_params = (
-    create_task_magicmock(  # 🧪
-        anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
-        func_name="get_patrol_observations_from_patrols_df_and_combined_params",  # 🧪
-    )
-)  # 🧪
-from ecoscope_workflows_core.tasks.groupby import split_groups
-from ecoscope_workflows_core.tasks.io import persist_text
-from ecoscope_workflows_core.tasks.results import (
     create_map_widget_single_view,
+    create_plot_widget_single_view,
     gather_dashboard,
     merge_widget_views,
 )
@@ -88,7 +63,11 @@ from ecoscope_workflows_core.tasks.skip import (
     any_is_empty_df,
     never,
 )
-from ecoscope_workflows_core.tasks.transformation import add_temporal_index, map_columns
+from ecoscope_workflows_core.tasks.transformation import (
+    add_temporal_index,
+    extract_column_as_type,
+    map_columns,
+)
 from ecoscope_workflows_ext_custom.tasks import html_to_png
 from ecoscope_workflows_ext_custom.tasks.results import create_path_layer
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
@@ -97,16 +76,21 @@ from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     process_relocations,
     relocations_to_trajectory,
 )
+from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     apply_classification,
     apply_color_map,
+    normalize_column,
 )
 from ecoscope_workflows_ext_mnc.tasks import (
+    add_totals_row,
     classify_mnc_patrol,
     create_patrol_coverage_grid,
     create_polygon_layer_aliased,
     draw_custom_map,
     filter_by_value,
+    get_patrol_observations_from_patrols_dataframe_and_combined_params,
+    get_patrols_from_combined_parameters,
     merge_multiple_df,
     merge_static_and_grouped_layers,
     view_state_deck_gdf,
@@ -973,7 +957,7 @@ def main(params: Params):
             },
         ),
         "get_patrol_events_params": Node(
-            async_task=get_patrols_from_combined_params.validate()
+            async_task=get_patrols_from_combined_parameters.validate()
             .handle_errors(task_instance_id="get_patrol_events_params")
             .set_executor("lithops"),
             partial={
@@ -1033,7 +1017,7 @@ def main(params: Params):
             method="call",
         ),
         "patrol_observations": Node(
-            async_task=get_patrol_observations_from_patrols_df_and_combined_params.validate()
+            async_task=get_patrol_observations_from_patrols_dataframe_and_combined_params.validate()
             .handle_errors(task_instance_id="patrol_observations")
             .set_executor("lithops"),
             partial={
