@@ -1940,9 +1940,10 @@ foot_patrol_metrics = (
             },
         ],
         reset_index=True,
+        df=rename_foot_trajs,
         **foot_patrol_metrics_params,
     )
-    .mapvalues(argnames=["df"], argvalues=rename_foot_trajs)
+    .call()
 )
 
 
@@ -1965,9 +1966,10 @@ persist_foot_df = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
+        df=foot_patrol_metrics,
         **persist_foot_df_params,
     )
-    .mapvalues(argnames=["df"], argvalues=foot_patrol_metrics)
+    .call()
 )
 
 
@@ -1989,9 +1991,10 @@ apply_footp_colormap = (
         input_column_name="patrol_type_value",
         output_column_name="colors",
         colormap="coolwarm",
+        df=rename_foot_trajs,
         **apply_footp_colormap_params,
     )
-    .mapvalues(argnames=["df"], argvalues=rename_foot_trajs)
+    .call()
 )
 
 
@@ -2058,9 +2061,10 @@ generate_foot_layers = (
             "color_column": "colors",
             "sort": "ascending",
         },
+        geodataframe=apply_footp_colormap,
         **generate_foot_layers_params,
     )
-    .mapvalues(argnames=["geodataframe"], argvalues=apply_footp_colormap)
+    .call()
 )
 
 
@@ -2078,8 +2082,8 @@ zoom_foot_patrols_params = dict()
 
 zoom_foot_patrols = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_foot_patrols")
-    .partial(pitch=0, bearing=0, **zoom_foot_patrols_params)
-    .mapvalues(argnames=["gdf"], argvalues=apply_footp_colormap)
+    .partial(pitch=0, bearing=0, gdf=apply_footp_colormap, **zoom_foot_patrols_params)
+    .call()
 )
 
 
@@ -2101,9 +2105,10 @@ combine_custom_foot_patrols = (
     )
     .partial(
         static_layers=[create_custom_map_layers, custom_text_layer],
+        grouped_layers=generate_foot_layers,
         **combine_custom_foot_patrols_params,
     )
-    .mapvalues(argnames=["grouped_layers"], argvalues=generate_foot_layers)
+    .call()
 )
 
 
@@ -2177,9 +2182,10 @@ persist_foot_patrol_urls = (
     persist_text.handle_errors(task_instance_id="persist_foot_patrol_urls")
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        text=draw_foot_patrol_map,
         **persist_foot_patrol_urls_params,
     )
-    .mapvalues(argnames=["text"], argvalues=draw_foot_patrol_map)
+    .call()
 )
 
 

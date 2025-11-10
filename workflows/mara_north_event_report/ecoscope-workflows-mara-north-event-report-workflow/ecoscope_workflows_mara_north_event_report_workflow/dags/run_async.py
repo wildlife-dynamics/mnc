@@ -1396,13 +1396,10 @@ def main(params: Params):
                     },
                 ],
                 "reset_index": True,
+                "df": DependsOn("rename_foot_trajs"),
             }
             | (params_dict.get("foot_patrol_metrics") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("rename_foot_trajs"),
-            },
+            method="call",
         ),
         "persist_foot_df": Node(
             async_task=persist_df.validate()
@@ -1411,13 +1408,10 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
+                "df": DependsOn("foot_patrol_metrics"),
             }
             | (params_dict.get("persist_foot_df") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("foot_patrol_metrics"),
-            },
+            method="call",
         ),
         "apply_footp_colormap": Node(
             async_task=apply_color_map.validate()
@@ -1427,13 +1421,10 @@ def main(params: Params):
                 "input_column_name": "patrol_type_value",
                 "output_column_name": "colors",
                 "colormap": "coolwarm",
+                "df": DependsOn("rename_foot_trajs"),
             }
             | (params_dict.get("apply_footp_colormap") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("rename_foot_trajs"),
-            },
+            method="call",
         ),
         "view_color_df": Node(
             async_task=view_df.validate()
@@ -1476,13 +1467,10 @@ def main(params: Params):
                     "color_column": "colors",
                     "sort": "ascending",
                 },
+                "geodataframe": DependsOn("apply_footp_colormap"),
             }
             | (params_dict.get("generate_foot_layers") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["geodataframe"],
-                "argvalues": DependsOn("apply_footp_colormap"),
-            },
+            method="call",
         ),
         "zoom_foot_patrols": Node(
             async_task=view_state_deck_gdf.validate()
@@ -1491,13 +1479,10 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
+                "gdf": DependsOn("apply_footp_colormap"),
             }
             | (params_dict.get("zoom_foot_patrols") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["gdf"],
-                "argvalues": DependsOn("apply_footp_colormap"),
-            },
+            method="call",
         ),
         "combine_custom_foot_patrols": Node(
             async_task=merge_static_and_grouped_layers.validate()
@@ -1510,13 +1495,10 @@ def main(params: Params):
                         DependsOn("custom_text_layer"),
                     ],
                 ),
+                "grouped_layers": DependsOn("generate_foot_layers"),
             }
             | (params_dict.get("combine_custom_foot_patrols") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["grouped_layers"],
-                "argvalues": DependsOn("generate_foot_layers"),
-            },
+            method="call",
         ),
         "zip_foot_patrol_layers": Node(
             async_task=zip_grouped_by_key.validate()
@@ -1556,13 +1538,10 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_foot_patrol_map"),
             }
             | (params_dict.get("persist_foot_patrol_urls") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["text"],
-                "argvalues": DependsOn("draw_foot_patrol_map"),
-            },
+            method="call",
         ),
         "create_foot_patrol_widgets": Node(
             async_task=create_map_widget_single_view.validate()

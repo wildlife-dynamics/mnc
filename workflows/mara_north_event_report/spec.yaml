@@ -935,9 +935,9 @@ workflow:
           original_unit: s
           new_unit: h
       reset_index: true
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.rename_foot_trajs.return }}
+    # mapvalues:
+    #   argnames: df
+      df: ${{ workflow.rename_foot_trajs.return }}
 
   - name: Persist foot patrol metrics
     id: persist_foot_df
@@ -945,9 +945,9 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-    mapvalues:
-      argnames: df 
-      argvalues: ${{ workflow.foot_patrol_metrics.return }}
+    # mapvalues:
+    #   argnames: df 
+      df: ${{ workflow.foot_patrol_metrics.return }}
 
   # Draw foot patrol maps , persist and create widgets for dashboard 
   - name: Apply Colormap to foot patrols
@@ -957,9 +957,9 @@ workflow:
       input_column_name: patrol_type_value
       output_column_name: colors
       colormap: coolwarm
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.rename_foot_trajs.return }}
+    # mapvalues:
+    #   argnames: df
+      df: ${{ workflow.rename_foot_trajs.return }}
 
   # split subject trajectories into groups based on grouping strategy
   - name: view dataframe info
@@ -994,9 +994,9 @@ workflow:
         color_column: colors
         sort: ascending
 
-    mapvalues:
-      argnames: geodataframe
-      argvalues: ${{ workflow.apply_footp_colormap.return }}
+    # mapvalues:
+    #   argnames: geodataframe
+      geodataframe: ${{ workflow.apply_footp_colormap.return }}
 
   - name: Zoom foot patrol trajectories and view state
     id: zoom_foot_patrols
@@ -1004,9 +1004,9 @@ workflow:
     partial:
       pitch: 0
       bearing: 0
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.apply_footp_colormap.return }}
+    # mapvalues:
+    #   argnames: gdf
+      gdf: ${{ workflow.apply_footp_colormap.return }}
 
   - name: Combine custom loaded map layers and foot patrol layers 
     id: combine_custom_foot_patrols
@@ -1015,9 +1015,11 @@ workflow:
       static_layers: 
         - ${{ workflow.create_custom_map_layers.return }}
         - ${{ workflow.custom_text_layer.return }}
-    mapvalues:
-      argnames: grouped_layers
-      argvalues: ${{ workflow.generate_foot_layers.return }}
+      grouped_layers:
+        - ${{ workflow.generate_foot_layers.return }}
+    # mapvalues:
+    #   argnames: grouped_layers
+    #   argvalues: ${{ workflow.generate_foot_layers.return }}
 
   - name: Zip foot patrol layers and zoom values
     id: zip_foot_patrol_layers
@@ -1048,9 +1050,10 @@ workflow:
     task: persist_text
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-    mapvalues:
-      argnames: text
-      argvalues: ${{ workflow.draw_foot_patrol_map.return }}
+      text: ${{ workflow.draw_foot_patrol_map.return }}
+    # mapvalues:
+    #   argnames: text
+    #   argvalues: ${{ workflow.draw_foot_patrol_map.return }}
 
   - name: Create foot patrol map widgets 
     id: create_foot_patrol_widgets

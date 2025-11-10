@@ -1143,9 +1143,10 @@ def main(params: Params):
                 },
             ],
             reset_index=True,
+            df=rename_foot_trajs,
             **(params_dict.get("foot_patrol_metrics") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=rename_foot_trajs)
+        .call()
     )
 
     persist_foot_df = (
@@ -1154,9 +1155,10 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
+            df=foot_patrol_metrics,
             **(params_dict.get("persist_foot_df") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=foot_patrol_metrics)
+        .call()
     )
 
     apply_footp_colormap = (
@@ -1166,9 +1168,10 @@ def main(params: Params):
             input_column_name="patrol_type_value",
             output_column_name="colors",
             colormap="coolwarm",
+            df=rename_foot_trajs,
             **(params_dict.get("apply_footp_colormap") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=rename_foot_trajs)
+        .call()
     )
 
     view_color_df = (
@@ -1211,16 +1214,22 @@ def main(params: Params):
                 "color_column": "colors",
                 "sort": "ascending",
             },
+            geodataframe=apply_footp_colormap,
             **(params_dict.get("generate_foot_layers") or {}),
         )
-        .mapvalues(argnames=["geodataframe"], argvalues=apply_footp_colormap)
+        .call()
     )
 
     zoom_foot_patrols = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_foot_patrols")
-        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_foot_patrols") or {}))
-        .mapvalues(argnames=["gdf"], argvalues=apply_footp_colormap)
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_footp_colormap,
+            **(params_dict.get("zoom_foot_patrols") or {}),
+        )
+        .call()
     )
 
     combine_custom_foot_patrols = (
@@ -1228,9 +1237,10 @@ def main(params: Params):
         .handle_errors(task_instance_id="combine_custom_foot_patrols")
         .partial(
             static_layers=[create_custom_map_layers, custom_text_layer],
+            grouped_layers=generate_foot_layers,
             **(params_dict.get("combine_custom_foot_patrols") or {}),
         )
-        .mapvalues(argnames=["grouped_layers"], argvalues=generate_foot_layers)
+        .call()
     )
 
     zip_foot_patrol_layers = (
@@ -1265,9 +1275,10 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_foot_patrol_urls")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_foot_patrol_map,
             **(params_dict.get("persist_foot_patrol_urls") or {}),
         )
-        .mapvalues(argnames=["text"], argvalues=draw_foot_patrol_map)
+        .call()
     )
 
     create_foot_patrol_widgets = (
