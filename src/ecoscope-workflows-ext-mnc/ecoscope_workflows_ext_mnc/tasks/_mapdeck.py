@@ -705,7 +705,7 @@ def make_text_layer(
     gdf = gdf.to_crs(target_crs)
 
     if tooltip_columns:
-        keep_cols = ["geometry", "label"] + [c for c in tooltip_columns if c in gdf.columns]
+        keep_cols = ["geometry"] + [c for c in tooltip_columns if c in gdf.columns]
         gdf = gdf[keep_cols]
     else:
         gdf = gdf[["geometry", "label"]]

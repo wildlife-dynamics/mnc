@@ -1271,7 +1271,7 @@ def main(params: Params):
         merge_static_and_grouped_layers.validate()
         .handle_errors(task_instance_id="combine_custom_foot_patrols")
         .partial(
-            static_layers=custom_text_layer,
+            static_layers=[create_custom_map_layers, custom_text_layer],
             grouped_layers=generate_foot_layers,
             **(params_dict.get("combine_custom_foot_patrols") or {}),
         )
@@ -1332,9 +1332,10 @@ def main(params: Params):
                 },
             ],
             reset_index=True,
+            df=split_vehicle_traj_group,
             **(params_dict.get("vehicle_patrol_metrics") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_vehicle_traj_group)
+        .call()
     )
 
     persist_vehicle_df = (
@@ -1343,9 +1344,10 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
+            df=vehicle_patrol_metrics,
             **(params_dict.get("persist_vehicle_df") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=vehicle_patrol_metrics)
+        .call()
     )
 
     apply_vehicle_colormap = (
@@ -1355,9 +1357,10 @@ def main(params: Params):
             input_column_name="patrol_type_value",
             output_column_name="colors",
             colormap="coolwarm",
+            df=split_vehicle_traj_group,
             **(params_dict.get("apply_vehicle_colormap") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_vehicle_traj_group)
+        .call()
     )
 
     generate_vehicle_layers = (
@@ -1389,16 +1392,22 @@ def main(params: Params):
                 "color_column": "colors",
                 "sort": "ascending",
             },
+            geodataframe=apply_vehicle_colormap,
             **(params_dict.get("generate_vehicle_layers") or {}),
         )
-        .mapvalues(argnames=["geodataframe"], argvalues=apply_vehicle_colormap)
+        .call()
     )
 
     zoom_vehicle_patrols = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_vehicle_patrols")
-        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_vehicle_patrols") or {}))
-        .mapvalues(argnames=["gdf"], argvalues=apply_vehicle_colormap)
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_vehicle_colormap,
+            **(params_dict.get("zoom_vehicle_patrols") or {}),
+        )
+        .call()
     )
 
     combine_custom_vehicle_patrols = (
@@ -1406,9 +1415,10 @@ def main(params: Params):
         .handle_errors(task_instance_id="combine_custom_vehicle_patrols")
         .partial(
             static_layers=[create_custom_map_layers, custom_text_layer],
+            grouped_layers=generate_vehicle_layers,
             **(params_dict.get("combine_custom_vehicle_patrols") or {}),
         )
-        .mapvalues(argnames=["grouped_layers"], argvalues=generate_vehicle_layers)
+        .call()
     )
 
     zip_vehicle_patrol_layers = (
@@ -1431,11 +1441,11 @@ def main(params: Params):
             title=None,
             max_zoom=15,
             legend_style={"placement": "bottom-right", "title": "Vehicle patrol types"},
+            geo_layers=combine_custom_vehicle_patrols,
+            view_state=zoom_foot_patrols,
             **(params_dict.get("draw_vehicle_patrol_map") or {}),
         )
-        .mapvalues(
-            argnames=["geo_layers", "view_state"], argvalues=zip_vehicle_patrol_layers
-        )
+        .call()
     )
 
     persist_vehicle_patrol_urls = (
@@ -1443,33 +1453,8 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_vehicle_patrol_urls")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_vehicle_patrol_map,
             **(params_dict.get("persist_vehicle_patrol_urls") or {}),
-        )
-        .mapvalues(argnames=["text"], argvalues=draw_vehicle_patrol_map)
-    )
-
-    create_vehicle_patrol_widgets = (
-        create_map_widget_single_view.validate()
-        .handle_errors(task_instance_id="create_vehicle_patrol_widgets")
-        .skipif(
-            conditions=[
-                never,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            title="Vehicle patrols",
-            **(params_dict.get("create_vehicle_patrol_widgets") or {}),
-        )
-        .map(argnames=["view", "data"], argvalues=persist_vehicle_patrol_urls)
-    )
-
-    merge_vehicle_patrol_widgets = (
-        merge_widget_views.validate()
-        .handle_errors(task_instance_id="merge_vehicle_patrol_widgets")
-        .partial(
-            widgets=create_vehicle_patrol_widgets,
-            **(params_dict.get("merge_vehicle_patrol_widgets") or {}),
         )
         .call()
     )
@@ -1501,9 +1486,10 @@ def main(params: Params):
                 },
             ],
             reset_index=True,
+            df=split_motor_traj_group,
             **(params_dict.get("motor_patrol_metrics") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_motor_traj_group)
+        .call()
     )
 
     persist_motor_df = (
@@ -1512,9 +1498,10 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
+            df=motor_patrol_metrics,
             **(params_dict.get("persist_motor_df") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=motor_patrol_metrics)
+        .call()
     )
 
     apply_motor_colormap = (
@@ -1524,9 +1511,10 @@ def main(params: Params):
             input_column_name="patrol_type_value",
             output_column_name="colors",
             colormap="coolwarm",
+            df=split_motor_traj_group,
             **(params_dict.get("apply_motor_colormap") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_motor_traj_group)
+        .call()
     )
 
     generate_motor_layers = (
@@ -1558,9 +1546,10 @@ def main(params: Params):
                 "color_column": "colors",
                 "sort": "ascending",
             },
+            geodataframe=apply_motor_colormap,
             **(params_dict.get("generate_motor_layers") or {}),
         )
-        .mapvalues(argnames=["geodataframe"], argvalues=apply_motor_colormap)
+        .call()
     )
 
     zoom_motor_patrols = (
@@ -1575,9 +1564,10 @@ def main(params: Params):
         .handle_errors(task_instance_id="combine_custom_motor_patrols")
         .partial(
             static_layers=[create_custom_map_layers, custom_text_layer],
+            grouped_layers=generate_motor_layers,
             **(params_dict.get("combine_custom_motor_patrols") or {}),
         )
-        .mapvalues(argnames=["grouped_layers"], argvalues=generate_motor_layers)
+        .call()
     )
 
     zip_motor_patrol_layers = (
@@ -1603,11 +1593,11 @@ def main(params: Params):
                 "placement": "bottom-right",
                 "title": "Motorbike patrol types",
             },
+            geo_layers=combine_custom_motor_patrols,
+            view_state=zoom_foot_patrols,
             **(params_dict.get("draw_motor_patrol_map") or {}),
         )
-        .mapvalues(
-            argnames=["geo_layers", "view_state"], argvalues=zip_motor_patrol_layers
-        )
+        .call()
     )
 
     persist_motor_patrol_urls = (
@@ -1615,9 +1605,10 @@ def main(params: Params):
         .handle_errors(task_instance_id="persist_motor_patrol_urls")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_motor_patrol_map,
             **(params_dict.get("persist_motor_patrol_urls") or {}),
         )
-        .mapvalues(argnames=["text"], argvalues=draw_motor_patrol_map)
+        .call()
     )
 
     create_motor_patrol_widgets = (
@@ -1932,9 +1923,6 @@ def main(params: Params):
                 grouped_precipitation_widget,
                 grouped_temperature_widget,
                 grouped_tevents_widget,
-                merge_vehicle_patrol_widgets,
-                merge_motor_patrol_widgets,
-                merge_grid_widgets,
             ],
             time_range=time_range,
             groupers=groupers,

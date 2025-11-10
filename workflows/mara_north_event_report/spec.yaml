@@ -1013,7 +1013,7 @@ workflow:
     task: merge_static_and_grouped_layers
     partial:
       static_layers: 
-        #- ${{ workflow.create_custom_map_layers.return }}
+        - ${{ workflow.create_custom_map_layers.return }}
         - ${{ workflow.custom_text_layer.return }}
       grouped_layers: ${{ workflow.generate_foot_layers.return }}
       
@@ -1079,9 +1079,10 @@ workflow:
           original_unit: s
           new_unit: h
       reset_index: true
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.split_vehicle_traj_group.return }}
+      df: ${{ workflow.split_vehicle_traj_group.return }}
+    # mapvalues:
+    #   argnames: df
+    #   argvalues: ${{ workflow.split_vehicle_traj_group.return }}
 
   - name: Persist vehicle patrol metrics
     id: persist_vehicle_df
@@ -1089,9 +1090,10 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-    mapvalues:
-      argnames: df 
-      argvalues: ${{ workflow.vehicle_patrol_metrics.return }}
+      df: ${{ workflow.vehicle_patrol_metrics.return }}
+    # mapvalues:
+    #   argnames: df 
+    #   argvalues: ${{ workflow.vehicle_patrol_metrics.return }}
 
   # Draw vehicle patrol maps , persist and create widgets for dashboard 
   - name: Apply Colormap to vehicle patrols
@@ -1101,9 +1103,10 @@ workflow:
       input_column_name: patrol_type_value
       output_column_name: colors
       colormap: coolwarm
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.split_vehicle_traj_group.return }}
+      df: ${{ workflow.split_vehicle_traj_group.return }}
+    # mapvalues:
+    #   argnames: df
+    #   argvalues: ${{ workflow.split_vehicle_traj_group.return }}
 
   - name: Generate vehiclce patrol layers
     id: generate_vehicle_layers
@@ -1129,10 +1132,11 @@ workflow:
         label_column: patrol_type_value
         color_column: colors
         sort: ascending
+      geodataframe:  ${{ workflow.apply_vehicle_colormap.return }}
 
-    mapvalues:
-      argnames: geodataframe
-      argvalues: ${{ workflow.apply_vehicle_colormap.return }}
+    # mapvalues:
+    #   argnames: geodataframe
+    #   argvalues: ${{ workflow.apply_vehicle_colormap.return }}
 
   - name: Zoom vehicle patrol trajectories and view state
     id: zoom_vehicle_patrols
@@ -1140,9 +1144,10 @@ workflow:
     partial:
       pitch: 0
       bearing: 0
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.apply_vehicle_colormap.return }}
+      gdf: ${{ workflow.apply_vehicle_colormap.return }}
+    # mapvalues:
+    #   argnames: gdf
+    #   argvalues: ${{ workflow.apply_vehicle_colormap.return }}
 
   - name: Combine custom loaded map layers and vehicle patrol layers 
     id: combine_custom_vehicle_patrols
@@ -1151,9 +1156,10 @@ workflow:
       static_layers: 
         - ${{ workflow.create_custom_map_layers.return }}
         - ${{ workflow.custom_text_layer.return }}
-    mapvalues:
-      argnames: grouped_layers
-      argvalues: ${{ workflow.generate_vehicle_layers.return }}
+      grouped_layers: ${{ workflow.generate_vehicle_layers.return }}
+    # mapvalues:
+    #   argnames: grouped_layers
+    #   argvalues: ${{ workflow.generate_vehicle_layers.return }}
 
   - name: Zip vehicle patrol layers and zoom values
     id: zip_vehicle_patrol_layers
@@ -1173,40 +1179,24 @@ workflow:
       legend_style:
         placement: "bottom-right"
         title: "Vehicle patrol types"
-    mapvalues:
-      argnames:
-        - geo_layers
-        - view_state
-      argvalues: ${{ workflow.zip_vehicle_patrol_layers.return }}
+      geo_layers: ${{ workflow.combine_custom_vehicle_patrols.return }}
+      view_state: ${{ workflow.zoom_foot_patrols.return }} 
+    # mapvalues:
+    #   argnames:
+    #     - geo_layers
+    #     - view_state
+    #   argvalues: ${{ workflow.zip_vehicle_patrol_layers.return }}
     
   - name: Persist vehicle patrols map HTML paths
     id: persist_vehicle_patrol_urls
     task: persist_text
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-    mapvalues:
-      argnames: text
-      argvalues: ${{ workflow.draw_vehicle_patrol_map.return }}
+      text: ${{ workflow.draw_vehicle_patrol_map.return }}
+    # mapvalues:
+    #   argnames: text
+    #   argvalues: ${{ workflow.draw_vehicle_patrol_map.return }}
 
-  - name: Create vehicle patrol map widgets 
-    id: create_vehicle_patrol_widgets
-    task: create_map_widget_single_view
-    skipif:
-      conditions:
-        - never
-    partial:
-      title: Vehicle patrols 
-    map:
-      argnames:
-        - view
-        - data 
-      argvalues: ${{ workflow.persist_vehicle_patrol_urls.return }}
-  
-  - name: Merge vehicle patrol widgets 
-    id: merge_vehicle_patrol_widgets
-    task: merge_widget_views
-    partial:
-      widgets: ${{ workflow.create_vehicle_patrol_widgets.return }}
 
   # Motorbike patrol metrics and persist
   - name: Summarize vehicle patrol metrics
@@ -1230,9 +1220,10 @@ workflow:
           original_unit: s
           new_unit: h
       reset_index: true
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.split_motor_traj_group.return }}
+      df: ${{ workflow.split_motor_traj_group.return }}
+    # mapvalues:
+    #   argnames: df
+    #   argvalues: ${{ workflow.split_motor_traj_group.return }}
 
   - name: Persist motorbike patrol metrics
     id: persist_motor_df
@@ -1240,9 +1231,10 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-    mapvalues:
-      argnames: df 
-      argvalues: ${{ workflow.motor_patrol_metrics.return }}
+      df: ${{ workflow.motor_patrol_metrics.return }}
+    # mapvalues:
+    #   argnames: df 
+    #   argvalues: ${{ workflow.motor_patrol_metrics.return }}
 
   # Draw motor patrol maps , persist and create widgets for dashboard 
   - name: Apply Colormap to motor patrols
@@ -1252,9 +1244,10 @@ workflow:
       input_column_name: patrol_type_value
       output_column_name: colors
       colormap: coolwarm
-    mapvalues:
-      argnames: df
-      argvalues: ${{ workflow.split_motor_traj_group.return }}
+      df: ${{ workflow.split_motor_traj_group.return }}
+    # mapvalues:
+    #   argnames: df
+    #   argvalues: ${{ workflow.split_motor_traj_group.return }}
 
   - name: Generate motor patrol layers
     id: generate_motor_layers
@@ -1280,10 +1273,10 @@ workflow:
         label_column: patrol_type_value
         color_column: colors
         sort: ascending
-
-    mapvalues:
-      argnames: geodataframe
-      argvalues: ${{ workflow.apply_motor_colormap.return }}
+      geodataframe: ${{ workflow.apply_motor_colormap.return }}
+    # mapvalues:
+    #   argnames: geodataframe
+    #   argvalues: ${{ workflow.apply_motor_colormap.return }}
 
   - name: Zoom motor patrol trajectories and view state
     id: zoom_motor_patrols
@@ -1302,9 +1295,10 @@ workflow:
       static_layers: 
         - ${{ workflow.create_custom_map_layers.return }}
         - ${{ workflow.custom_text_layer.return }}
-    mapvalues:
-      argnames: grouped_layers
-      argvalues: ${{ workflow.generate_motor_layers.return }}
+      grouped_layers: ${{ workflow.generate_motor_layers.return }}
+    # mapvalues:
+    #   argnames: grouped_layers
+    #   argvalues: ${{ workflow.generate_motor_layers.return }}
 
   - name: Zip motor patrol layers and zoom values
     id: zip_motor_patrol_layers
@@ -1324,20 +1318,23 @@ workflow:
       legend_style:
         placement: "bottom-right"
         title: "Motorbike patrol types"
-    mapvalues:
-      argnames:
-        - geo_layers
-        - view_state
-      argvalues: ${{ workflow.zip_motor_patrol_layers.return }}
+      geo_layers: ${{ workflow.combine_custom_motor_patrols.return }}
+      view_state: ${{ workflow.zoom_foot_patrols.return }}
+    # mapvalues:
+    #   argnames:
+    #     - geo_layers
+    #     - view_state
+    #   argvalues: ${{ workflow.zip_motor_patrol_layers.return }}
     
   - name: Persist motor patrols map HTML paths
     id: persist_motor_patrol_urls
     task: persist_text
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-    mapvalues:
-      argnames: text
-      argvalues: ${{ workflow.draw_motor_patrol_map.return }}
+      text: ${{ workflow.draw_motor_patrol_map.return }}
+    # mapvalues:
+    #   argnames: text
+    #   argvalues: ${{ workflow.draw_motor_patrol_map.return }}
 
   - name: Create motorbike patrol map widgets 
     id: create_motor_patrol_widgets
@@ -1637,9 +1634,9 @@ workflow:
         - ${{ workflow.grouped_precipitation_widget.return }} # precipitation widget charts
         - ${{ workflow.grouped_temperature_widget.return }} # temperature widget charts
         - ${{ workflow.grouped_tevents_widget.return }} # total events widget charts
-        - ${{ workflow.merge_vehicle_patrol_widgets.return }} # vehicle patrol widget maps
-        - ${{ workflow.merge_motor_patrol_widgets.return }} # motor patrol widget maps
-        - ${{ workflow.merge_grid_widgets.return }} # patrol grid coverage visits
+        # - ${{ workflow.merge_vehicle_patrol_widgets.return }} # vehicle patrol widget maps
+        # - ${{ workflow.merge_motor_patrol_widgets.return }} # motor patrol widget maps
+        # - ${{ workflow.merge_grid_widgets.return }} # patrol grid coverage visits
       
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}

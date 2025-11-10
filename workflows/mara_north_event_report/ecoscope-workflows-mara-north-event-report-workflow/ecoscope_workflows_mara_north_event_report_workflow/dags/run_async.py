@@ -147,7 +147,11 @@ def main(params: Params):
         "view_color_df": ["apply_footp_colormap"],
         "generate_foot_layers": ["apply_footp_colormap"],
         "zoom_foot_patrols": ["apply_footp_colormap"],
-        "combine_custom_foot_patrols": ["custom_text_layer", "generate_foot_layers"],
+        "combine_custom_foot_patrols": [
+            "create_custom_map_layers",
+            "custom_text_layer",
+            "generate_foot_layers",
+        ],
         "draw_foot_patrol_map": [
             "configure_base_maps",
             "combine_custom_foot_patrols",
@@ -168,10 +172,12 @@ def main(params: Params):
             "combine_custom_vehicle_patrols",
             "zoom_foot_patrols",
         ],
-        "draw_vehicle_patrol_map": ["configure_base_maps", "zip_vehicle_patrol_layers"],
+        "draw_vehicle_patrol_map": [
+            "configure_base_maps",
+            "combine_custom_vehicle_patrols",
+            "zoom_foot_patrols",
+        ],
         "persist_vehicle_patrol_urls": ["draw_vehicle_patrol_map"],
-        "create_vehicle_patrol_widgets": ["persist_vehicle_patrol_urls"],
-        "merge_vehicle_patrol_widgets": ["create_vehicle_patrol_widgets"],
         "motor_patrol_metrics": ["split_motor_traj_group"],
         "persist_motor_df": ["motor_patrol_metrics"],
         "apply_motor_colormap": ["split_motor_traj_group"],
@@ -186,7 +192,11 @@ def main(params: Params):
             "combine_custom_motor_patrols",
             "zoom_foot_patrols",
         ],
-        "draw_motor_patrol_map": ["configure_base_maps", "zip_motor_patrol_layers"],
+        "draw_motor_patrol_map": [
+            "configure_base_maps",
+            "combine_custom_motor_patrols",
+            "zoom_foot_patrols",
+        ],
         "persist_motor_patrol_urls": ["draw_motor_patrol_map"],
         "create_motor_patrol_widgets": ["persist_motor_patrol_urls"],
         "merge_motor_patrol_widgets": ["create_motor_patrol_widgets"],
@@ -221,9 +231,6 @@ def main(params: Params):
             "grouped_precipitation_widget",
             "grouped_temperature_widget",
             "grouped_tevents_widget",
-            "merge_vehicle_patrol_widgets",
-            "merge_motor_patrol_widgets",
-            "merge_grid_widgets",
             "time_range",
             "groupers",
         ],
@@ -1485,7 +1492,12 @@ def main(params: Params):
             .handle_errors(task_instance_id="combine_custom_foot_patrols")
             .set_executor("lithops"),
             partial={
-                "static_layers": DependsOn("custom_text_layer"),
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_custom_map_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
                 "grouped_layers": DependsOn("generate_foot_layers"),
             }
             | (params_dict.get("combine_custom_foot_patrols") or {}),
@@ -1549,13 +1561,10 @@ def main(params: Params):
                     },
                 ],
                 "reset_index": True,
+                "df": DependsOn("split_vehicle_traj_group"),
             }
             | (params_dict.get("vehicle_patrol_metrics") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("split_vehicle_traj_group"),
-            },
+            method="call",
         ),
         "persist_vehicle_df": Node(
             async_task=persist_df.validate()
@@ -1564,13 +1573,10 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
+                "df": DependsOn("vehicle_patrol_metrics"),
             }
             | (params_dict.get("persist_vehicle_df") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("vehicle_patrol_metrics"),
-            },
+            method="call",
         ),
         "apply_vehicle_colormap": Node(
             async_task=apply_color_map.validate()
@@ -1580,13 +1586,10 @@ def main(params: Params):
                 "input_column_name": "patrol_type_value",
                 "output_column_name": "colors",
                 "colormap": "coolwarm",
+                "df": DependsOn("split_vehicle_traj_group"),
             }
             | (params_dict.get("apply_vehicle_colormap") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("split_vehicle_traj_group"),
-            },
+            method="call",
         ),
         "generate_vehicle_layers": Node(
             async_task=create_path_layer.validate()
@@ -1618,13 +1621,10 @@ def main(params: Params):
                     "color_column": "colors",
                     "sort": "ascending",
                 },
+                "geodataframe": DependsOn("apply_vehicle_colormap"),
             }
             | (params_dict.get("generate_vehicle_layers") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["geodataframe"],
-                "argvalues": DependsOn("apply_vehicle_colormap"),
-            },
+            method="call",
         ),
         "zoom_vehicle_patrols": Node(
             async_task=view_state_deck_gdf.validate()
@@ -1633,13 +1633,10 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
+                "gdf": DependsOn("apply_vehicle_colormap"),
             }
             | (params_dict.get("zoom_vehicle_patrols") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["gdf"],
-                "argvalues": DependsOn("apply_vehicle_colormap"),
-            },
+            method="call",
         ),
         "combine_custom_vehicle_patrols": Node(
             async_task=merge_static_and_grouped_layers.validate()
@@ -1652,13 +1649,10 @@ def main(params: Params):
                         DependsOn("custom_text_layer"),
                     ],
                 ),
+                "grouped_layers": DependsOn("generate_vehicle_layers"),
             }
             | (params_dict.get("combine_custom_vehicle_patrols") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["grouped_layers"],
-                "argvalues": DependsOn("generate_vehicle_layers"),
-            },
+            method="call",
         ),
         "zip_vehicle_patrol_layers": Node(
             async_task=zip_grouped_by_key.validate()
@@ -1684,13 +1678,11 @@ def main(params: Params):
                     "placement": "bottom-right",
                     "title": "Vehicle patrol types",
                 },
+                "geo_layers": DependsOn("combine_custom_vehicle_patrols"),
+                "view_state": DependsOn("zoom_foot_patrols"),
             }
             | (params_dict.get("draw_vehicle_patrol_map") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["geo_layers", "view_state"],
-                "argvalues": DependsOn("zip_vehicle_patrol_layers"),
-            },
+            method="call",
         ),
         "persist_vehicle_patrol_urls": Node(
             async_task=persist_text.validate()
@@ -1698,42 +1690,9 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_vehicle_patrol_map"),
             }
             | (params_dict.get("persist_vehicle_patrol_urls") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["text"],
-                "argvalues": DependsOn("draw_vehicle_patrol_map"),
-            },
-        ),
-        "create_vehicle_patrol_widgets": Node(
-            async_task=create_map_widget_single_view.validate()
-            .handle_errors(task_instance_id="create_vehicle_patrol_widgets")
-            .skipif(
-                conditions=[
-                    never,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "title": "Vehicle patrols",
-            }
-            | (params_dict.get("create_vehicle_patrol_widgets") or {}),
-            method="map",
-            kwargs={
-                "argnames": ["view", "data"],
-                "argvalues": DependsOn("persist_vehicle_patrol_urls"),
-            },
-        ),
-        "merge_vehicle_patrol_widgets": Node(
-            async_task=merge_widget_views.validate()
-            .handle_errors(task_instance_id="merge_vehicle_patrol_widgets")
-            .set_executor("lithops"),
-            partial={
-                "widgets": DependsOn("create_vehicle_patrol_widgets"),
-            }
-            | (params_dict.get("merge_vehicle_patrol_widgets") or {}),
             method="call",
         ),
         "motor_patrol_metrics": Node(
@@ -1764,13 +1723,10 @@ def main(params: Params):
                     },
                 ],
                 "reset_index": True,
+                "df": DependsOn("split_motor_traj_group"),
             }
             | (params_dict.get("motor_patrol_metrics") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("split_motor_traj_group"),
-            },
+            method="call",
         ),
         "persist_motor_df": Node(
             async_task=persist_df.validate()
@@ -1779,13 +1735,10 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
+                "df": DependsOn("motor_patrol_metrics"),
             }
             | (params_dict.get("persist_motor_df") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("motor_patrol_metrics"),
-            },
+            method="call",
         ),
         "apply_motor_colormap": Node(
             async_task=apply_color_map.validate()
@@ -1795,13 +1748,10 @@ def main(params: Params):
                 "input_column_name": "patrol_type_value",
                 "output_column_name": "colors",
                 "colormap": "coolwarm",
+                "df": DependsOn("split_motor_traj_group"),
             }
             | (params_dict.get("apply_motor_colormap") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["df"],
-                "argvalues": DependsOn("split_motor_traj_group"),
-            },
+            method="call",
         ),
         "generate_motor_layers": Node(
             async_task=create_path_layer.validate()
@@ -1833,13 +1783,10 @@ def main(params: Params):
                     "color_column": "colors",
                     "sort": "ascending",
                 },
+                "geodataframe": DependsOn("apply_motor_colormap"),
             }
             | (params_dict.get("generate_motor_layers") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["geodataframe"],
-                "argvalues": DependsOn("apply_motor_colormap"),
-            },
+            method="call",
         ),
         "zoom_motor_patrols": Node(
             async_task=view_state_deck_gdf.validate()
@@ -1867,13 +1814,10 @@ def main(params: Params):
                         DependsOn("custom_text_layer"),
                     ],
                 ),
+                "grouped_layers": DependsOn("generate_motor_layers"),
             }
             | (params_dict.get("combine_custom_motor_patrols") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["grouped_layers"],
-                "argvalues": DependsOn("generate_motor_layers"),
-            },
+            method="call",
         ),
         "zip_motor_patrol_layers": Node(
             async_task=zip_grouped_by_key.validate()
@@ -1899,13 +1843,11 @@ def main(params: Params):
                     "placement": "bottom-right",
                     "title": "Motorbike patrol types",
                 },
+                "geo_layers": DependsOn("combine_custom_motor_patrols"),
+                "view_state": DependsOn("zoom_foot_patrols"),
             }
             | (params_dict.get("draw_motor_patrol_map") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["geo_layers", "view_state"],
-                "argvalues": DependsOn("zip_motor_patrol_layers"),
-            },
+            method="call",
         ),
         "persist_motor_patrol_urls": Node(
             async_task=persist_text.validate()
@@ -1913,13 +1855,10 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_motor_patrol_map"),
             }
             | (params_dict.get("persist_motor_patrol_urls") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["text"],
-                "argvalues": DependsOn("draw_motor_patrol_map"),
-            },
+            method="call",
         ),
         "create_motor_patrol_widgets": Node(
             async_task=create_map_widget_single_view.validate()
@@ -2332,9 +2271,6 @@ def main(params: Params):
                         DependsOn("grouped_precipitation_widget"),
                         DependsOn("grouped_temperature_widget"),
                         DependsOn("grouped_tevents_widget"),
-                        DependsOn("merge_vehicle_patrol_widgets"),
-                        DependsOn("merge_motor_patrol_widgets"),
-                        DependsOn("merge_grid_widgets"),
                     ],
                 ),
                 "time_range": DependsOn("time_range"),

@@ -2104,7 +2104,7 @@ combine_custom_foot_patrols = (
         task_instance_id="combine_custom_foot_patrols"
     )
     .partial(
-        static_layers=custom_text_layer,
+        static_layers=[create_custom_map_layers, custom_text_layer],
         grouped_layers=generate_foot_layers,
         **combine_custom_foot_patrols_params,
     )
@@ -2206,9 +2206,10 @@ vehicle_patrol_metrics = (
             },
         ],
         reset_index=True,
+        df=split_vehicle_traj_group,
         **vehicle_patrol_metrics_params,
     )
-    .mapvalues(argnames=["df"], argvalues=split_vehicle_traj_group)
+    .call()
 )
 
 
@@ -2231,9 +2232,10 @@ persist_vehicle_df = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
+        df=vehicle_patrol_metrics,
         **persist_vehicle_df_params,
     )
-    .mapvalues(argnames=["df"], argvalues=vehicle_patrol_metrics)
+    .call()
 )
 
 
@@ -2255,9 +2257,10 @@ apply_vehicle_colormap = (
         input_column_name="patrol_type_value",
         output_column_name="colors",
         colormap="coolwarm",
+        df=split_vehicle_traj_group,
         **apply_vehicle_colormap_params,
     )
-    .mapvalues(argnames=["df"], argvalues=split_vehicle_traj_group)
+    .call()
 )
 
 
@@ -2301,9 +2304,10 @@ generate_vehicle_layers = (
             "color_column": "colors",
             "sort": "ascending",
         },
+        geodataframe=apply_vehicle_colormap,
         **generate_vehicle_layers_params,
     )
-    .mapvalues(argnames=["geodataframe"], argvalues=apply_vehicle_colormap)
+    .call()
 )
 
 
@@ -2321,8 +2325,10 @@ zoom_vehicle_patrols_params = dict()
 
 zoom_vehicle_patrols = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_vehicle_patrols")
-    .partial(pitch=0, bearing=0, **zoom_vehicle_patrols_params)
-    .mapvalues(argnames=["gdf"], argvalues=apply_vehicle_colormap)
+    .partial(
+        pitch=0, bearing=0, gdf=apply_vehicle_colormap, **zoom_vehicle_patrols_params
+    )
+    .call()
 )
 
 
@@ -2344,9 +2350,10 @@ combine_custom_vehicle_patrols = (
     )
     .partial(
         static_layers=[create_custom_map_layers, custom_text_layer],
+        grouped_layers=generate_vehicle_layers,
         **combine_custom_vehicle_patrols_params,
     )
-    .mapvalues(argnames=["grouped_layers"], argvalues=generate_vehicle_layers)
+    .call()
 )
 
 
@@ -2395,11 +2402,11 @@ draw_vehicle_patrol_map = (
         title=None,
         max_zoom=15,
         legend_style={"placement": "bottom-right", "title": "Vehicle patrol types"},
+        geo_layers=combine_custom_vehicle_patrols,
+        view_state=zoom_foot_patrols,
         **draw_vehicle_patrol_map_params,
     )
-    .mapvalues(
-        argnames=["geo_layers", "view_state"], argvalues=zip_vehicle_patrol_layers
-    )
+    .call()
 )
 
 
@@ -2422,55 +2429,8 @@ persist_vehicle_patrol_urls = (
     persist_text.handle_errors(task_instance_id="persist_vehicle_patrol_urls")
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        text=draw_vehicle_patrol_map,
         **persist_vehicle_patrol_urls_params,
-    )
-    .mapvalues(argnames=["text"], argvalues=draw_vehicle_patrol_map)
-)
-
-
-# %% [markdown]
-# ## Create vehicle patrol map widgets
-
-# %%
-# parameters
-
-create_vehicle_patrol_widgets_params = dict()
-
-# %%
-# call the task
-
-
-create_vehicle_patrol_widgets = (
-    create_map_widget_single_view.handle_errors(
-        task_instance_id="create_vehicle_patrol_widgets"
-    )
-    .skipif(
-        conditions=[
-            never,
-        ],
-        unpack_depth=1,
-    )
-    .partial(title="Vehicle patrols", **create_vehicle_patrol_widgets_params)
-    .map(argnames=["view", "data"], argvalues=persist_vehicle_patrol_urls)
-)
-
-
-# %% [markdown]
-# ## Merge vehicle patrol widgets
-
-# %%
-# parameters
-
-merge_vehicle_patrol_widgets_params = dict()
-
-# %%
-# call the task
-
-
-merge_vehicle_patrol_widgets = (
-    merge_widget_views.handle_errors(task_instance_id="merge_vehicle_patrol_widgets")
-    .partial(
-        widgets=create_vehicle_patrol_widgets, **merge_vehicle_patrol_widgets_params
     )
     .call()
 )
@@ -2514,9 +2474,10 @@ motor_patrol_metrics = (
             },
         ],
         reset_index=True,
+        df=split_motor_traj_group,
         **motor_patrol_metrics_params,
     )
-    .mapvalues(argnames=["df"], argvalues=split_motor_traj_group)
+    .call()
 )
 
 
@@ -2539,9 +2500,10 @@ persist_motor_df = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
+        df=motor_patrol_metrics,
         **persist_motor_df_params,
     )
-    .mapvalues(argnames=["df"], argvalues=motor_patrol_metrics)
+    .call()
 )
 
 
@@ -2563,9 +2525,10 @@ apply_motor_colormap = (
         input_column_name="patrol_type_value",
         output_column_name="colors",
         colormap="coolwarm",
+        df=split_motor_traj_group,
         **apply_motor_colormap_params,
     )
-    .mapvalues(argnames=["df"], argvalues=split_motor_traj_group)
+    .call()
 )
 
 
@@ -2609,9 +2572,10 @@ generate_motor_layers = (
             "color_column": "colors",
             "sort": "ascending",
         },
+        geodataframe=apply_motor_colormap,
         **generate_motor_layers_params,
     )
-    .mapvalues(argnames=["geodataframe"], argvalues=apply_motor_colormap)
+    .call()
 )
 
 
@@ -2652,9 +2616,10 @@ combine_custom_motor_patrols = (
     )
     .partial(
         static_layers=[create_custom_map_layers, custom_text_layer],
+        grouped_layers=generate_motor_layers,
         **combine_custom_motor_patrols_params,
     )
-    .mapvalues(argnames=["grouped_layers"], argvalues=generate_motor_layers)
+    .call()
 )
 
 
@@ -2703,9 +2668,11 @@ draw_motor_patrol_map = (
         title=None,
         max_zoom=15,
         legend_style={"placement": "bottom-right", "title": "Motorbike patrol types"},
+        geo_layers=combine_custom_motor_patrols,
+        view_state=zoom_foot_patrols,
         **draw_motor_patrol_map_params,
     )
-    .mapvalues(argnames=["geo_layers", "view_state"], argvalues=zip_motor_patrol_layers)
+    .call()
 )
 
 
@@ -2728,9 +2695,10 @@ persist_motor_patrol_urls = (
     persist_text.handle_errors(task_instance_id="persist_motor_patrol_urls")
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        text=draw_motor_patrol_map,
         **persist_motor_patrol_urls_params,
     )
-    .mapvalues(argnames=["text"], argvalues=draw_motor_patrol_map)
+    .call()
 )
 
 
@@ -3338,9 +3306,6 @@ mnc_events_dashboard = (
             grouped_precipitation_widget,
             grouped_temperature_widget,
             grouped_tevents_widget,
-            merge_vehicle_patrol_widgets,
-            merge_motor_patrol_widgets,
-            merge_grid_widgets,
         ],
         time_range=time_range,
         groupers=groupers,
