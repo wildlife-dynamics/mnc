@@ -1989,7 +1989,7 @@ apply_footp_colormap = (
     apply_color_map.handle_errors(task_instance_id="apply_footp_colormap")
     .partial(
         input_column_name="patrol_type_value",
-        output_column_name="colors",
+        output_column_name="foot_patrol_colors",
         colormap="coolwarm",
         df=rename_foot_trajs,
         **apply_footp_colormap_params,
@@ -2044,7 +2044,7 @@ generate_foot_layers = (
     )
     .partial(
         layer_style={
-            "get_color": "colors",
+            "get_color": "foot_patrol_colors",
             "get_width": 1.85,
             "width_scale": 1,
             "width_min_pixels": 2,
@@ -2058,7 +2058,7 @@ generate_foot_layers = (
         },
         legend={
             "label_column": "patrol_type_value",
-            "color_column": "colors",
+            "color_column": "foot_patrol_colors",
             "sort": "ascending",
         },
         geodataframe=apply_footp_colormap,

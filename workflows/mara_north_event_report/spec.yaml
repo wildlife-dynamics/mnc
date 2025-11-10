@@ -955,7 +955,7 @@ workflow:
     task: apply_color_map
     partial:
       input_column_name: patrol_type_value
-      output_column_name: colors
+      output_column_name: foot_patrol_colors
       colormap: coolwarm
     # mapvalues:
     #   argnames: df
@@ -978,7 +978,7 @@ workflow:
         - any_dependency_skipped
     partial:
       layer_style:
-        get_color: colors
+        get_color: foot_patrol_colors
         get_width: 1.85
         width_scale: 1
         width_min_pixels: 2
@@ -991,7 +991,7 @@ workflow:
         stroked: true
       legend:
         label_column: patrol_type_value
-        color_column: colors
+        color_column: foot_patrol_colors
         sort: ascending
 
     # mapvalues:
@@ -1015,8 +1015,8 @@ workflow:
       static_layers: 
         - ${{ workflow.create_custom_map_layers.return }}
         - ${{ workflow.custom_text_layer.return }}
-      grouped_layers:
-        - ${{ workflow.generate_foot_layers.return }}
+      grouped_layers: ${{ workflow.generate_foot_layers.return }}
+      
     # mapvalues:
     #   argnames: grouped_layers
     #   argvalues: ${{ workflow.generate_foot_layers.return }}

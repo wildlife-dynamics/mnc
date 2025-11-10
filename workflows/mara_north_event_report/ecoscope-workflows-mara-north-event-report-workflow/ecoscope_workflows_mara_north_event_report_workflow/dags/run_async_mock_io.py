@@ -1454,7 +1454,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "input_column_name": "patrol_type_value",
-                "output_column_name": "colors",
+                "output_column_name": "foot_patrol_colors",
                 "colormap": "coolwarm",
                 "df": DependsOn("rename_foot_trajs"),
             }
@@ -1485,7 +1485,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "layer_style": {
-                    "get_color": "colors",
+                    "get_color": "foot_patrol_colors",
                     "get_width": 1.85,
                     "width_scale": 1,
                     "width_min_pixels": 2,
@@ -1499,7 +1499,7 @@ def main(params: Params):
                 },
                 "legend": {
                     "label_column": "patrol_type_value",
-                    "color_column": "colors",
+                    "color_column": "foot_patrol_colors",
                     "sort": "ascending",
                 },
                 "geodataframe": DependsOn("apply_footp_colormap"),
