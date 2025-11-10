@@ -27,20 +27,6 @@ def view_df(gdf: Annotated[AnyDataFrame, Field(description="A GeoDataFrame to in
     
     for col in gdf.columns:
         print(f"column name: {col}")
-    print("\n--- Column Details ---")
-    for col in gdf.columns:
-        dtype = gdf[col].dtype
-        unique_vals = gdf[col].unique()
-        n_unique = len(unique_vals)
-        print(f"\n- {col} ({dtype})")
-        print(f"  Unique values ({n_unique}):")
-        if n_unique <= 10:
-            for val in unique_vals:
-                print(f"    - {val}")
-        else:
-            print(f"    - [Showing first 10 of {n_unique} unique values]")
-            for val in unique_vals[:10]:
-                print(f"    - {val}")
 
 
 @task

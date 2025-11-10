@@ -60,7 +60,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     merge_static_and_grouped_layers,
     select_koi,
     set_base_maps_aliased,
-    view_gdf,
+    view_df,
     view_state_deck_gdf,
     zip_grouped_by_key,
 )
@@ -1436,7 +1436,7 @@ def main(params: Params):
             },
         ),
         "view_color_df": Node(
-            async_task=view_gdf.validate()
+            async_task=view_df.validate()
             .handle_errors(task_instance_id="view_color_df")
             .set_executor("lithops"),
             partial={

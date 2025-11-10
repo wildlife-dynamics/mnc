@@ -964,7 +964,7 @@ workflow:
   # split subject trajectories into groups based on grouping strategy
   - name: view dataframe info
     id: view_color_df
-    task: view_gdf
+    task: view_df
     partial:
       gdf: ${{ workflow.apply_footp_colormap.return }}
       name: Foot patrol trajectories with colormap applied
