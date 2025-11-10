@@ -1972,29 +1972,6 @@ persist_foot_df = (
 
 
 # %% [markdown]
-# ## view dataframe info
-
-# %%
-# parameters
-
-view_df_info_params = dict()
-
-# %%
-# call the task
-
-
-view_df_info = (
-    view_gdf.handle_errors(task_instance_id="view_df_info")
-    .partial(
-        gdf=split_foot_traj_group,
-        name="Foot patrol trajectories before colormap",
-        **view_df_info_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Apply Colormap to foot patrols
 
 # %%

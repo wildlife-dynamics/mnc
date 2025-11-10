@@ -1159,17 +1159,6 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=foot_patrol_metrics)
     )
 
-    view_df_info = (
-        view_gdf.validate()
-        .handle_errors(task_instance_id="view_df_info")
-        .partial(
-            gdf=split_foot_traj_group,
-            name="Foot patrol trajectories before colormap",
-            **(params_dict.get("view_df_info") or {}),
-        )
-        .call()
-    )
-
     apply_footp_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_footp_colormap")

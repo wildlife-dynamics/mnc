@@ -143,7 +143,6 @@ def main(params: Params):
         "split_motor_traj_group": ["rename_motor_trajs", "groupers"],
         "foot_patrol_metrics": ["split_foot_traj_group"],
         "persist_foot_df": ["foot_patrol_metrics"],
-        "view_df_info": ["split_foot_traj_group"],
         "apply_footp_colormap": ["split_foot_traj_group"],
         "view_color_df": ["apply_footp_colormap"],
         "generate_foot_layers": ["apply_footp_colormap"],
@@ -1419,17 +1418,6 @@ def main(params: Params):
                 "argnames": ["df"],
                 "argvalues": DependsOn("foot_patrol_metrics"),
             },
-        ),
-        "view_df_info": Node(
-            async_task=view_gdf.validate()
-            .handle_errors(task_instance_id="view_df_info")
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("split_foot_traj_group"),
-                "name": "Foot patrol trajectories before colormap",
-            }
-            | (params_dict.get("view_df_info") or {}),
-            method="call",
         ),
         "apply_footp_colormap": Node(
             async_task=apply_color_map.validate()

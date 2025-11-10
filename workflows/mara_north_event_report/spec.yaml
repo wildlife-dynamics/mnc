@@ -949,14 +949,6 @@ workflow:
       argnames: df 
       argvalues: ${{ workflow.foot_patrol_metrics.return }}
 
-  # split subject trajectories into groups based on grouping strategy
-  - name: view dataframe info
-    id: view_df_info
-    task: view_gdf
-    partial:
-      gdf: ${{ workflow.split_foot_traj_group.return }}
-      name: Foot patrol trajectories before colormap
-
   # Draw foot patrol maps , persist and create widgets for dashboard 
   - name: Apply Colormap to foot patrols
     id: apply_footp_colormap
