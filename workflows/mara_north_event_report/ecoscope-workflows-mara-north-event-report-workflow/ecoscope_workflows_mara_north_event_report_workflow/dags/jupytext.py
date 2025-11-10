@@ -2113,29 +2113,6 @@ combine_custom_foot_patrols = (
 
 
 # %% [markdown]
-# ## Zip foot patrol layers and zoom values
-
-# %%
-# parameters
-
-zip_foot_patrol_layers_params = dict()
-
-# %%
-# call the task
-
-
-zip_foot_patrol_layers = (
-    zip_grouped_by_key.handle_errors(task_instance_id="zip_foot_patrol_layers")
-    .partial(
-        left=combine_custom_foot_patrols,
-        right=zoom_foot_patrols,
-        **zip_foot_patrol_layers_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Draw foot patrol pydeck map
 
 # %%
@@ -2157,9 +2134,11 @@ draw_foot_patrol_map = (
         title=None,
         max_zoom=15,
         legend_style={"placement": "bottom-right", "title": "Foot patrol types"},
+        geo_layers=combine_custom_foot_patrols,
+        view_state=zoom_foot_patrols,
         **draw_foot_patrol_map_params,
     )
-    .mapvalues(argnames=["geo_layers", "view_state"], argvalues=zip_foot_patrol_layers)
+    .call()
 )
 
 
@@ -2185,52 +2164,6 @@ persist_foot_patrol_urls = (
         text=draw_foot_patrol_map,
         **persist_foot_patrol_urls_params,
     )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Create foot patrol map widgets
-
-# %%
-# parameters
-
-create_foot_patrol_widgets_params = dict()
-
-# %%
-# call the task
-
-
-create_foot_patrol_widgets = (
-    create_map_widget_single_view.handle_errors(
-        task_instance_id="create_foot_patrol_widgets"
-    )
-    .skipif(
-        conditions=[
-            never,
-        ],
-        unpack_depth=1,
-    )
-    .partial(title="Foot patrols", **create_foot_patrol_widgets_params)
-    .map(argnames=["view", "data"], argvalues=persist_foot_patrol_urls)
-)
-
-
-# %% [markdown]
-# ## Merge foot patrol widgets
-
-# %%
-# parameters
-
-merge_foot_patrol_widgets_params = dict()
-
-# %%
-# call the task
-
-
-merge_foot_patrol_widgets = (
-    merge_widget_views.handle_errors(task_instance_id="merge_foot_patrol_widgets")
-    .partial(widgets=create_foot_patrol_widgets, **merge_foot_patrol_widgets_params)
     .call()
 )
 
@@ -3405,7 +3338,6 @@ mnc_events_dashboard = (
             grouped_precipitation_widget,
             grouped_temperature_widget,
             grouped_tevents_widget,
-            merge_foot_patrol_widgets,
             merge_vehicle_patrol_widgets,
             merge_motor_patrol_widgets,
             merge_grid_widgets,

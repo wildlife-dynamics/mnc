@@ -1278,17 +1278,6 @@ def main(params: Params):
         .call()
     )
 
-    zip_foot_patrol_layers = (
-        zip_grouped_by_key.validate()
-        .handle_errors(task_instance_id="zip_foot_patrol_layers")
-        .partial(
-            left=combine_custom_foot_patrols,
-            right=zoom_foot_patrols,
-            **(params_dict.get("zip_foot_patrol_layers") or {}),
-        )
-        .call()
-    )
-
     draw_foot_patrol_map = (
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_foot_patrol_map")
@@ -1298,11 +1287,11 @@ def main(params: Params):
             title=None,
             max_zoom=15,
             legend_style={"placement": "bottom-right", "title": "Foot patrol types"},
+            geo_layers=combine_custom_foot_patrols,
+            view_state=zoom_foot_patrols,
             **(params_dict.get("draw_foot_patrol_map") or {}),
         )
-        .mapvalues(
-            argnames=["geo_layers", "view_state"], argvalues=zip_foot_patrol_layers
-        )
+        .call()
     )
 
     persist_foot_patrol_urls = (
@@ -1312,32 +1301,6 @@ def main(params: Params):
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_foot_patrol_map,
             **(params_dict.get("persist_foot_patrol_urls") or {}),
-        )
-        .call()
-    )
-
-    create_foot_patrol_widgets = (
-        create_map_widget_single_view.validate()
-        .handle_errors(task_instance_id="create_foot_patrol_widgets")
-        .skipif(
-            conditions=[
-                never,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            title="Foot patrols",
-            **(params_dict.get("create_foot_patrol_widgets") or {}),
-        )
-        .map(argnames=["view", "data"], argvalues=persist_foot_patrol_urls)
-    )
-
-    merge_foot_patrol_widgets = (
-        merge_widget_views.validate()
-        .handle_errors(task_instance_id="merge_foot_patrol_widgets")
-        .partial(
-            widgets=create_foot_patrol_widgets,
-            **(params_dict.get("merge_foot_patrol_widgets") or {}),
         )
         .call()
     )
@@ -1969,7 +1932,6 @@ def main(params: Params):
                 grouped_precipitation_widget,
                 grouped_temperature_widget,
                 grouped_tevents_widget,
-                merge_foot_patrol_widgets,
                 merge_vehicle_patrol_widgets,
                 merge_motor_patrol_widgets,
                 merge_grid_widgets,

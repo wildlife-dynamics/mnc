@@ -152,11 +152,12 @@ def main(params: Params):
             "custom_text_layer",
             "generate_foot_layers",
         ],
-        "zip_foot_patrol_layers": ["combine_custom_foot_patrols", "zoom_foot_patrols"],
-        "draw_foot_patrol_map": ["configure_base_maps", "zip_foot_patrol_layers"],
+        "draw_foot_patrol_map": [
+            "configure_base_maps",
+            "combine_custom_foot_patrols",
+            "zoom_foot_patrols",
+        ],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
-        "create_foot_patrol_widgets": ["persist_foot_patrol_urls"],
-        "merge_foot_patrol_widgets": ["create_foot_patrol_widgets"],
         "vehicle_patrol_metrics": ["split_vehicle_traj_group"],
         "persist_vehicle_df": ["vehicle_patrol_metrics"],
         "apply_vehicle_colormap": ["split_vehicle_traj_group"],
@@ -224,7 +225,6 @@ def main(params: Params):
             "grouped_precipitation_widget",
             "grouped_temperature_widget",
             "grouped_tevents_widget",
-            "merge_foot_patrol_widgets",
             "merge_vehicle_patrol_widgets",
             "merge_motor_patrol_widgets",
             "merge_grid_widgets",
@@ -1500,17 +1500,6 @@ def main(params: Params):
             | (params_dict.get("combine_custom_foot_patrols") or {}),
             method="call",
         ),
-        "zip_foot_patrol_layers": Node(
-            async_task=zip_grouped_by_key.validate()
-            .handle_errors(task_instance_id="zip_foot_patrol_layers")
-            .set_executor("lithops"),
-            partial={
-                "left": DependsOn("combine_custom_foot_patrols"),
-                "right": DependsOn("zoom_foot_patrols"),
-            }
-            | (params_dict.get("zip_foot_patrol_layers") or {}),
-            method="call",
-        ),
         "draw_foot_patrol_map": Node(
             async_task=draw_custom_map.validate()
             .handle_errors(task_instance_id="draw_foot_patrol_map")
@@ -1524,13 +1513,11 @@ def main(params: Params):
                     "placement": "bottom-right",
                     "title": "Foot patrol types",
                 },
+                "geo_layers": DependsOn("combine_custom_foot_patrols"),
+                "view_state": DependsOn("zoom_foot_patrols"),
             }
             | (params_dict.get("draw_foot_patrol_map") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["geo_layers", "view_state"],
-                "argvalues": DependsOn("zip_foot_patrol_layers"),
-            },
+            method="call",
         ),
         "persist_foot_patrol_urls": Node(
             async_task=persist_text.validate()
@@ -1541,36 +1528,6 @@ def main(params: Params):
                 "text": DependsOn("draw_foot_patrol_map"),
             }
             | (params_dict.get("persist_foot_patrol_urls") or {}),
-            method="call",
-        ),
-        "create_foot_patrol_widgets": Node(
-            async_task=create_map_widget_single_view.validate()
-            .handle_errors(task_instance_id="create_foot_patrol_widgets")
-            .skipif(
-                conditions=[
-                    never,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "title": "Foot patrols",
-            }
-            | (params_dict.get("create_foot_patrol_widgets") or {}),
-            method="map",
-            kwargs={
-                "argnames": ["view", "data"],
-                "argvalues": DependsOn("persist_foot_patrol_urls"),
-            },
-        ),
-        "merge_foot_patrol_widgets": Node(
-            async_task=merge_widget_views.validate()
-            .handle_errors(task_instance_id="merge_foot_patrol_widgets")
-            .set_executor("lithops"),
-            partial={
-                "widgets": DependsOn("create_foot_patrol_widgets"),
-            }
-            | (params_dict.get("merge_foot_patrol_widgets") or {}),
             method="call",
         ),
         "vehicle_patrol_metrics": Node(
@@ -2384,7 +2341,6 @@ def main(params: Params):
                         DependsOn("grouped_precipitation_widget"),
                         DependsOn("grouped_temperature_widget"),
                         DependsOn("grouped_tevents_widget"),
-                        DependsOn("merge_foot_patrol_widgets"),
                         DependsOn("merge_vehicle_patrol_widgets"),
                         DependsOn("merge_motor_patrol_widgets"),
                         DependsOn("merge_grid_widgets"),
