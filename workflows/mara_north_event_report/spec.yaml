@@ -1013,7 +1013,7 @@ workflow:
     task: merge_static_and_grouped_layers
     partial:
       static_layers: 
-        - ${{ workflow.create_custom_map_layers.return }}
+        #- ${{ workflow.create_custom_map_layers.return }}
         - ${{ workflow.custom_text_layer.return }}
       grouped_layers: ${{ workflow.generate_foot_layers.return }}
       
@@ -1039,7 +1039,7 @@ workflow:
       legend_style:
         placement: "bottom-right"
         title: "Foot patrol types"
-      geo_layers: ${{ workflow.generate_foot_layers.return }}
+      geo_layers: ${{ workflow.combine_custom_foot_patrols.return }}
       view_state: ${{ workflow.zoom_foot_patrols.return }} 
     # mapvalues:
     #   argnames:

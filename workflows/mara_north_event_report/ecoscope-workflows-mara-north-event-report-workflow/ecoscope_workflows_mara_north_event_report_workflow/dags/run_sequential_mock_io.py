@@ -1271,7 +1271,7 @@ def main(params: Params):
         merge_static_and_grouped_layers.validate()
         .handle_errors(task_instance_id="combine_custom_foot_patrols")
         .partial(
-            static_layers=[create_custom_map_layers, custom_text_layer],
+            static_layers=custom_text_layer,
             grouped_layers=generate_foot_layers,
             **(params_dict.get("combine_custom_foot_patrols") or {}),
         )
@@ -1287,7 +1287,7 @@ def main(params: Params):
             title=None,
             max_zoom=15,
             legend_style={"placement": "bottom-right", "title": "Foot patrol types"},
-            geo_layers=generate_foot_layers,
+            geo_layers=combine_custom_foot_patrols,
             view_state=zoom_foot_patrols,
             **(params_dict.get("draw_foot_patrol_map") or {}),
         )

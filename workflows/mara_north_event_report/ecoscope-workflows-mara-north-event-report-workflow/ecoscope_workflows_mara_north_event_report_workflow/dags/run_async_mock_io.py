@@ -182,14 +182,10 @@ def main(params: Params):
         "view_color_df": ["apply_footp_colormap"],
         "generate_foot_layers": ["apply_footp_colormap"],
         "zoom_foot_patrols": ["apply_footp_colormap"],
-        "combine_custom_foot_patrols": [
-            "create_custom_map_layers",
-            "custom_text_layer",
-            "generate_foot_layers",
-        ],
+        "combine_custom_foot_patrols": ["custom_text_layer", "generate_foot_layers"],
         "draw_foot_patrol_map": [
             "configure_base_maps",
-            "generate_foot_layers",
+            "combine_custom_foot_patrols",
             "zoom_foot_patrols",
         ],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
@@ -1524,12 +1520,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="combine_custom_foot_patrols")
             .set_executor("lithops"),
             partial={
-                "static_layers": DependsOnSequence(
-                    [
-                        DependsOn("create_custom_map_layers"),
-                        DependsOn("custom_text_layer"),
-                    ],
-                ),
+                "static_layers": DependsOn("custom_text_layer"),
                 "grouped_layers": DependsOn("generate_foot_layers"),
             }
             | (params_dict.get("combine_custom_foot_patrols") or {}),
@@ -1548,7 +1539,7 @@ def main(params: Params):
                     "placement": "bottom-right",
                     "title": "Foot patrol types",
                 },
-                "geo_layers": DependsOn("generate_foot_layers"),
+                "geo_layers": DependsOn("combine_custom_foot_patrols"),
                 "view_state": DependsOn("zoom_foot_patrols"),
             }
             | (params_dict.get("draw_foot_patrol_map") or {}),
