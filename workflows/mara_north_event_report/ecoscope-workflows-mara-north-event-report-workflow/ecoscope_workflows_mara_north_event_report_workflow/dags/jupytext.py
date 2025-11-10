@@ -2134,7 +2134,7 @@ draw_foot_patrol_map = (
         title=None,
         max_zoom=15,
         legend_style={"placement": "bottom-right", "title": "Foot patrol types"},
-        geo_layers=combine_custom_foot_patrols,
+        geo_layers=generate_foot_layers,
         view_state=zoom_foot_patrols,
         **draw_foot_patrol_map_params,
     )

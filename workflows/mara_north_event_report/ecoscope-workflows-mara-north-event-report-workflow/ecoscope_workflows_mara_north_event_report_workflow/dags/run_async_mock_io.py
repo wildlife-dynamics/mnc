@@ -189,7 +189,7 @@ def main(params: Params):
         ],
         "draw_foot_patrol_map": [
             "configure_base_maps",
-            "combine_custom_foot_patrols",
+            "generate_foot_layers",
             "zoom_foot_patrols",
         ],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
@@ -1548,7 +1548,7 @@ def main(params: Params):
                     "placement": "bottom-right",
                     "title": "Foot patrol types",
                 },
-                "geo_layers": DependsOn("combine_custom_foot_patrols"),
+                "geo_layers": DependsOn("generate_foot_layers"),
                 "view_state": DependsOn("zoom_foot_patrols"),
             }
             | (params_dict.get("draw_foot_patrol_map") or {}),
