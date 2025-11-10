@@ -176,9 +176,9 @@ def main(params: Params):
         "split_foot_traj_group": ["rename_foot_trajs", "groupers"],
         "split_vehicle_traj_group": ["rename_vehicle_trajs", "groupers"],
         "split_motor_traj_group": ["rename_motor_trajs", "groupers"],
-        "foot_patrol_metrics": ["split_foot_traj_group"],
+        "foot_patrol_metrics": ["rename_foot_trajs"],
         "persist_foot_df": ["foot_patrol_metrics"],
-        "apply_footp_colormap": ["split_foot_traj_group"],
+        "apply_footp_colormap": ["rename_foot_trajs"],
         "view_color_df": ["apply_footp_colormap"],
         "generate_foot_layers": ["apply_footp_colormap"],
         "zoom_foot_patrols": ["apply_footp_colormap"],
@@ -1436,7 +1436,7 @@ def main(params: Params):
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
-                "argvalues": DependsOn("split_foot_traj_group"),
+                "argvalues": DependsOn("rename_foot_trajs"),
             },
         ),
         "persist_foot_df": Node(
@@ -1467,7 +1467,7 @@ def main(params: Params):
             method="mapvalues",
             kwargs={
                 "argnames": ["df"],
-                "argvalues": DependsOn("split_foot_traj_group"),
+                "argvalues": DependsOn("rename_foot_trajs"),
             },
         ),
         "view_color_df": Node(

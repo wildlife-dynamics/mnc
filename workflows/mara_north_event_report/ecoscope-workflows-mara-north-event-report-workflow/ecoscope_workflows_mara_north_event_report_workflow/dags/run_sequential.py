@@ -1145,7 +1145,7 @@ def main(params: Params):
             reset_index=True,
             **(params_dict.get("foot_patrol_metrics") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_foot_traj_group)
+        .mapvalues(argnames=["df"], argvalues=rename_foot_trajs)
     )
 
     persist_foot_df = (
@@ -1168,7 +1168,7 @@ def main(params: Params):
             colormap="coolwarm",
             **(params_dict.get("apply_footp_colormap") or {}),
         )
-        .mapvalues(argnames=["df"], argvalues=split_foot_traj_group)
+        .mapvalues(argnames=["df"], argvalues=rename_foot_trajs)
     )
 
     view_color_df = (

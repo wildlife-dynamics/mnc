@@ -1942,7 +1942,7 @@ foot_patrol_metrics = (
         reset_index=True,
         **foot_patrol_metrics_params,
     )
-    .mapvalues(argnames=["df"], argvalues=split_foot_traj_group)
+    .mapvalues(argnames=["df"], argvalues=rename_foot_trajs)
 )
 
 
@@ -1991,7 +1991,7 @@ apply_footp_colormap = (
         colormap="coolwarm",
         **apply_footp_colormap_params,
     )
-    .mapvalues(argnames=["df"], argvalues=split_foot_traj_group)
+    .mapvalues(argnames=["df"], argvalues=rename_foot_trajs)
 )
 
 

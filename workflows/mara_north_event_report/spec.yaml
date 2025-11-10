@@ -937,7 +937,7 @@ workflow:
       reset_index: true
     mapvalues:
       argnames: df
-      argvalues: ${{ workflow.split_foot_traj_group.return }}
+      argvalues: ${{ workflow.rename_foot_trajs.return }}
 
   - name: Persist foot patrol metrics
     id: persist_foot_df
@@ -959,7 +959,7 @@ workflow:
       colormap: coolwarm
     mapvalues:
       argnames: df
-      argvalues: ${{ workflow.split_foot_traj_group.return }}
+      argvalues: ${{ workflow.rename_foot_trajs.return }}
 
   # split subject trajectories into groups based on grouping strategy
   - name: view dataframe info
