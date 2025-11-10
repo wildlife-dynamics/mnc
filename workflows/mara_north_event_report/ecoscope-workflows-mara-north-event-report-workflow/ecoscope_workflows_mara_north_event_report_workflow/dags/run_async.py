@@ -138,14 +138,14 @@ def main(params: Params):
         "rename_foot_trajs": ["temporal_foot_traj"],
         "rename_vehicle_trajs": ["temporal_vehicle_traj"],
         "rename_motor_trajs": ["temporal_motor_traj"],
-        "view_df_info": ["rename_foot_trajs"],
         "split_foot_traj_group": ["rename_foot_trajs", "groupers"],
         "split_vehicle_traj_group": ["rename_vehicle_trajs", "groupers"],
         "split_motor_traj_group": ["rename_motor_trajs", "groupers"],
         "foot_patrol_metrics": ["split_foot_traj_group"],
         "persist_foot_df": ["foot_patrol_metrics"],
+        "view_df_info": ["split_foot_traj_group"],
         "apply_footp_colormap": ["split_foot_traj_group"],
-        "persist_foot_patrol_trajs": ["apply_footp_colormap"],
+        "view_color_df": ["apply_footp_colormap"],
         "generate_foot_layers": ["apply_footp_colormap"],
         "zoom_foot_patrols": ["apply_footp_colormap"],
         "combine_custom_foot_patrols": [
@@ -1336,17 +1336,6 @@ def main(params: Params):
             | (params_dict.get("rename_motor_trajs") or {}),
             method="call",
         ),
-        "view_df_info": Node(
-            async_task=view_df.validate()
-            .handle_errors(task_instance_id="view_df_info")
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("rename_foot_trajs"),
-                "name": "Foot patrol trajectories",
-            }
-            | (params_dict.get("view_df_info") or {}),
-            method="call",
-        ),
         "split_foot_traj_group": Node(
             async_task=split_groups.validate()
             .handle_errors(task_instance_id="split_foot_traj_group")
@@ -1431,6 +1420,17 @@ def main(params: Params):
                 "argvalues": DependsOn("foot_patrol_metrics"),
             },
         ),
+        "view_df_info": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_df_info")
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("split_foot_traj_group"),
+                "name": "Foot patrol trajectories before colormap",
+            }
+            | (params_dict.get("view_df_info") or {}),
+            method="call",
+        ),
         "apply_footp_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_footp_colormap")
@@ -1447,16 +1447,15 @@ def main(params: Params):
                 "argvalues": DependsOn("split_foot_traj_group"),
             },
         ),
-        "persist_foot_patrol_trajs": Node(
-            async_task=persist_df.validate()
-            .handle_errors(task_instance_id="persist_foot_patrol_trajs")
+        "view_color_df": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_color_df")
             .set_executor("lithops"),
             partial={
-                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "filetype": "gpkg",
-                "df": DependsOn("apply_footp_colormap"),
+                "gdf": DependsOn("apply_footp_colormap"),
+                "name": "Foot patrol trajectories with colormap applied",
             }
-            | (params_dict.get("persist_foot_patrol_trajs") or {}),
+            | (params_dict.get("view_color_df") or {}),
             method="call",
         ),
         "generate_foot_layers": Node(

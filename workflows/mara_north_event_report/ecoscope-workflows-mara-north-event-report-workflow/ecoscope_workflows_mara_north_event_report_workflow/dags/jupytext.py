@@ -1844,27 +1844,6 @@ rename_motor_trajs = (
 
 
 # %% [markdown]
-# ## view dataframe info
-
-# %%
-# parameters
-
-view_df_info_params = dict()
-
-# %%
-# call the task
-
-
-view_df_info = (
-    view_df.handle_errors(task_instance_id="view_df_info")
-    .partial(
-        gdf=rename_foot_trajs, name="Foot patrol trajectories", **view_df_info_params
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Split foot trajectories by group
 
 # %%
@@ -1993,6 +1972,29 @@ persist_foot_df = (
 
 
 # %% [markdown]
+# ## view dataframe info
+
+# %%
+# parameters
+
+view_df_info_params = dict()
+
+# %%
+# call the task
+
+
+view_df_info = (
+    view_df.handle_errors(task_instance_id="view_df_info")
+    .partial(
+        gdf=split_foot_traj_group,
+        name="Foot patrol trajectories before colormap",
+        **view_df_info_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Apply Colormap to foot patrols
 
 # %%
@@ -2022,21 +2024,18 @@ apply_footp_colormap = (
 # %%
 # parameters
 
-persist_foot_patrol_trajs_params = dict(
-    filename=...,
-)
+view_color_df_params = dict()
 
 # %%
 # call the task
 
 
-persist_foot_patrol_trajs = (
-    persist_df.handle_errors(task_instance_id="persist_foot_patrol_trajs")
+view_color_df = (
+    view_df.handle_errors(task_instance_id="view_color_df")
     .partial(
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        filetype="gpkg",
-        df=apply_footp_colormap,
-        **persist_foot_patrol_trajs_params,
+        gdf=apply_footp_colormap,
+        name="Foot patrol trajectories with colormap applied",
+        **view_color_df_params,
     )
     .call()
 )

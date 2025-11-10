@@ -892,15 +892,6 @@ workflow:
 
       df: ${{ workflow.temporal_motor_traj.return }}
 
-  # split subject trajectories into groups based on grouping strategy
-  - name: view dataframe info
-    id: view_df_info
-    task: view_df
-    partial:
-      gdf: ${{ workflow.rename_foot_trajs.return }}
-      name: Foot patrol trajectories
-
-
   - name: Split foot trajectories by group
     id: split_foot_traj_group
     task: split_groups
@@ -958,6 +949,14 @@ workflow:
       argnames: df 
       argvalues: ${{ workflow.foot_patrol_metrics.return }}
 
+  # split subject trajectories into groups based on grouping strategy
+  - name: view dataframe info
+    id: view_df_info
+    task: view_df
+    partial:
+      gdf: ${{ workflow.split_foot_traj_group.return }}
+      name: Foot patrol trajectories before colormap
+
   # Draw foot patrol maps , persist and create widgets for dashboard 
   - name: Apply Colormap to foot patrols
     id: apply_footp_colormap
@@ -970,14 +969,13 @@ workflow:
       argnames: df
       argvalues: ${{ workflow.split_foot_traj_group.return }}
 
+  # split subject trajectories into groups based on grouping strategy
   - name: view dataframe info
-    id: persist_foot_patrol_trajs
-    task: persist_df
+    id: view_color_df
+    task: view_df
     partial:
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filetype: gpkg
-      df: ${{ workflow.apply_footp_colormap.return }}
-      #name: Foot patrol trajs with colormap
+      gdf: ${{ workflow.apply_footp_colormap.return }}
+      name: Foot patrol trajectories with colormap applied
 
   - name: Generate  foot patrol layers
     id: generate_foot_layers

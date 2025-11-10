@@ -1118,17 +1118,6 @@ def main(params: Params):
         .call()
     )
 
-    view_df_info = (
-        view_df.validate()
-        .handle_errors(task_instance_id="view_df_info")
-        .partial(
-            gdf=rename_foot_trajs,
-            name="Foot patrol trajectories",
-            **(params_dict.get("view_df_info") or {}),
-        )
-        .call()
-    )
-
     split_foot_traj_group = (
         split_groups.validate()
         .handle_errors(task_instance_id="split_foot_traj_group")
@@ -1205,6 +1194,17 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=foot_patrol_metrics)
     )
 
+    view_df_info = (
+        view_df.validate()
+        .handle_errors(task_instance_id="view_df_info")
+        .partial(
+            gdf=split_foot_traj_group,
+            name="Foot patrol trajectories before colormap",
+            **(params_dict.get("view_df_info") or {}),
+        )
+        .call()
+    )
+
     apply_footp_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_footp_colormap")
@@ -1217,14 +1217,13 @@ def main(params: Params):
         .mapvalues(argnames=["df"], argvalues=split_foot_traj_group)
     )
 
-    persist_foot_patrol_trajs = (
-        persist_df.validate()
-        .handle_errors(task_instance_id="persist_foot_patrol_trajs")
+    view_color_df = (
+        view_df.validate()
+        .handle_errors(task_instance_id="view_color_df")
         .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="gpkg",
-            df=apply_footp_colormap,
-            **(params_dict.get("persist_foot_patrol_trajs") or {}),
+            gdf=apply_footp_colormap,
+            name="Foot patrol trajectories with colormap applied",
+            **(params_dict.get("view_color_df") or {}),
         )
         .call()
     )
