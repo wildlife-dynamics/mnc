@@ -69,7 +69,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     merge_static_and_grouped_layers,
     select_koi,
     set_base_maps_aliased,
-    view_df,
+    view_gdf,
     view_state_deck_gdf,
     zip_grouped_by_key,
 )
@@ -606,7 +606,7 @@ precipitation_chart = (
         category_column="weather_station",
         line_kwargs={"shape": "linear"},
         layout_kwargs={
-            "title": "Precipitation by Station",
+            "title": None,
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
@@ -721,7 +721,7 @@ temperature_chart = (
         category_column="weather_station",
         line_kwargs={"shape": "linear"},
         layout_kwargs={
-            "title": "Temperature by Station",
+            "title": None,
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
@@ -1011,7 +1011,7 @@ draw_events_chart = (
         category_column=None,
         line_kwargs={"shape": "linear", "color": "cornflowerblue"},
         layout_kwargs={
-            "title": "Total events recorded",
+            "title": None,
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": False,
@@ -1984,7 +1984,7 @@ view_df_info_params = dict()
 
 
 view_df_info = (
-    view_df.handle_errors(task_instance_id="view_df_info")
+    view_gdf.handle_errors(task_instance_id="view_df_info")
     .partial(
         gdf=split_foot_traj_group,
         name="Foot patrol trajectories before colormap",
@@ -2031,7 +2031,7 @@ view_color_df_params = dict()
 
 
 view_color_df = (
-    view_df.handle_errors(task_instance_id="view_color_df")
+    view_gdf.handle_errors(task_instance_id="view_color_df")
     .partial(
         gdf=apply_footp_colormap,
         name="Foot patrol trajectories with colormap applied",

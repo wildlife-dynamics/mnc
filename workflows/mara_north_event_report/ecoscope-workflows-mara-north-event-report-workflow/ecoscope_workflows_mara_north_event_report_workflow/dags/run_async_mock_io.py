@@ -93,7 +93,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     get_patrols_from_combined_parameters,
     merge_multiple_df,
     merge_static_and_grouped_layers,
-    view_df,
+    view_gdf,
     view_state_deck_gdf,
     zip_grouped_by_key,
 )
@@ -551,7 +551,7 @@ def main(params: Params):
                 "category_column": "weather_station",
                 "line_kwargs": {"shape": "linear"},
                 "layout_kwargs": {
-                    "title": "Precipitation by Station",
+                    "title": None,
                     "title_x": 0.01,
                     "title_y": 0.95,
                     "showlegend": True,
@@ -627,7 +627,7 @@ def main(params: Params):
                 "category_column": "weather_station",
                 "line_kwargs": {"shape": "linear"},
                 "layout_kwargs": {
-                    "title": "Temperature by Station",
+                    "title": None,
                     "title_x": 0.01,
                     "title_y": 0.95,
                     "showlegend": True,
@@ -816,7 +816,7 @@ def main(params: Params):
                 "category_column": None,
                 "line_kwargs": {"shape": "linear", "color": "cornflowerblue"},
                 "layout_kwargs": {
-                    "title": "Total events recorded",
+                    "title": None,
                     "title_x": 0.01,
                     "title_y": 0.95,
                     "showlegend": False,
@@ -1456,7 +1456,7 @@ def main(params: Params):
             },
         ),
         "view_df_info": Node(
-            async_task=view_df.validate()
+            async_task=view_gdf.validate()
             .handle_errors(task_instance_id="view_df_info")
             .set_executor("lithops"),
             partial={
@@ -1483,7 +1483,7 @@ def main(params: Params):
             },
         ),
         "view_color_df": Node(
-            async_task=view_df.validate()
+            async_task=view_gdf.validate()
             .handle_errors(task_instance_id="view_color_df")
             .set_executor("lithops"),
             partial={

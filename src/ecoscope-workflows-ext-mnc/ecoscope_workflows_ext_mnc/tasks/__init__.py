@@ -1,7 +1,7 @@
 from ._filter import filter_by_value
 from ._tabular import add_totals_row
 from ._merge import merge_multiple_df
-from ._inspect import print_output,view_df
+from ._inspect import print_output,view_df,view_gdf
 from ._classify import classify_mnc_patrol
 from ._mnc_context import create_mnc_context
 from ._zip import zip_grouped_by_key,flatten_tuple
@@ -28,6 +28,7 @@ from ._retrieve_patrols import (
     get_patrol_observations_from_patrols_dataframe_and_combined_params
 )
 __all__ = [
+    "view_gdf",
     "add_totals_row",
     "clean_file_keys",
     "classify_mnc_patrol",

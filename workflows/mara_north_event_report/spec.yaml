@@ -236,7 +236,7 @@ workflow:
       line_kwargs:
         shape: "linear"
       layout_kwargs:
-        title: "Precipitation by Station"
+        title: null
         title_x: 0.01
         title_y:  0.95
         showlegend: true
@@ -295,7 +295,7 @@ workflow:
       line_kwargs:
         shape: "linear"
       layout_kwargs:
-        title: "Temperature by Station"
+        title: null
         title_x: 0.01
         title_y:  0.95
         showlegend: true
@@ -438,7 +438,7 @@ workflow:
         shape: "linear"
         color: "cornflowerblue"
       layout_kwargs:
-        title: "Total events recorded"
+        title: null
         title_x: 0.01
         title_y:  0.95
         showlegend: false
@@ -952,7 +952,7 @@ workflow:
   # split subject trajectories into groups based on grouping strategy
   - name: view dataframe info
     id: view_df_info
-    task: view_df
+    task: view_gdf
     partial:
       gdf: ${{ workflow.split_foot_traj_group.return }}
       name: Foot patrol trajectories before colormap
@@ -972,7 +972,7 @@ workflow:
   # split subject trajectories into groups based on grouping strategy
   - name: view dataframe info
     id: view_color_df
-    task: view_df
+    task: view_gdf
     partial:
       gdf: ${{ workflow.apply_footp_colormap.return }}
       name: Foot patrol trajectories with colormap applied
