@@ -744,7 +744,7 @@ workflow:
     task: add_temporal_index
     partial:
       df: ${{ workflow.extract_event_date.return }}
-      time_col: created_at
+      time_col: date
       groupers: ${{ workflow.groupers.return }}
 
   - name: Exclude specific events types from total events
@@ -866,6 +866,7 @@ workflow:
     task: filter_df
     partial:
       column_name: event_type	
+      op: equal
       value: patrol_information
       df: ${{ workflow.exclude_event_type_values.return }}
 

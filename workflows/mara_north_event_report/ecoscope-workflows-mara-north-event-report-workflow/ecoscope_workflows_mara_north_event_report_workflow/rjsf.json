@@ -331,11 +331,6 @@
     "filter_patrol_info_events": {
       "additionalProperties": false,
       "properties": {
-        "op": {
-          "$ref": "#/$defs/ComparisonOperator",
-          "title": "Op",
-          "description": "The comparison operator"
-        },
         "reset_index": {
           "default": false,
           "title": "Reset Index",
@@ -343,9 +338,7 @@
           "description": "If reset index, default is False"
         }
       },
-      "required": [
-        "op"
-      ],
+      "required": [],
       "type": "object",
       "title": "Filter events and get patrol information records"
     },
@@ -572,18 +565,6 @@
       "title": "EarthRangerConnection",
       "type": "object"
     },
-    "ComparisonOperator": {
-      "enum": [
-        "equal",
-        "ge",
-        "gt",
-        "le",
-        "lt",
-        "ne"
-      ],
-      "title": "ComparisonOperator",
-      "type": "string"
-    },
     "TrajectorySegmentFilter": {
       "properties": {
         "min_length_meters": {
@@ -657,12 +638,6 @@
       "ui:order": [
         "cast_to_datetime",
         "format"
-      ]
-    },
-    "filter_patrol_info_events": {
-      "ui:order": [
-        "op",
-        "reset_index"
       ]
     },
     "er_patrol_and_events_params": {

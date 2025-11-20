@@ -225,6 +225,15 @@ class EventsWtemporal(BaseModel):
     )
 
 
+class FilterPatrolInfoEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
 class StatusEnum(str, Enum):
     active = "active"
     overdue = "overdue"
@@ -297,15 +306,6 @@ class EarthRangerConnection(BaseModel):
     name: str = Field(..., title="Data Source")
 
 
-class ComparisonOperator(str, Enum):
-    equal = "equal"
-    ge = "ge"
-    gt = "gt"
-    le = "le"
-    lt = "lt"
-    ne = "ne"
-
-
 class TrajectorySegmentFilter(BaseModel):
     min_length_meters: Optional[confloat(ge=0.001)] = Field(
         0.001, title="Minimum Segment Length (Meters)"
@@ -342,18 +342,6 @@ class ErClientName(BaseModel):
     )
     data_source: EarthRangerConnection = Field(
         ..., description="Select one of your configured data sources.", title=""
-    )
-
-
-class FilterPatrolInfoEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    op: ComparisonOperator = Field(
-        ..., description="The comparison operator", title="Op"
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
     )
 
 

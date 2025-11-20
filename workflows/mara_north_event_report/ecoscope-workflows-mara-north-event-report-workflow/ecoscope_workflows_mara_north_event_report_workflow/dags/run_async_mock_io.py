@@ -1153,7 +1153,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_event_date"),
-                "time_col": "created_at",
+                "time_col": "date",
                 "groupers": DependsOn("groupers"),
             }
             | (params_dict.get("events_wtemporal") or {}),
@@ -1308,6 +1308,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "column_name": "event_type",
+                "op": "equal",
                 "value": "patrol_information",
                 "df": DependsOn("exclude_event_type_values"),
             }

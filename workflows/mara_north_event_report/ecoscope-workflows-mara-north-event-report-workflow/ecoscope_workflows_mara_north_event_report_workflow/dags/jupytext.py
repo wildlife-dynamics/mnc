@@ -1564,7 +1564,7 @@ events_wtemporal = (
     add_temporal_index.handle_errors(task_instance_id="events_wtemporal")
     .partial(
         df=extract_event_date,
-        time_col="created_at",
+        time_col="date",
         groupers=groupers,
         **events_wtemporal_params,
     )
@@ -1826,7 +1826,6 @@ persist_summary_event_type = (
 # parameters
 
 filter_patrol_info_events_params = dict(
-    op=...,
     reset_index=...,
 )
 
@@ -1838,6 +1837,7 @@ filter_patrol_info_events = (
     filter_df.handle_errors(task_instance_id="filter_patrol_info_events")
     .partial(
         column_name="event_type",
+        op="equal",
         value="patrol_information",
         df=exclude_event_type_values,
         **filter_patrol_info_events_params,

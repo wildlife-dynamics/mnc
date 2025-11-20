@@ -976,7 +976,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="events_wtemporal")
         .partial(
             df=extract_event_date,
-            time_col="created_at",
+            time_col="date",
             groupers=groupers,
             **(params_dict.get("events_wtemporal") or {}),
         )
@@ -1131,6 +1131,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="filter_patrol_info_events")
         .partial(
             column_name="event_type",
+            op="equal",
             value="patrol_information",
             df=exclude_event_type_values,
             **(params_dict.get("filter_patrol_info_events") or {}),
