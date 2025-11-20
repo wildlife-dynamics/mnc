@@ -462,7 +462,7 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=precipitation_chart,
-            filename="precipitation_readings_over_time",
+            filename="precipitation_readings_over_time.html",
             **(params_dict.get("persist_precipitation") or {}),
         )
         .call()
@@ -518,7 +518,7 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=temperature_chart,
-            filename="temperature_readings_over_time",
+            filename="temperature_readings_over_time.html",
             **(params_dict.get("persist_temperature") or {}),
         )
         .call()
@@ -574,7 +574,7 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=wind_speed_chart,
-            filename="wind_speed_readings_over_time",
+            filename="wind_speed_readings_over_time.html",
             **(params_dict.get("persist_wind_speed") or {}),
         )
         .call()
@@ -630,7 +630,7 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=wind_gusts_chart,
-            filename="wind_gusts_readings_over_time",
+            filename="wind_gusts_readings_over_time.html",
             **(params_dict.get("persist_wind_gusts") or {}),
         )
         .call()
@@ -686,7 +686,7 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=soil_temp_chart,
-            filename="soil_temperature_readings_over_time",
+            filename="soil_temperature_readings_over_time.html",
             **(params_dict.get("persist_soil_temp") or {}),
         )
         .call()
@@ -742,7 +742,7 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=rel_humidity_chart,
-            filename="relative_humidity_readings_over_time",
+            filename="relative_humidity_readings_over_time.html",
             **(params_dict.get("persist_rel_humidity") or {}),
         )
         .call()
@@ -798,7 +798,7 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=pressure_chart,
-            filename="atmospheric_pressure_readings_over_time",
+            filename="atmospheric_pressure_readings_over_time.html",
             **(params_dict.get("persist_pressure") or {}),
         )
         .call()
@@ -962,7 +962,7 @@ def main(params: Params):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_events_chart,
-            filename="total_events_recorded",
+            filename="total_events_recorded.html",
             **(params_dict.get("persist_total_events") or {}),
         )
         .call()

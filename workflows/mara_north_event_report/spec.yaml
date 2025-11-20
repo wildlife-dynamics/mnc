@@ -347,7 +347,7 @@ workflow:
     partial:
       root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.precipitation_chart.return }}
-      filename: precipitation_readings_over_time
+      filename: precipitation_readings_over_time.html
 
   - name: Convert precipitation html to png
     id: precipitation_png 
@@ -394,7 +394,7 @@ workflow:
     partial:
       root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.temperature_chart.return }}
-      filename: temperature_readings_over_time
+      filename: temperature_readings_over_time.html
 
   - name: Convert temperature html to png
     id: temperature_png 
@@ -441,7 +441,7 @@ workflow:
     partial:
       root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.wind_speed_chart.return }}
-      filename: wind_speed_readings_over_time
+      filename: wind_speed_readings_over_time.html
 
   - name: Convert wind speed html to png
     id: wind_speed_png 
@@ -488,7 +488,7 @@ workflow:
     partial:
       root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.wind_gusts_chart.return }}
-      filename: wind_gusts_readings_over_time
+      filename: wind_gusts_readings_over_time.html
 
   - name: Convert wind gusts html to png
     id: wind_gusts_png 
@@ -535,7 +535,7 @@ workflow:
     partial:
       root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.soil_temp_chart.return }}
-      filename: soil_temperature_readings_over_time
+      filename: soil_temperature_readings_over_time.html
 
   - name: Convert soil temperature html to png
     id: soil_temp_png 
@@ -582,7 +582,7 @@ workflow:
     partial:
       root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.rel_humidity_chart.return }}
-      filename: relative_humidity_readings_over_time
+      filename: relative_humidity_readings_over_time.html
 
   - name: Convert relative humidity html to png
     id: rel_humidity_png 
@@ -629,7 +629,7 @@ workflow:
     partial:
       root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.pressure_chart.return }}
-      filename: atmospheric_pressure_readings_over_time
+      filename: atmospheric_pressure_readings_over_time.html
 
   - name: Convert atmospheric pressure html to png
     id: pressure_png 
@@ -762,7 +762,7 @@ workflow:
     partial:
       root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_events_chart.return }}
-      filename: total_events_recorded
+      filename: total_events_recorded.html
 
 
   - name: MNC event report dashboard

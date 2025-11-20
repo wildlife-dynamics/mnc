@@ -781,7 +781,7 @@ persist_precipitation = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=precipitation_chart,
-        filename="precipitation_readings_over_time",
+        filename="precipitation_readings_over_time.html",
         **persist_precipitation_params,
     )
     .call()
@@ -877,7 +877,7 @@ persist_temperature = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=temperature_chart,
-        filename="temperature_readings_over_time",
+        filename="temperature_readings_over_time.html",
         **persist_temperature_params,
     )
     .call()
@@ -973,7 +973,7 @@ persist_wind_speed = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=wind_speed_chart,
-        filename="wind_speed_readings_over_time",
+        filename="wind_speed_readings_over_time.html",
         **persist_wind_speed_params,
     )
     .call()
@@ -1069,7 +1069,7 @@ persist_wind_gusts = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=wind_gusts_chart,
-        filename="wind_gusts_readings_over_time",
+        filename="wind_gusts_readings_over_time.html",
         **persist_wind_gusts_params,
     )
     .call()
@@ -1165,7 +1165,7 @@ persist_soil_temp = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=soil_temp_chart,
-        filename="soil_temperature_readings_over_time",
+        filename="soil_temperature_readings_over_time.html",
         **persist_soil_temp_params,
     )
     .call()
@@ -1261,7 +1261,7 @@ persist_rel_humidity = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=rel_humidity_chart,
-        filename="relative_humidity_readings_over_time",
+        filename="relative_humidity_readings_over_time.html",
         **persist_rel_humidity_params,
     )
     .call()
@@ -1357,7 +1357,7 @@ persist_pressure = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=pressure_chart,
-        filename="atmospheric_pressure_readings_over_time",
+        filename="atmospheric_pressure_readings_over_time.html",
         **persist_pressure_params,
     )
     .call()
@@ -1644,7 +1644,7 @@ persist_total_events = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=draw_events_chart,
-        filename="total_events_recorded",
+        filename="total_events_recorded.html",
         **persist_total_events_params,
     )
     .call()
