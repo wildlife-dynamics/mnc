@@ -16,14 +16,14 @@ from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection
 from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
+from ecoscope_workflows_ext_custom.tasks.io import load_df
 from ecoscope_workflows_ext_custom.tasks.results import set_base_maps_pydeck
 from ecoscope_workflows_ext_mnc.tasks import (
-    clean_file_keys,
-    create_map_layers,
+    create_gdf_from_dict,
+    create_styled_layers_from_dict,
     download_file_and_persist,
-    load_geospatial_files,
     make_text_layer,
-    select_koi,
+    split_gdf_by_column,
 )
 
 get_subjectgroup_observations = create_task_magicmock(  # 🧪
@@ -47,15 +47,62 @@ get_events = create_task_magicmock(  # 🧪
     func_name="get_events",  # 🧪
 )  # 🧪
 from ecoscope_workflows_core.tasks.io import persist_text
-from ecoscope_workflows_core.tasks.results import gather_dashboard
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index,
     extract_column_as_type,
+    filter_df,
+    map_columns,
+)
+from ecoscope_workflows_ext_custom.tasks.io import html_to_png
+from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
+from ecoscope_workflows_ext_ecoscope.tasks.io import (
+    persist_df,
+    set_patrols_and_patrol_events_params,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
+
+get_patrols_from_combined_params = create_task_magicmock(  # 🧪
+    anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
+    func_name="get_patrols_from_combined_params",  # 🧪
+)  # 🧪
+from ecoscope_workflows_core.tasks.groupby import split_groups
+from ecoscope_workflows_core.tasks.io import persist_text
+from ecoscope_workflows_core.tasks.results import gather_dashboard
+from ecoscope_workflows_core.tasks.skip import any_dependency_skipped, any_is_empty_df
+from ecoscope_workflows_core.tasks.transformation import (
+    add_temporal_index,
+    filter_df,
+    map_columns,
+)
+from ecoscope_workflows_ext_custom.tasks.io import html_to_png
+from ecoscope_workflows_ext_custom.tasks.results import (
+    create_path_layer,
+    create_polygon_layer_pydeck,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
-from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
+from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
+    process_relocations,
+    relocations_to_trajectory,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
+    apply_classification,
+    apply_color_map,
+)
+from ecoscope_workflows_ext_mnc.tasks import (
+    classify_mnc_patrol,
+    compute_occupancy,
+    create_patrol_coverage_grid,
+    draw_custom_map,
+    get_patrol_observations_from_patrols_dataframe_and_combined_params,
+    get_patrols_from_combined_parameters,
+    merge_multiple_df,
+    merge_static_and_grouped_layers,
+    round_values,
+    view_state_deck_gdf,
+)
 
 from ..params import Params
 
@@ -120,7 +167,7 @@ def main(params: Params):
         download_file_and_persist.validate()
         .handle_errors(task_instance_id="persist_mnc_gpkg")
         .partial(
-            url="https://www.dropbox.com/scl/fi/ahgr1bjv72tdeuiwf3e4h/community-conservancy.gpkg?rlkey=1bla1c9to4nj4y39nnpwpjgsx&st=hj4k3zd7&dl=0",
+            url="https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=55vxskq6&dl=0",
             output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             overwrite_existing=False,
             retries=3,
@@ -131,54 +178,121 @@ def main(params: Params):
     )
 
     load_local_shapefiles = (
-        load_geospatial_files.validate()
+        load_df.validate()
         .handle_errors(task_instance_id="load_local_shapefiles")
         .partial(
-            config={"path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"]},
+            file_path=persist_mnc_gpkg,
+            layer=None,
+            deserialize_json=False,
             **(params_dict.get("load_local_shapefiles") or {}),
         )
         .call()
     )
 
-    create_custom_map_layers = (
-        create_map_layers.validate()
-        .handle_errors(task_instance_id="create_custom_map_layers")
+    split_gdf_by_zone = (
+        split_gdf_by_column.validate()
+        .handle_errors(task_instance_id="split_gdf_by_zone")
         .partial(
-            file_dict=load_local_shapefiles,
+            gdf=load_local_shapefiles,
+            column="grazing_zone",
+            **(params_dict.get("split_gdf_by_zone") or {}),
+        )
+        .call()
+    )
+
+    create_mnc_styled_layers = (
+        create_styled_layers_from_dict.validate()
+        .handle_errors(task_instance_id="create_mnc_styled_layers")
+        .partial(
+            gdf_dict=split_gdf_by_zone,
             style_config={
                 "styles": {
-                    "community_conservancy": {
+                    "Conservancy": {
+                        "extruded": False,
+                        "get_fill_color": [105, 105, 105, 200],
+                        "get_line_color": [105, 105, 105, 200],
+                        "get_line_width": 2.25,
                         "stroked": True,
                         "filled": False,
                         "opacity": 0.95,
-                        "get_line_color": [105, 105, 105, 200],
-                        "get_line_width": 2.55,
-                    }
+                    },
+                    "Conservancy Herd Zone": {
+                        "extruded": False,
+                        "get_fill_color": [173, 255, 47, 200],
+                        "get_line_color": [173, 255, 47, 200],
+                        "get_line_width": 2.25,
+                        "stroked": True,
+                        "filled": True,
+                        "opacity": 0.35,
+                    },
+                    "Grazing Zone 1": {
+                        "extruded": False,
+                        "get_fill_color": [85, 107, 47, 200],
+                        "get_line_color": [85, 107, 47, 200],
+                        "get_line_width": 2.25,
+                        "stroked": True,
+                        "filled": True,
+                        "opacity": 0.35,
+                    },
+                    "Grazing Zone 2": {
+                        "extruded": False,
+                        "get_fill_color": [0, 139, 139, 200],
+                        "get_line_color": [0, 139, 139, 200],
+                        "get_line_width": 2.25,
+                        "stroked": True,
+                        "filled": True,
+                        "opacity": 0.35,
+                    },
+                    "Grazing Zone 3": {
+                        "extruded": False,
+                        "get_fill_color": [0, 100, 0, 200],
+                        "get_line_color": [0, 100, 0, 200],
+                        "get_line_width": 2.25,
+                        "stroked": True,
+                        "filled": True,
+                        "opacity": 0.35,
+                    },
+                    "Grazing Zone 4": {
+                        "extruded": False,
+                        "get_fill_color": [143, 188, 139, 200],
+                        "get_line_color": [143, 188, 139, 200],
+                        "get_line_width": 2.25,
+                        "stroked": True,
+                        "filled": True,
+                        "opacity": 0.35,
+                    },
                 },
-                "legend": {"label": ["Conservancy boundaries"], "color": ["#696969"]},
+                "legend": {
+                    "labels": [
+                        "Conservancy boundaries",
+                        "Conservancy herd zone",
+                        "Grazing zone 1",
+                        "Grazing zone 2",
+                        "Grazing zone 3",
+                        "Grazing zone 4",
+                    ],
+                    "color": [
+                        "#696969",
+                        "#adff2f",
+                        "#556b2f",
+                        "#008b8b",
+                        "#006400",
+                        "#8fbc8b",
+                    ],
+                },
             },
-            **(params_dict.get("create_custom_map_layers") or {}),
+            **(params_dict.get("create_mnc_styled_layers") or {}),
         )
         .call()
     )
 
-    clean_local_geo_files = (
-        clean_file_keys.validate()
-        .handle_errors(task_instance_id="clean_local_geo_files")
+    conservancy_gdf = (
+        create_gdf_from_dict.validate()
+        .handle_errors(task_instance_id="conservancy_gdf")
         .partial(
-            file_dict=load_local_shapefiles,
-            **(params_dict.get("clean_local_geo_files") or {}),
-        )
-        .call()
-    )
-
-    filter_aoi = (
-        select_koi.validate()
-        .handle_errors(task_instance_id="filter_aoi")
-        .partial(
-            file_dict=clean_local_geo_files,
-            key_value="community_conservancy",
-            **(params_dict.get("filter_aoi") or {}),
+            gdf_dict=split_gdf_by_zone,
+            key="Conservancy",
+            **(params_dict.get("conservancy_gdf") or {}),
         )
         .call()
     )
@@ -187,7 +301,7 @@ def main(params: Params):
         make_text_layer.validate()
         .handle_errors(task_instance_id="custom_text_layer")
         .partial(
-            txt_gdf=filter_aoi,
+            txt_gdf=conservancy_gdf,
             label_column="label",
             fallback_columns=["name"],
             use_centroid=True,
@@ -473,7 +587,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="precipitation_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 200},
+            config={"wait_for_timeout": 1000},
             html_path=persist_precipitation,
             **(params_dict.get("precipitation_png") or {}),
         )
@@ -529,7 +643,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="temperature_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 200},
+            config={"wait_for_timeout": 1000},
             html_path=persist_temperature,
             **(params_dict.get("temperature_png") or {}),
         )
@@ -585,7 +699,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="wind_speed_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 200},
+            config={"wait_for_timeout": 1000},
             html_path=persist_wind_speed,
             **(params_dict.get("wind_speed_png") or {}),
         )
@@ -641,7 +755,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="wind_gusts_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 200},
+            config={"wait_for_timeout": 1000},
             html_path=persist_wind_gusts,
             **(params_dict.get("wind_gusts_png") or {}),
         )
@@ -697,7 +811,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="soil_temp_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 200},
+            config={"wait_for_timeout": 1000},
             html_path=persist_soil_temp,
             **(params_dict.get("soil_temp_png") or {}),
         )
@@ -753,7 +867,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="rel_humidity_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 200},
+            config={"wait_for_timeout": 1000},
             html_path=persist_rel_humidity,
             **(params_dict.get("rel_humidity_png") or {}),
         )
@@ -809,7 +923,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="pressure_png")
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 200},
+            config={"wait_for_timeout": 1000},
             html_path=persist_pressure,
             **(params_dict.get("pressure_png") or {}),
         )
@@ -849,7 +963,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="extract_event_date")
         .partial(
             df=get_events_data,
-            column_name="created_at",
+            column_name="time",
             output_type="date",
             output_column_name="date",
             **(params_dict.get("extract_event_date") or {}),
@@ -964,6 +1078,1340 @@ def main(params: Params):
             text=draw_events_chart,
             filename="total_events_recorded.html",
             **(params_dict.get("persist_total_events") or {}),
+        )
+        .call()
+    )
+
+    total_events_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="total_events_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 1000},
+            html_path=persist_total_events,
+            **(params_dict.get("total_events_png") or {}),
+        )
+        .call()
+    )
+
+    total_events_type_recorded = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="total_events_type_recorded")
+        .partial(
+            groupby_cols=["date", "event_type"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=exclude_event_type_values,
+            **(params_dict.get("total_events_type_recorded") or {}),
+        )
+        .call()
+    )
+
+    persist_summary_event_type = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_summary_event_type")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=total_events_type_recorded,
+            filename="total_events_recorded_by_type",
+            **(params_dict.get("persist_summary_event_type") or {}),
+        )
+        .call()
+    )
+
+    filter_patrol_info_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="filter_patrol_info_events")
+        .partial(
+            column_name="event_type",
+            value="patrol_information",
+            df=exclude_event_type_values,
+            **(params_dict.get("filter_patrol_info_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_pi_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_pi_values")
+        .partial(
+            column="event_details",
+            df=filter_patrol_info_events,
+            **(params_dict.get("normalize_pi_values") or {}),
+        )
+        .call()
+    )
+
+    rename_patrol_info = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_patrol_info")
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__participants": "participants",
+                "event_details__patrol_purpose": "purpose",
+                "event_details__person_who_authorized": "authorized_by",
+            },
+            df=normalize_pi_values,
+            **(params_dict.get("rename_patrol_info") or {}),
+        )
+        .call()
+    )
+
+    patrol_info_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="patrol_info_summary")
+        .partial(
+            groupby_cols=["purpose"],
+            summary_params=[
+                {"display_name": "no_of_patrols", "aggregator": "count", "column": "id"}
+            ],
+            reset_index=True,
+            df=rename_patrol_info,
+            **(params_dict.get("patrol_info_summary") or {}),
+        )
+        .call()
+    )
+
+    include_pat_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_pat_totals")
+        .partial(
+            label_col=["purpose"],
+            label="Total",
+            df=patrol_info_summary,
+            **(params_dict.get("include_pat_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_patrol_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_patrol_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="patrol_purpose_summary",
+            df=include_pat_totals,
+            **(params_dict.get("persist_patrol_df") or {}),
+        )
+        .call()
+    )
+
+    er_patrol_and_events_params = (
+        set_patrols_and_patrol_events_params.validate()
+        .handle_errors(task_instance_id="er_patrol_and_events_params")
+        .partial(
+            client=er_client_name,
+            time_range=time_range,
+            include_patrol_details=True,
+            raise_on_empty=False,
+            truncate_to_time_range=True,
+            sub_page_size=150,
+            patrol_types=[
+                "mnc_motorbike_patrol_nkorbob",
+                "mnc_foot_patrol_naishi",
+                "mnc_motorbike_patrol_enkikwei",
+                "mnc_vehicle_patrol_nkorbob",
+                "mnc_vehicle_patrol_rekero",
+                "mnc_motorbike_patrol_naishi",
+                "mnc_vehicle_patrol_naishi",
+                "mnc_Vehicle_patrol_ndoto",
+                "mnc_foot_patrol_mara_east",
+                "mnc_motorbike_patrol_yiale",
+                "mnc_motorbike_patrol_ndoto",
+                "mnc_motorbike_patrol_hqteam",
+                "mnc_vehicle_patrol_aitong",
+                "mnc_foot_patrol_kicheche",
+                "mnc_vehicle_patrol_hqteam",
+                "mnc_motorbike_patrol_kicheche",
+                "mnc_vehicle_patrol_enkuyanai",
+                "mnc_foot_patrol_rekero",
+                "mnc_foot_patrol_hqteam",
+                "mnc_vehicle_patrol_kicheche",
+                "mnc_foot_patrol  cheli team",
+                "mnc_foot_patrol_aitong",
+                "mnc_foot_patrol_enkikwei team",
+                "mnc_vehicle_patrol_enkikwei team",
+                "mnc_foot_patrol_enkuyanai",
+                "mnc_vehicle_patrol_mara_east",
+                "mnc_motorbike_patrol_rekero",
+                "mnc_foot_patrol_ndoto",
+                "mnc_motorbike_patrol_aitong",
+                "mnc_foot_patrol_nkorbob",
+                "mnc_motorbike_patrol_Airstrip",
+                "Motorcycle Patrol",
+                "Foot Patrol",
+                "mnc_vehicle_patrol_cheli",
+                "mnc_foot_patrol_musiara team",
+                "mnc_motorbike_patrol_musiara team",
+                "mnc_motorbike_patrol_cheli",
+                "mnc_vehicle_patrol_musiara",
+                "mnc_foot_patrol_Karen",
+                "mnc_Vehicle_patrol_Karen",
+                "mnc_motorbike_patrol_Karen",
+                "mnc_motorbike_patrol_enkuyanai",
+                "mnc_motorbike_grazing_zone1",
+                "mnc_motorbike_grazing_zone4",
+            ],
+            **(params_dict.get("er_patrol_and_events_params") or {}),
+        )
+        .call()
+    )
+
+    prefetch_patrols = (
+        get_patrols_from_combined_params.validate()
+        .handle_errors(task_instance_id="prefetch_patrols")
+        .partial(
+            combined_params=er_patrol_and_events_params,
+            **(params_dict.get("prefetch_patrols") or {}),
+        )
+        .call()
+    )
+
+    get_patrol_events_params = (
+        get_patrols_from_combined_parameters.validate()
+        .handle_errors(task_instance_id="get_patrol_events_params")
+        .partial(
+            combined_params={
+                "client": er_client_name,
+                "time_range": time_range,
+                "event_types": ["5c35b260-4711-49cb-a863-ad2b43317b29"],
+                "patrol_types": [
+                    "mnc_motorbike_patrol_nkorbob",
+                    "mnc_foot_patrol_naishi",
+                    "mnc_motorbike_patrol_enkikwei",
+                    "mnc_vehicle_patrol_nkorbob",
+                    "mnc_vehicle_patrol_rekero",
+                    "mnc_motorbike_patrol_naishi",
+                    "mnc_vehicle_patrol_naishi",
+                    "mnc_Vehicle_patrol_ndoto",
+                    "mnc_foot_patrol_mara_east",
+                    "mnc_motorbike_patrol_yiale",
+                    "mnc_motorbike_patrol_ndoto",
+                    "mnc_motorbike_patrol_hqteam",
+                    "mnc_vehicle_patrol_aitong",
+                    "mnc_foot_patrol_kicheche",
+                    "mnc_vehicle_patrol_hqteam",
+                    "mnc_motorbike_patrol_kicheche",
+                    "mnc_vehicle_patrol_enkuyanai",
+                    "mnc_foot_patrol_rekero",
+                    "mnc_foot_patrol_hqteam",
+                    "mnc_vehicle_patrol_kicheche",
+                    "mnc_foot_patrol  cheli team",
+                    "mnc_foot_patrol_aitong",
+                    "mnc_foot_patrol_enkikwei team",
+                    "mnc_vehicle_patrol_enkikwei team",
+                    "mnc_foot_patrol_enkuyanai",
+                    "mnc_vehicle_patrol_mara_east",
+                    "mnc_motorbike_patrol_rekero",
+                    "mnc_foot_patrol_ndoto",
+                    "mnc_motorbike_patrol_aitong",
+                    "mnc_foot_patrol_nkorbob",
+                    "mnc_motorbike_patrol_Airstrip",
+                    "Motorcycle Patrol",
+                    "Foot Patrol",
+                    "mnc_vehicle_patrol_cheli",
+                    "mnc_foot_patrol_musiara team",
+                    "mnc_motorbike_patrol_musiara team",
+                    "mnc_motorbike_patrol_cheli",
+                    "mnc_vehicle_patrol_musiara",
+                    "mnc_foot_patrol_Karen",
+                    "mnc_Vehicle_patrol_Karen",
+                    "mnc_motorbike_patrol_Karen",
+                    "mnc_motorbike_patrol_enkuyanai",
+                    "mnc_motorbike_grazing_zone1",
+                    "mnc_motorbike_grazing_zone4",
+                ],
+            },
+            **(params_dict.get("get_patrol_events_params") or {}),
+        )
+        .call()
+    )
+
+    patrol_observations = (
+        get_patrol_observations_from_patrols_dataframe_and_combined_params.validate()
+        .handle_errors(task_instance_id="patrol_observations")
+        .partial(
+            patrols_df=get_patrol_events_params,
+            combined_params={
+                "client": er_client_name,
+                "time_range": time_range,
+                "event_types": ["5c35b260-4711-49cb-a863-ad2b43317b29"],
+                "patrol_types": [
+                    "mnc_motorbike_patrol_nkorbob",
+                    "mnc_foot_patrol_naishi",
+                    "mnc_motorbike_patrol_enkikwei",
+                    "mnc_vehicle_patrol_nkorbob",
+                    "mnc_vehicle_patrol_rekero",
+                    "mnc_motorbike_patrol_naishi",
+                    "mnc_vehicle_patrol_naishi",
+                    "mnc_Vehicle_patrol_ndoto",
+                    "mnc_foot_patrol_mara_east",
+                    "mnc_motorbike_patrol_yiale",
+                    "mnc_motorbike_patrol_ndoto",
+                    "mnc_motorbike_patrol_hqteam",
+                    "mnc_vehicle_patrol_aitong",
+                    "mnc_foot_patrol_kicheche",
+                    "mnc_vehicle_patrol_hqteam",
+                    "mnc_motorbike_patrol_kicheche",
+                    "mnc_vehicle_patrol_enkuyanai",
+                    "mnc_foot_patrol_rekero",
+                    "mnc_foot_patrol_hqteam",
+                    "mnc_vehicle_patrol_kicheche",
+                    "mnc_foot_patrol  cheli team",
+                    "mnc_foot_patrol_aitong",
+                    "mnc_foot_patrol_enkikwei team",
+                    "mnc_vehicle_patrol_enkikwei team",
+                    "mnc_foot_patrol_enkuyanai",
+                    "mnc_vehicle_patrol_mara_east",
+                    "mnc_motorbike_patrol_rekero",
+                    "mnc_foot_patrol_ndoto",
+                    "mnc_motorbike_patrol_aitong",
+                    "mnc_foot_patrol_nkorbob",
+                    "mnc_motorbike_patrol_Airstrip",
+                    "Motorcycle Patrol",
+                    "Foot Patrol",
+                    "mnc_vehicle_patrol_cheli",
+                    "mnc_foot_patrol_musiara team",
+                    "mnc_motorbike_patrol_musiara team",
+                    "mnc_motorbike_patrol_cheli",
+                    "mnc_vehicle_patrol_musiara",
+                    "mnc_foot_patrol_Karen",
+                    "mnc_Vehicle_patrol_Karen",
+                    "mnc_motorbike_patrol_Karen",
+                    "mnc_motorbike_patrol_enkuyanai",
+                    "mnc_motorbike_grazing_zone1",
+                    "mnc_motorbike_grazing_zone4",
+                ],
+            },
+            **(params_dict.get("patrol_observations") or {}),
+        )
+        .call()
+    )
+
+    map_patrol_types = (
+        classify_mnc_patrol.validate()
+        .handle_errors(task_instance_id="map_patrol_types")
+        .partial(
+            df=patrol_observations,
+            patrol_col="patrol_type__value",
+            new_col="patrol_cat_types",
+            **(params_dict.get("map_patrol_types") or {}),
+        )
+        .call()
+    )
+
+    filter_foot_patrols = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="filter_foot_patrols")
+        .partial(
+            column_name="patrol_cat_types",
+            op="equal",
+            value="foot",
+            df=map_patrol_types,
+            **(params_dict.get("filter_foot_patrols") or {}),
+        )
+        .call()
+    )
+
+    filter_vehicle_patrols = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="filter_vehicle_patrols")
+        .partial(
+            column_name="patrol_cat_types",
+            op="equal",
+            value="vehicle",
+            df=map_patrol_types,
+            **(params_dict.get("filter_vehicle_patrols") or {}),
+        )
+        .call()
+    )
+
+    filter_motor_patrols = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="filter_motor_patrols")
+        .partial(
+            column_name="patrol_cat_types",
+            op="equal",
+            value="foot",
+            df=map_patrol_types,
+            **(params_dict.get("filter_motor_patrols") or {}),
+        )
+        .call()
+    )
+
+    foot_patrols = (
+        process_relocations.validate()
+        .handle_errors(task_instance_id="foot_patrols")
+        .partial(
+            observations=filter_foot_patrols,
+            relocs_columns=[
+                "extra__id",
+                "extra__created_at",
+                "extra__subject_id",
+                "geometry",
+                "groupby_col",
+                "fixtime",
+                "junk_status",
+                "patrol_id",
+                "patrol_title",
+                "patrol_serial_number",
+                "patrol_start_time",
+                "patrol_end_time",
+                "patrol_type",
+                "patrol_status",
+                "patrol_subject",
+                "patrol_type__value",
+            ],
+            filter_point_coords=[
+                {"x": 180.0, "y": 90.0},
+                {"x": 0.0, "y": 0.0},
+                {"x": 1.0, "y": 1.0},
+            ],
+            **(params_dict.get("foot_patrols") or {}),
+        )
+        .call()
+    )
+
+    vehicle_patrols = (
+        process_relocations.validate()
+        .handle_errors(task_instance_id="vehicle_patrols")
+        .partial(
+            observations=filter_vehicle_patrols,
+            relocs_columns=[
+                "extra__id",
+                "extra__created_at",
+                "extra__subject_id",
+                "geometry",
+                "groupby_col",
+                "fixtime",
+                "junk_status",
+                "patrol_id",
+                "patrol_title",
+                "patrol_serial_number",
+                "patrol_start_time",
+                "patrol_end_time",
+                "patrol_type",
+                "patrol_status",
+                "patrol_subject",
+                "patrol_type__value",
+            ],
+            filter_point_coords=[
+                {"x": 180.0, "y": 90.0},
+                {"x": 0.0, "y": 0.0},
+                {"x": 1.0, "y": 1.0},
+            ],
+            **(params_dict.get("vehicle_patrols") or {}),
+        )
+        .call()
+    )
+
+    motorbike_patrols = (
+        process_relocations.validate()
+        .handle_errors(task_instance_id="motorbike_patrols")
+        .partial(
+            observations=filter_motor_patrols,
+            relocs_columns=[
+                "extra__id",
+                "extra__created_at",
+                "extra__subject_id",
+                "geometry",
+                "groupby_col",
+                "fixtime",
+                "junk_status",
+                "patrol_id",
+                "patrol_title",
+                "patrol_serial_number",
+                "patrol_start_time",
+                "patrol_end_time",
+                "patrol_type",
+                "patrol_status",
+                "patrol_subject",
+                "patrol_type__value",
+            ],
+            filter_point_coords=[
+                {"x": 180.0, "y": 90.0},
+                {"x": 0.0, "y": 0.0},
+                {"x": 1.0, "y": 1.0},
+            ],
+            **(params_dict.get("motorbike_patrols") or {}),
+        )
+        .call()
+    )
+
+    foot_trajs = (
+        relocations_to_trajectory.validate()
+        .handle_errors(task_instance_id="foot_trajs")
+        .partial(relocations=foot_patrols, **(params_dict.get("foot_trajs") or {}))
+        .call()
+    )
+
+    vehicle_trajs = (
+        relocations_to_trajectory.validate()
+        .handle_errors(task_instance_id="vehicle_trajs")
+        .partial(
+            relocations=vehicle_patrols, **(params_dict.get("vehicle_trajs") or {})
+        )
+        .call()
+    )
+
+    motor_trajs = (
+        relocations_to_trajectory.validate()
+        .handle_errors(task_instance_id="motor_trajs")
+        .partial(
+            relocations=motorbike_patrols, **(params_dict.get("motor_trajs") or {})
+        )
+        .call()
+    )
+
+    temporal_foot_traj = (
+        add_temporal_index.validate()
+        .handle_errors(task_instance_id="temporal_foot_traj")
+        .partial(
+            df=foot_trajs,
+            time_col="segment_start",
+            groupers=groupers,
+            cast_to_datetime=True,
+            format="mixed",
+            **(params_dict.get("temporal_foot_traj") or {}),
+        )
+        .call()
+    )
+
+    temporal_vehicle_traj = (
+        add_temporal_index.validate()
+        .handle_errors(task_instance_id="temporal_vehicle_traj")
+        .partial(
+            df=vehicle_trajs,
+            time_col="segment_start",
+            groupers=groupers,
+            cast_to_datetime=True,
+            format="mixed",
+            **(params_dict.get("temporal_vehicle_traj") or {}),
+        )
+        .call()
+    )
+
+    temporal_motor_traj = (
+        add_temporal_index.validate()
+        .handle_errors(task_instance_id="temporal_motor_traj")
+        .partial(
+            df=motor_trajs,
+            time_col="segment_start",
+            groupers=groupers,
+            cast_to_datetime=True,
+            format="mixed",
+            **(params_dict.get("temporal_motor_traj") or {}),
+        )
+        .call()
+    )
+
+    rename_foot_trajs = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_foot_trajs")
+        .partial(
+            drop_columns=["heading", "extra__created_at", "extra__id"],
+            retain_columns=[],
+            rename_columns={
+                "extra__patrol_start_time": "patrol_start_time",
+                "extra__patrol_end_time": "patrol_end_time",
+                "extra__patrol_id": "patrol_id",
+                "extra__patrol_serial_number": "patrol_serial_number",
+                "extra__patrol_status": "patrol_status",
+                "extra__patrol_subject": "patrol_subject_name",
+                "extra__patrol_title": "patrol_title",
+                "extra__patrol_type": "patrol_type_id",
+                "extra__patrol_type__value": "patrol_type_value",
+                "extra__subject_id": "subject_id",
+            },
+            df=temporal_foot_traj,
+            **(params_dict.get("rename_foot_trajs") or {}),
+        )
+        .call()
+    )
+
+    rename_vehicle_trajs = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_vehicle_trajs")
+        .partial(
+            drop_columns=["heading", "extra__created_at", "extra__id"],
+            retain_columns=[],
+            rename_columns={
+                "extra__patrol_start_time": "patrol_start_time",
+                "extra__patrol_end_time": "patrol_end_time",
+                "extra__patrol_id": "patrol_id",
+                "extra__patrol_serial_number": "patrol_serial_number",
+                "extra__patrol_status": "patrol_status",
+                "extra__patrol_subject": "patrol_subject_name",
+                "extra__patrol_title": "patrol_title",
+                "extra__patrol_type": "patrol_type_id",
+                "extra__patrol_type__value": "patrol_type_value",
+                "extra__subject_id": "subject_id",
+            },
+            df=temporal_vehicle_traj,
+            **(params_dict.get("rename_vehicle_trajs") or {}),
+        )
+        .call()
+    )
+
+    rename_motor_trajs = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_motor_trajs")
+        .partial(
+            drop_columns=["heading", "extra__created_at", "extra__id"],
+            retain_columns=[],
+            rename_columns={
+                "extra__patrol_start_time": "patrol_start_time",
+                "extra__patrol_end_time": "patrol_end_time",
+                "extra__patrol_id": "patrol_id",
+                "extra__patrol_serial_number": "patrol_serial_number",
+                "extra__patrol_status": "patrol_status",
+                "extra__patrol_subject": "patrol_subject_name",
+                "extra__patrol_title": "patrol_title",
+                "extra__patrol_type": "patrol_type_id",
+                "extra__patrol_type__value": "patrol_type_value",
+                "extra__subject_id": "subject_id",
+            },
+            df=temporal_motor_traj,
+            **(params_dict.get("rename_motor_trajs") or {}),
+        )
+        .call()
+    )
+
+    split_foot_traj_group = (
+        split_groups.validate()
+        .handle_errors(task_instance_id="split_foot_traj_group")
+        .partial(
+            df=rename_foot_trajs,
+            groupers=groupers,
+            **(params_dict.get("split_foot_traj_group") or {}),
+        )
+        .call()
+    )
+
+    split_vehicle_traj_group = (
+        split_groups.validate()
+        .handle_errors(task_instance_id="split_vehicle_traj_group")
+        .partial(
+            df=rename_vehicle_trajs,
+            groupers=groupers,
+            **(params_dict.get("split_vehicle_traj_group") or {}),
+        )
+        .call()
+    )
+
+    split_motor_traj_group = (
+        split_groups.validate()
+        .handle_errors(task_instance_id="split_motor_traj_group")
+        .partial(
+            df=rename_motor_trajs,
+            groupers=groupers,
+            **(params_dict.get("split_motor_traj_group") or {}),
+        )
+        .call()
+    )
+
+    foot_patrol_metrics = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="foot_patrol_metrics")
+        .partial(
+            groupby_cols=["patrol_type_value"],
+            summary_params=[
+                {
+                    "display_name": "no_of_patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "distance_km",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "duration_hrs",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+            ],
+            reset_index=True,
+            df=rename_foot_trajs,
+            **(params_dict.get("foot_patrol_metrics") or {}),
+        )
+        .call()
+    )
+
+    persist_foot_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_foot_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="foot_patrol_efforts",
+            df=foot_patrol_metrics,
+            **(params_dict.get("persist_foot_df") or {}),
+        )
+        .call()
+    )
+
+    apply_footp_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_footp_colormap")
+        .partial(
+            input_column_name="patrol_type_value",
+            output_column_name="foot_patrol_colors",
+            colormap="plasma",
+            df=rename_foot_trajs,
+            **(params_dict.get("apply_footp_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_foot_layers = (
+        create_path_layer.validate()
+        .handle_errors(task_instance_id="generate_foot_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_color": "foot_patrol_colors",
+                "get_width": 1.85,
+                "width_scale": 1,
+                "width_min_pixels": 2,
+                "width_max_pixels": 6,
+                "width_units": "pixels",
+                "cap_rounded": True,
+                "joint_rounded": True,
+                "billboard": False,
+                "opacity": 0.45,
+                "stroked": True,
+            },
+            legend={
+                "label_column": "patrol_type_value",
+                "color_column": "foot_patrol_colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_footp_colormap,
+            **(params_dict.get("generate_foot_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_foot_patrols = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_foot_patrols")
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=conservancy_gdf,
+            **(params_dict.get("zoom_foot_patrols") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_foot_patrols = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_foot_patrols")
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_foot_layers,
+            **(params_dict.get("combine_custom_foot_patrols") or {}),
+        )
+        .call()
+    )
+
+    draw_foot_patrol_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_foot_patrol_map")
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Foot patrol types"},
+            geo_layers=combine_custom_foot_patrols,
+            view_state=zoom_foot_patrols,
+            **(params_dict.get("draw_foot_patrol_map") or {}),
+        )
+        .call()
+    )
+
+    persist_foot_patrol_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_foot_patrol_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_foot_patrol_map,
+            filename="foot_patrols_map.html",
+            **(params_dict.get("persist_foot_patrol_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_foot_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_foot_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            html_path=persist_foot_patrol_urls,
+            **(params_dict.get("convert_foot_png") or {}),
+        )
+        .call()
+    )
+
+    vehicle_patrol_metrics = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="vehicle_patrol_metrics")
+        .partial(
+            groupby_cols=["patrol_type_value"],
+            summary_params=[
+                {
+                    "display_name": "no_of_patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "distance_km",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "duration_hrs",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+            ],
+            reset_index=True,
+            df=split_vehicle_traj_group,
+            **(params_dict.get("vehicle_patrol_metrics") or {}),
+        )
+        .call()
+    )
+
+    persist_vehicle_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_vehicle_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=vehicle_patrol_metrics,
+            filename="vehicle_patrol_efforts",
+            **(params_dict.get("persist_vehicle_df") or {}),
+        )
+        .call()
+    )
+
+    apply_vehicle_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_vehicle_colormap")
+        .partial(
+            input_column_name="patrol_type_value",
+            output_column_name="colors",
+            colormap="plasma",
+            df=split_vehicle_traj_group,
+            **(params_dict.get("apply_vehicle_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_vehicle_layers = (
+        create_path_layer.validate()
+        .handle_errors(task_instance_id="generate_vehicle_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_color": "colors",
+                "get_width": 1.85,
+                "width_scale": 1,
+                "width_min_pixels": 2,
+                "width_max_pixels": 6,
+                "width_units": "pixels",
+                "cap_rounded": True,
+                "joint_rounded": True,
+                "billboard": False,
+                "opacity": 0.45,
+                "stroked": True,
+            },
+            legend={
+                "label_column": "patrol_type_value",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_vehicle_colormap,
+            **(params_dict.get("generate_vehicle_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_vehicle_patrols = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_vehicle_patrols")
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=conservancy_gdf,
+            **(params_dict.get("zoom_vehicle_patrols") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_vehicle_patrols = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_vehicle_patrols")
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_vehicle_layers,
+            **(params_dict.get("combine_custom_vehicle_patrols") or {}),
+        )
+        .call()
+    )
+
+    draw_vehicle_patrol_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_vehicle_patrol_map")
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Vehicle patrol types"},
+            geo_layers=combine_custom_vehicle_patrols,
+            view_state=zoom_vehicle_patrols,
+            **(params_dict.get("draw_vehicle_patrol_map") or {}),
+        )
+        .call()
+    )
+
+    persist_vehicle_patrol_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_vehicle_patrol_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_vehicle_patrol_map,
+            filename="vehicle_patrols_map.html",
+            **(params_dict.get("persist_vehicle_patrol_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_vehicle_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_vehicle_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            html_path=persist_vehicle_patrol_urls,
+            **(params_dict.get("convert_vehicle_png") or {}),
+        )
+        .call()
+    )
+
+    motor_patrol_metrics = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="motor_patrol_metrics")
+        .partial(
+            groupby_cols=["patrol_type_value"],
+            summary_params=[
+                {
+                    "display_name": "no_of_patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "distance_km",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "duration_hrs",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+            ],
+            reset_index=True,
+            df=split_motor_traj_group,
+            **(params_dict.get("motor_patrol_metrics") or {}),
+        )
+        .call()
+    )
+
+    persist_motor_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_motor_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=motor_patrol_metrics,
+            filename="motorbike_patrol_efforts",
+            **(params_dict.get("persist_motor_df") or {}),
+        )
+        .call()
+    )
+
+    apply_motor_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_motor_colormap")
+        .partial(
+            input_column_name="patrol_type_value",
+            output_column_name="colors",
+            colormap="plasma",
+            df=split_motor_traj_group,
+            **(params_dict.get("apply_motor_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_motor_layers = (
+        create_path_layer.validate()
+        .handle_errors(task_instance_id="generate_motor_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_color": "colors",
+                "get_width": 1.85,
+                "width_scale": 1,
+                "width_min_pixels": 2,
+                "width_max_pixels": 6,
+                "width_units": "pixels",
+                "cap_rounded": True,
+                "joint_rounded": True,
+                "billboard": False,
+                "opacity": 0.45,
+                "stroked": True,
+            },
+            legend={
+                "label_column": "patrol_type_value",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_motor_colormap,
+            **(params_dict.get("generate_motor_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_motor_patrols = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_motor_patrols")
+        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_motor_patrols") or {}))
+        .mapvalues(argnames=["gdf"], argvalues=conservancy_gdf)
+    )
+
+    combine_custom_motor_patrols = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_motor_patrols")
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_motor_layers,
+            **(params_dict.get("combine_custom_motor_patrols") or {}),
+        )
+        .call()
+    )
+
+    draw_motor_patrol_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_motor_patrol_map")
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={
+                "placement": "bottom-right",
+                "title": "Motorbike patrol types",
+            },
+            geo_layers=combine_custom_motor_patrols,
+            view_state=zoom_motor_patrols,
+            **(params_dict.get("draw_motor_patrol_map") or {}),
+        )
+        .call()
+    )
+
+    persist_motor_patrol_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_motor_patrol_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_motor_patrol_map,
+            filename="motorbike_patrols_map.html",
+            **(params_dict.get("persist_motor_patrol_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_motor_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_motor_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            html_path=persist_motor_patrol_urls,
+            **(params_dict.get("convert_motor_png") or {}),
+        )
+        .call()
+    )
+
+    merge_trajs = (
+        merge_multiple_df.validate()
+        .handle_errors(task_instance_id="merge_trajs")
+        .partial(
+            list_df=[foot_trajs, vehicle_trajs, motor_trajs],
+            ignore_index=True,
+            sort=False,
+            **(params_dict.get("merge_trajs") or {}),
+        )
+        .call()
+    )
+
+    split_merged_trajs = (
+        split_groups.validate()
+        .handle_errors(task_instance_id="split_merged_trajs")
+        .partial(
+            df=merge_trajs,
+            groupers=groupers,
+            **(params_dict.get("split_merged_trajs") or {}),
+        )
+        .call()
+    )
+
+    ranger_patrol_metrics = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="ranger_patrol_metrics")
+        .partial(
+            groupby_cols=["patrol_subject_name"],
+            summary_params=[
+                {
+                    "display_name": "no_of_patrols",
+                    "aggregator": "nunique",
+                    "column": "patrol_id",
+                },
+                {
+                    "display_name": "distance_km",
+                    "aggregator": "sum",
+                    "column": "dist_meters",
+                    "original_unit": "m",
+                    "new_unit": "km",
+                },
+                {
+                    "display_name": "duration_hrs",
+                    "aggregator": "sum",
+                    "column": "timespan_seconds",
+                    "original_unit": "s",
+                    "new_unit": "h",
+                },
+            ],
+            reset_index=True,
+            df=split_merged_trajs,
+            **(params_dict.get("ranger_patrol_metrics") or {}),
+        )
+        .call()
+    )
+
+    persist_total_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_total_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=ranger_patrol_metrics,
+            filename="overall_patrol_efforts",
+            **(params_dict.get("persist_total_df") or {}),
+        )
+        .call()
+    )
+
+    patrol_grid_visits = (
+        create_patrol_coverage_grid.validate()
+        .handle_errors(task_instance_id="patrol_grid_visits")
+        .partial(
+            grid_cell_size=1000,
+            trajs=split_merged_trajs,
+            **(params_dict.get("patrol_grid_visits") or {}),
+        )
+        .call()
+    )
+
+    apply_classification_grid = (
+        apply_classification.validate()
+        .handle_errors(task_instance_id="apply_classification_grid")
+        .partial(
+            input_column_name="unique_patrol_count",
+            output_column_name="density_bins",
+            label_options={"label_ranges": False, "label_decimals": 1},
+            classification_options={"k": 5, "scheme": "equal_interval"},
+            df=patrol_grid_visits,
+            **(params_dict.get("apply_classification_grid") or {}),
+        )
+        .call()
+    )
+
+    apply_grid_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_grid_colormap")
+        .partial(
+            input_column_name="density_bins",
+            colormap="RdYlGn",
+            output_column_name="density_colors",
+            df=apply_classification_grid,
+            **(params_dict.get("apply_grid_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_grid_layers = (
+        create_polygon_layer_pydeck.validate()
+        .handle_errors(task_instance_id="generate_grid_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "density_colors",
+                "opacity": 0.25,
+                "get_line_width": 1,
+                "stroked": True,
+            },
+            legend={"label_column": "density_bins", "color_column": "density_colors"},
+            tooltip_columns=["density_bins", "density_colors"],
+            geodataframe=apply_grid_colormap,
+            **(params_dict.get("generate_grid_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_grid_view = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_grid_view")
+        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_grid_view") or {}))
+        .mapvalues(argnames=["gdf"], argvalues=conservancy_gdf)
+    )
+
+    combine_patrol_grid = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_patrol_grid")
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_grid_layers,
+            **(params_dict.get("combine_patrol_grid") or {}),
+        )
+        .call()
+    )
+
+    draw_grid_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_grid_map")
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Grid visits"},
+            geo_layers=combine_patrol_grid,
+            view_state=zoom_grid_view,
+            **(params_dict.get("draw_grid_map") or {}),
+        )
+        .call()
+    )
+
+    persist_grid_map_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_grid_map_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_grid_map,
+            filename="patrol_coverage_map.html",
+            **(params_dict.get("persist_grid_map_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_patrol_grid_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_patrol_grid_png")
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            html_path=persist_grid_map_urls,
+            **(params_dict.get("convert_patrol_grid_png") or {}),
+        )
+        .call()
+    )
+
+    compute_patrol_occupancy = (
+        compute_occupancy.validate()
+        .handle_errors(task_instance_id="compute_patrol_occupancy")
+        .partial(
+            coverage_grid_gdf=patrol_grid_visits,
+            regions_gdf=conservancy_gdf,
+            crs="epsg:4326",
+            **(params_dict.get("compute_patrol_occupancy") or {}),
+        )
+        .call()
+    )
+
+    round_off_patrol = (
+        round_values.validate()
+        .handle_errors(task_instance_id="round_off_patrol")
+        .partial(
+            df=compute_patrol_occupancy,
+            column="occupancy_percentage",
+            decimals=2,
+            **(params_dict.get("round_off_patrol") or {}),
+        )
+        .call()
+    )
+
+    persist_occupancy_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_occupancy_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=round_off_patrol,
+            filename="patrol_coverage",
+            **(params_dict.get("persist_occupancy_df") or {}),
         )
         .call()
     )

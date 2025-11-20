@@ -186,3 +186,16 @@ def remove_brackets_from_column(df:AnyDataFrame, columns:List):
     for col in columns:
         df[col] = df[col].apply(lambda x: x[0] if isinstance(x, list) and len(x) > 0 else None)
     return df
+
+@task
+def round_values(df:AnyDataFrame, column:str, decimals:int):
+    # validation checks
+    if df.empty:
+        raise ValueError("Dataframe is empty.")
+    if column not in df.columns:
+        raise ValueError(f"{column} does not exist in dataframe.")
+    if not isinstance(decimals, int):
+        raise ValueError("decimals must be an integer.")
+    
+    df[column] = df[column].round(decimals)
+    return df

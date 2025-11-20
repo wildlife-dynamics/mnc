@@ -327,6 +327,207 @@
       "required": [],
       "type": "object",
       "title": "Add temporal index on events"
+    },
+    "filter_patrol_info_events": {
+      "additionalProperties": false,
+      "properties": {
+        "op": {
+          "$ref": "#/$defs/ComparisonOperator",
+          "title": "Op",
+          "description": "The comparison operator"
+        },
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [
+        "op"
+      ],
+      "type": "object",
+      "title": "Filter events and get patrol information records"
+    },
+    "er_patrol_and_events_params": {
+      "additionalProperties": false,
+      "properties": {
+        "event_types": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Event Types",
+          "type": "array",
+          "description": "Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types."
+        },
+        "status": {
+          "default": [
+            "done"
+          ],
+          "items": {
+            "enum": [
+              "active",
+              "overdue",
+              "done",
+              "cancelled"
+            ],
+            "type": "string"
+          },
+          "title": "Patrol Status",
+          "type": "array",
+          "description": "Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
+          "ecoscope:advanced": true
+        },
+        "include_null_geometry": {
+          "default": true,
+          "title": "Include Events Without a Geometry (point or polygon)",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "event_types"
+      ],
+      "type": "object",
+      "title": "patrol and event types"
+    },
+    "map_patrol_types": {
+      "additionalProperties": false,
+      "properties": {
+        "patrol_column": {
+          "title": "Patrol Column",
+          "type": "string"
+        },
+        "new_column": {
+          "default": "patrol_classification",
+          "title": "New Column",
+          "type": "string"
+        }
+      },
+      "required": [
+        "patrol_column"
+      ],
+      "type": "object",
+      "title": "Classify patrol types"
+    },
+    "filter_foot_patrols": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Filter foot patrol observations"
+    },
+    "filter_vehicle_patrols": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Filter vehicle patrol observations"
+    },
+    "filter_motor_patrols": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Filter motorbike patrol observations"
+    },
+    "foot_trajs": {
+      "additionalProperties": false,
+      "properties": {
+        "trajectory_segment_filter": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TrajectorySegmentFilter"
+            }
+          ],
+          "default": {
+            "min_length_meters": 0.001,
+            "max_length_meters": 100000,
+            "min_time_secs": 1,
+            "max_time_secs": 172800,
+            "min_speed_kmhr": 0.01,
+            "max_speed_kmhr": 500
+          },
+          "title": " ",
+          "description": "Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Convert foot relocations to trajectories"
+    },
+    "vehicle_trajs": {
+      "additionalProperties": false,
+      "properties": {
+        "trajectory_segment_filter": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TrajectorySegmentFilter"
+            }
+          ],
+          "default": {
+            "min_length_meters": 0.001,
+            "max_length_meters": 100000,
+            "min_time_secs": 1,
+            "max_time_secs": 172800,
+            "min_speed_kmhr": 0.01,
+            "max_speed_kmhr": 500
+          },
+          "title": " ",
+          "description": "Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Convert vehicle relocations to trajectories"
+    },
+    "motor_trajs": {
+      "additionalProperties": false,
+      "properties": {
+        "trajectory_segment_filter": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/TrajectorySegmentFilter"
+            }
+          ],
+          "default": {
+            "min_length_meters": 0.001,
+            "max_length_meters": 100000,
+            "min_time_secs": 1,
+            "max_time_secs": 172800,
+            "min_speed_kmhr": 0.01,
+            "max_speed_kmhr": 500
+          },
+          "title": " ",
+          "description": "Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Convert motorbike relocations to trajectories"
     }
   },
   "$defs": {
@@ -370,6 +571,66 @@
       ],
       "title": "EarthRangerConnection",
       "type": "object"
+    },
+    "ComparisonOperator": {
+      "enum": [
+        "equal",
+        "ge",
+        "gt",
+        "le",
+        "lt",
+        "ne"
+      ],
+      "title": "ComparisonOperator",
+      "type": "string"
+    },
+    "TrajectorySegmentFilter": {
+      "properties": {
+        "min_length_meters": {
+          "default": 0.001,
+          "ecoscope:advanced": true,
+          "minimum": 0.001,
+          "title": "Minimum Segment Length (Meters)",
+          "type": "number"
+        },
+        "max_length_meters": {
+          "default": 100000,
+          "ecoscope:advanced": true,
+          "exclusiveMinimum": 0.001,
+          "title": "Maximum Segment Length (Meters)",
+          "type": "number"
+        },
+        "min_time_secs": {
+          "default": 1,
+          "ecoscope:advanced": true,
+          "minimum": 1,
+          "title": "Minimum Segment Duration (Seconds)",
+          "type": "number"
+        },
+        "max_time_secs": {
+          "default": 172800,
+          "ecoscope:advanced": true,
+          "exclusiveMinimum": 1,
+          "title": "Maximum Segment Duration (Seconds)",
+          "type": "number"
+        },
+        "min_speed_kmhr": {
+          "default": 0.01,
+          "ecoscope:advanced": true,
+          "exclusiveMinimum": 0.001,
+          "title": "Minimum Segment Speed (Kilometers per Hour)",
+          "type": "number"
+        },
+        "max_speed_kmhr": {
+          "default": 500,
+          "ecoscope:advanced": true,
+          "exclusiveMinimum": 0.001,
+          "title": "Maximum Segment Speed (Kilometers per Hour)",
+          "type": "number"
+        }
+      },
+      "title": "TrajectorySegmentFilter",
+      "type": "object"
     }
   },
   "uiSchema": {
@@ -398,6 +659,25 @@
         "format"
       ]
     },
+    "filter_patrol_info_events": {
+      "ui:order": [
+        "op",
+        "reset_index"
+      ]
+    },
+    "er_patrol_and_events_params": {
+      "ui:order": [
+        "event_types",
+        "status",
+        "include_null_geometry"
+      ]
+    },
+    "map_patrol_types": {
+      "ui:order": [
+        "patrol_column",
+        "new_column"
+      ]
+    },
     "ui:order": [
       "workflow_details",
       "time_range",
@@ -405,7 +685,16 @@
       "configure_base_maps",
       "subject_observations",
       "df_with_temporal_index",
-      "events_wtemporal"
+      "events_wtemporal",
+      "filter_patrol_info_events",
+      "er_patrol_and_events_params",
+      "map_patrol_types",
+      "filter_foot_patrols",
+      "filter_vehicle_patrols",
+      "filter_motor_patrols",
+      "foot_trajs",
+      "vehicle_trajs",
+      "motor_trajs"
     ]
   },
   "additionalProperties": false

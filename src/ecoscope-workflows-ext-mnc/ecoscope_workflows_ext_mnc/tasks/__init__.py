@@ -12,21 +12,25 @@ from ._tabular import (
     bin_columns,
     add_totals_row, 
     convert_to_int,
+    round_values,
     replace_missing_with_label,
     remove_brackets_from_column
 )
 from ._mapdeck import (
-    select_koi,
     draw_custom_map,
     make_text_layer,
     clean_file_keys,
     create_map_layers,
     custom_deckgl_layer,
     view_state_deck_gdf,
+    create_gdf_from_dict,
     create_geojson_layer,
     load_geospatial_files,
     exclude_geom_outliers,
     remove_invalid_geometries,
+    split_gdf_by_column,
+    custom_deckgl_layer_from_dict,
+    create_styled_layers_from_dict,
     remove_invalid_point_geometries,
     merge_static_and_grouped_layers
 )
@@ -37,10 +41,11 @@ from ._retrieve_patrols import (
 )
 
 __all__ = [
+    "create_gdf_from_dict",
+    "round_values",
     "view_df",
     "view_gdf",
     "order_bins",
-    "select_koi",
     "bin_columns",
     "print_output",
     "flatten_tuple",
@@ -61,6 +66,9 @@ __all__ = [
     "zip_grouped_by_key",
     "make_event_summary_df",
     "exclude_geom_outliers",
+    "split_gdf_by_column",
+    "custom_deckgl_layer_from_dict",
+    "create_styled_layers_from_dict",
     "load_geospatial_files",
     "download_file_and_persist",
     "remove_invalid_geometries",

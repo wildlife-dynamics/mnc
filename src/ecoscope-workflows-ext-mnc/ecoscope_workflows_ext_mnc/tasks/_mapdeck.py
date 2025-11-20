@@ -529,11 +529,6 @@ def clean_file_keys(file_dict: Dict[str, AnyGeoDataFrame]) -> Dict[str, AnyGeoDa
         return key.strip('_').lower()
     return {clean_key(k): v for k, v in file_dict.items()}
 
-@task 
-def select_koi(file_dict: Dict[str,AnyGeoDataFrame],key_value:str)->  AnyGeoDataFrame:
-    if key_value not in file_dict.keys():
-        raise ValueError(f"Key '{key_value}' not found. Available keys: {list(file_dict.keys())}")
-    return file_dict[key_value]
 
 def detect_geometry_type(gdf: AnyGeoDataFrame) -> GeometrySummary:
     """
@@ -790,11 +785,11 @@ def exclude_geom_outliers(
 ) -> AnyGeoDataFrame:
     
     if df.empty:
-        print("Warning: Input dataframe is empty")
+        logger.warning("Warning: Input dataframe is empty")
         return df
     
     if len(df) < 4:
-        print(f"Warning: Too few points ({len(df)}) for reliable outlier detection. Returning original data.")
+        logger.warning(f"Warning: Too few points ({len(df)}) for reliable outlier detection. Returning original data.")
         return df
     
     if "geometry" not in df.columns:
@@ -815,12 +810,162 @@ def exclude_geom_outliers(
     dist_std = df_work["dist_from_center"].std()
     
     if dist_std == 0:
-        print("Warning: All points at same location (std=0). No outliers removed.")
+        logger.warning("Warning: All points at same location (std=0). No outliers removed.")
         return df.copy()
     
     z_scores = (df_work["dist_from_center"] - dist_mean) / dist_std
     mask = np.abs(z_scores) < z_threshold
     df_clean = df[mask].copy()
     outliers_count = (~mask).sum()
-    print(f"Outliers count: {outliers_count}")
+    logger.info(f"Outliers count: {outliers_count}")
     return df_clean
+
+
+@task
+def split_gdf_by_column(
+    gdf: Annotated[AnyGeoDataFrame, Field(description="The GeoDataFrame to split")],
+    column: Annotated[str, Field(description="Column name to split GeoDataFrame by")],
+) -> Dict[str, AnyGeoDataFrame]:
+    """
+    Splits a GeoDataFrame into a dictionary of GeoDataFrames based on unique values in the specified column.
+    """
+    if gdf is None or gdf.empty:
+        raise ValueError("`split_gdf_by_column`:gdf is empty.")
+
+    if column not in gdf.columns:
+        raise ValueError(f"`split_gdf_by_column`:Column '{column}' not found in GeoDataFrame.")
+
+    grouped = {str(k): v for k, v in gdf.groupby(column)}
+    return grouped
+
+@task
+def custom_deckgl_layer_from_dict(
+    layer_name: str,
+    gdf: AnyGeoDataFrame,
+    style_config: "MapStyleConfig",
+    primary_type: str,
+    include_legend: bool = False,
+) -> Optional[LayerDefinition]:
+    """
+    Create ONE pydeck layer for a single GeoDataFrame.
+    - Case-insensitive match on layer_name to find style
+    - Legend attached only when include_legend is True
+    - Returns None → caller skips the layer
+    """
+    canonical = {
+        "MultiPolygon": "Polygon",
+        "MultiPoint": "Point",
+        "MultiLineString": "LineString",
+    }.get(primary_type, primary_type)
+    
+    # Case-insensitive lookup
+    style_params = None
+    for key, value in style_config.styles.items():
+        if key.lower() == layer_name.lower():
+            style_params = value
+            break
+    
+    if not style_params:
+        logger.info(f"No style defined for '{layer_name}' – skipping")
+        return None
+    
+    legend = None
+    if include_legend and _build_legend_values(style_config):
+        legend = _build_legend_values(style_config)
+    
+    gdf = remove_invalid_geometries(gdf)
+    
+    try:
+        if canonical == "Polygon":
+            return create_geojson_layer(
+                geodataframe=gdf,
+                layer_style=GeoJsonLayerStyle(**style_params),
+                legend=legend,
+            )
+        if canonical == "Point":
+            return create_scatterplot_layer(
+                geodataframe=gdf,
+                layer_style=ScatterplotLayerStyle(**style_params),
+                legend=legend,
+            )
+        if canonical == "LineString":
+            return create_path_layer(
+                geodataframe=gdf,
+                layer_style=PathLayerStyle(**style_params),
+                legend=legend,
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to build {canonical} layer for '{layer_name}': {exc}")
+        return None
+    
+    logger.info(f"Unsupported geometry {primary_type} in '{layer_name}'")
+    return None
+
+
+@task
+def create_styled_layers_from_dict(
+    gdf_dict: Dict[str, AnyGeoDataFrame], 
+    style_config: MapStyleConfig
+    ) -> List[LayerDefinition]:
+    """
+    Create styled map layers from a dictionary of GeoDataFrames using the provided style config.
+    Args:
+        gdf_dict: Dictionary mapping layer names to GeoDataFrames.
+        style_config: Object holding style definitions and legend config.
+    Returns:
+        A list of styled map layer objects.
+    """
+    layers: List[LayerDefinition] = []
+    for idx, (layer_name, gdf) in enumerate(gdf_dict.items()):
+        try:    
+            try:
+                gdf = remove_invalid_geometries(gdf)
+            except Exception:
+                gdf = gdf.loc[(~gdf.geometry.isna()) & (~gdf.geometry.is_empty)]
+            
+            geom_analysis = detect_geometry_type(gdf=gdf)
+            gdf_geom_type = geom_analysis["primary_type"]
+            gdf_counts = geom_analysis.get("counts", {})
+            logger.info(f"{layer_name} geometry type: {gdf_geom_type} counts: {gdf_counts}")
+            
+            # Only include legend on the first layer
+            include_legend = (idx == 0)
+            layer = custom_deckgl_layer_from_dict(
+                layer_name, 
+                gdf, 
+                style_config, 
+                gdf_geom_type,
+                include_legend=include_legend
+            )
+            
+            if layer is not None:
+                layers.append(layer)
+        except Exception as e:
+            logger.error(f"Error processing layer for '{layer_name}': {e}")
+    
+    logger.info(f"Successfully created {len(layers)} map layers")
+    return layers
+
+@task
+def create_gdf_from_dict(gdf_dict: Dict[str, AnyGeoDataFrame], key: str) -> Optional[AnyGeoDataFrame]:
+    """
+    Retrieve a GeoDataFrame from a dictionary by key.
+    
+    Args:
+        gdf_dict: Dictionary mapping layer names to GeoDataFrames.
+        key: The key name to retrieve.
+    
+    Returns:
+        GeoDataFrame if key exists, None otherwise.
+    """
+    if key in gdf_dict:
+        return gdf_dict[key]
+    
+    # Try case-insensitive lookup
+    for dict_key, gdf in gdf_dict.items():
+        if dict_key.lower() == key.lower():
+            return gdf
+    
+    print(f"Key '{key}' not found in gdf_dict. Available keys: {list(gdf_dict.keys())}")
+    return None
+

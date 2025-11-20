@@ -17,14 +17,14 @@ from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection
 from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
+from ecoscope_workflows_ext_custom.tasks.io import load_df
 from ecoscope_workflows_ext_custom.tasks.results import set_base_maps_pydeck
 from ecoscope_workflows_ext_mnc.tasks import (
-    clean_file_keys,
-    create_map_layers,
+    create_gdf_from_dict,
+    create_styled_layers_from_dict,
     download_file_and_persist,
-    load_geospatial_files,
     make_text_layer,
-    select_koi,
+    split_gdf_by_column,
 )
 
 get_subjectgroup_observations = create_task_magicmock(  # 🧪
@@ -48,15 +48,62 @@ get_events = create_task_magicmock(  # 🧪
     func_name="get_events",  # 🧪
 )  # 🧪
 from ecoscope_workflows_core.tasks.io import persist_text
-from ecoscope_workflows_core.tasks.results import gather_dashboard
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index,
     extract_column_as_type,
+    filter_df,
+    map_columns,
+)
+from ecoscope_workflows_ext_custom.tasks.io import html_to_png
+from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
+from ecoscope_workflows_ext_ecoscope.tasks.io import (
+    persist_df,
+    set_patrols_and_patrol_events_params,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
+
+get_patrols_from_combined_params = create_task_magicmock(  # 🧪
+    anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
+    func_name="get_patrols_from_combined_params",  # 🧪
+)  # 🧪
+from ecoscope_workflows_core.tasks.groupby import split_groups
+from ecoscope_workflows_core.tasks.io import persist_text
+from ecoscope_workflows_core.tasks.results import gather_dashboard
+from ecoscope_workflows_core.tasks.skip import any_dependency_skipped, any_is_empty_df
+from ecoscope_workflows_core.tasks.transformation import (
+    add_temporal_index,
+    filter_df,
+    map_columns,
+)
+from ecoscope_workflows_ext_custom.tasks.io import html_to_png
+from ecoscope_workflows_ext_custom.tasks.results import (
+    create_path_layer,
+    create_polygon_layer_pydeck,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df
-from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
+from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
+    process_relocations,
+    relocations_to_trajectory,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
+    apply_classification,
+    apply_color_map,
+)
+from ecoscope_workflows_ext_mnc.tasks import (
+    classify_mnc_patrol,
+    compute_occupancy,
+    create_patrol_coverage_grid,
+    draw_custom_map,
+    get_patrol_observations_from_patrols_dataframe_and_combined_params,
+    get_patrols_from_combined_parameters,
+    merge_multiple_df,
+    merge_static_and_grouped_layers,
+    round_values,
+    view_state_deck_gdf,
+)
 
 from ..params import Params
 
@@ -74,11 +121,11 @@ def main(params: Params):
         "configure_base_maps": [],
         "persist_mnc_tpt": [],
         "persist_mnc_gpkg": [],
-        "load_local_shapefiles": [],
-        "create_custom_map_layers": ["load_local_shapefiles"],
-        "clean_local_geo_files": ["load_local_shapefiles"],
-        "filter_aoi": ["clean_local_geo_files"],
-        "custom_text_layer": ["filter_aoi"],
+        "load_local_shapefiles": ["persist_mnc_gpkg"],
+        "split_gdf_by_zone": ["load_local_shapefiles"],
+        "create_mnc_styled_layers": ["split_gdf_by_zone"],
+        "conservancy_gdf": ["split_gdf_by_zone"],
+        "custom_text_layer": ["conservancy_gdf"],
         "subject_observations": ["er_client_name", "time_range"],
         "extract_precipitation": ["subject_observations"],
         "extract_temperature": ["extract_precipitation"],
@@ -122,6 +169,117 @@ def main(params: Params):
         "persist_tevents_df": ["add_total_events_row"],
         "draw_events_chart": ["total_events_recorded"],
         "persist_total_events": ["draw_events_chart"],
+        "total_events_png": ["persist_total_events"],
+        "total_events_type_recorded": ["exclude_event_type_values"],
+        "persist_summary_event_type": ["total_events_type_recorded"],
+        "filter_patrol_info_events": ["exclude_event_type_values"],
+        "normalize_pi_values": ["filter_patrol_info_events"],
+        "rename_patrol_info": ["normalize_pi_values"],
+        "patrol_info_summary": ["rename_patrol_info"],
+        "include_pat_totals": ["patrol_info_summary"],
+        "persist_patrol_df": ["include_pat_totals"],
+        "er_patrol_and_events_params": ["er_client_name", "time_range"],
+        "prefetch_patrols": ["er_patrol_and_events_params"],
+        "get_patrol_events_params": ["er_client_name", "time_range"],
+        "patrol_observations": [
+            "get_patrol_events_params",
+            "er_client_name",
+            "time_range",
+        ],
+        "map_patrol_types": ["patrol_observations"],
+        "filter_foot_patrols": ["map_patrol_types"],
+        "filter_vehicle_patrols": ["map_patrol_types"],
+        "filter_motor_patrols": ["map_patrol_types"],
+        "foot_patrols": ["filter_foot_patrols"],
+        "vehicle_patrols": ["filter_vehicle_patrols"],
+        "motorbike_patrols": ["filter_motor_patrols"],
+        "foot_trajs": ["foot_patrols"],
+        "vehicle_trajs": ["vehicle_patrols"],
+        "motor_trajs": ["motorbike_patrols"],
+        "temporal_foot_traj": ["foot_trajs", "groupers"],
+        "temporal_vehicle_traj": ["vehicle_trajs", "groupers"],
+        "temporal_motor_traj": ["motor_trajs", "groupers"],
+        "rename_foot_trajs": ["temporal_foot_traj"],
+        "rename_vehicle_trajs": ["temporal_vehicle_traj"],
+        "rename_motor_trajs": ["temporal_motor_traj"],
+        "split_foot_traj_group": ["rename_foot_trajs", "groupers"],
+        "split_vehicle_traj_group": ["rename_vehicle_trajs", "groupers"],
+        "split_motor_traj_group": ["rename_motor_trajs", "groupers"],
+        "foot_patrol_metrics": ["rename_foot_trajs"],
+        "persist_foot_df": ["foot_patrol_metrics"],
+        "apply_footp_colormap": ["rename_foot_trajs"],
+        "generate_foot_layers": ["apply_footp_colormap"],
+        "zoom_foot_patrols": ["conservancy_gdf"],
+        "combine_custom_foot_patrols": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_foot_layers",
+        ],
+        "draw_foot_patrol_map": [
+            "configure_base_maps",
+            "combine_custom_foot_patrols",
+            "zoom_foot_patrols",
+        ],
+        "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
+        "convert_foot_png": ["persist_foot_patrol_urls"],
+        "vehicle_patrol_metrics": ["split_vehicle_traj_group"],
+        "persist_vehicle_df": ["vehicle_patrol_metrics"],
+        "apply_vehicle_colormap": ["split_vehicle_traj_group"],
+        "generate_vehicle_layers": ["apply_vehicle_colormap"],
+        "zoom_vehicle_patrols": ["conservancy_gdf"],
+        "combine_custom_vehicle_patrols": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_vehicle_layers",
+        ],
+        "draw_vehicle_patrol_map": [
+            "configure_base_maps",
+            "combine_custom_vehicle_patrols",
+            "zoom_vehicle_patrols",
+        ],
+        "persist_vehicle_patrol_urls": ["draw_vehicle_patrol_map"],
+        "convert_vehicle_png": ["persist_vehicle_patrol_urls"],
+        "motor_patrol_metrics": ["split_motor_traj_group"],
+        "persist_motor_df": ["motor_patrol_metrics"],
+        "apply_motor_colormap": ["split_motor_traj_group"],
+        "generate_motor_layers": ["apply_motor_colormap"],
+        "zoom_motor_patrols": ["conservancy_gdf"],
+        "combine_custom_motor_patrols": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_motor_layers",
+        ],
+        "draw_motor_patrol_map": [
+            "configure_base_maps",
+            "combine_custom_motor_patrols",
+            "zoom_motor_patrols",
+        ],
+        "persist_motor_patrol_urls": ["draw_motor_patrol_map"],
+        "convert_motor_png": ["persist_motor_patrol_urls"],
+        "merge_trajs": ["foot_trajs", "vehicle_trajs", "motor_trajs"],
+        "split_merged_trajs": ["merge_trajs", "groupers"],
+        "ranger_patrol_metrics": ["split_merged_trajs"],
+        "persist_total_df": ["ranger_patrol_metrics"],
+        "patrol_grid_visits": ["split_merged_trajs"],
+        "apply_classification_grid": ["patrol_grid_visits"],
+        "apply_grid_colormap": ["apply_classification_grid"],
+        "generate_grid_layers": ["apply_grid_colormap"],
+        "zoom_grid_view": ["conservancy_gdf"],
+        "combine_patrol_grid": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_grid_layers",
+        ],
+        "draw_grid_map": [
+            "configure_base_maps",
+            "combine_patrol_grid",
+            "zoom_grid_view",
+        ],
+        "persist_grid_map_urls": ["draw_grid_map"],
+        "convert_patrol_grid_png": ["persist_grid_map_urls"],
+        "compute_patrol_occupancy": ["patrol_grid_visits", "conservancy_gdf"],
+        "round_off_patrol": ["compute_patrol_occupancy"],
+        "persist_occupancy_df": ["round_off_patrol"],
         "mnc_events_dashboard": ["workflow_details", "time_range", "groupers"],
     }
 
@@ -186,7 +344,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="persist_mnc_gpkg")
             .set_executor("lithops"),
             partial={
-                "url": "https://www.dropbox.com/scl/fi/ahgr1bjv72tdeuiwf3e4h/community-conservancy.gpkg?rlkey=1bla1c9to4nj4y39nnpwpjgsx&st=hj4k3zd7&dl=0",
+                "url": "https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=55vxskq6&dl=0",
                 "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "overwrite_existing": False,
                 "retries": 3,
@@ -196,61 +354,123 @@ def main(params: Params):
             method="call",
         ),
         "load_local_shapefiles": Node(
-            async_task=load_geospatial_files.validate()
+            async_task=load_df.validate()
             .handle_errors(task_instance_id="load_local_shapefiles")
             .set_executor("lithops"),
             partial={
-                "config": {
-                    "path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                },
+                "file_path": DependsOn("persist_mnc_gpkg"),
+                "layer": None,
+                "deserialize_json": False,
             }
             | (params_dict.get("load_local_shapefiles") or {}),
             method="call",
         ),
-        "create_custom_map_layers": Node(
-            async_task=create_map_layers.validate()
-            .handle_errors(task_instance_id="create_custom_map_layers")
+        "split_gdf_by_zone": Node(
+            async_task=split_gdf_by_column.validate()
+            .handle_errors(task_instance_id="split_gdf_by_zone")
             .set_executor("lithops"),
             partial={
-                "file_dict": DependsOn("load_local_shapefiles"),
+                "gdf": DependsOn("load_local_shapefiles"),
+                "column": "grazing_zone",
+            }
+            | (params_dict.get("split_gdf_by_zone") or {}),
+            method="call",
+        ),
+        "create_mnc_styled_layers": Node(
+            async_task=create_styled_layers_from_dict.validate()
+            .handle_errors(task_instance_id="create_mnc_styled_layers")
+            .set_executor("lithops"),
+            partial={
+                "gdf_dict": DependsOn("split_gdf_by_zone"),
                 "style_config": {
                     "styles": {
-                        "community_conservancy": {
+                        "Conservancy": {
+                            "extruded": False,
+                            "get_fill_color": [105, 105, 105, 200],
+                            "get_line_color": [105, 105, 105, 200],
+                            "get_line_width": 2.25,
                             "stroked": True,
                             "filled": False,
                             "opacity": 0.95,
-                            "get_line_color": [105, 105, 105, 200],
-                            "get_line_width": 2.55,
-                        }
+                        },
+                        "Conservancy Herd Zone": {
+                            "extruded": False,
+                            "get_fill_color": [173, 255, 47, 200],
+                            "get_line_color": [173, 255, 47, 200],
+                            "get_line_width": 2.25,
+                            "stroked": True,
+                            "filled": True,
+                            "opacity": 0.35,
+                        },
+                        "Grazing Zone 1": {
+                            "extruded": False,
+                            "get_fill_color": [85, 107, 47, 200],
+                            "get_line_color": [85, 107, 47, 200],
+                            "get_line_width": 2.25,
+                            "stroked": True,
+                            "filled": True,
+                            "opacity": 0.35,
+                        },
+                        "Grazing Zone 2": {
+                            "extruded": False,
+                            "get_fill_color": [0, 139, 139, 200],
+                            "get_line_color": [0, 139, 139, 200],
+                            "get_line_width": 2.25,
+                            "stroked": True,
+                            "filled": True,
+                            "opacity": 0.35,
+                        },
+                        "Grazing Zone 3": {
+                            "extruded": False,
+                            "get_fill_color": [0, 100, 0, 200],
+                            "get_line_color": [0, 100, 0, 200],
+                            "get_line_width": 2.25,
+                            "stroked": True,
+                            "filled": True,
+                            "opacity": 0.35,
+                        },
+                        "Grazing Zone 4": {
+                            "extruded": False,
+                            "get_fill_color": [143, 188, 139, 200],
+                            "get_line_color": [143, 188, 139, 200],
+                            "get_line_width": 2.25,
+                            "stroked": True,
+                            "filled": True,
+                            "opacity": 0.35,
+                        },
                     },
                     "legend": {
-                        "label": ["Conservancy boundaries"],
-                        "color": ["#696969"],
+                        "labels": [
+                            "Conservancy boundaries",
+                            "Conservancy herd zone",
+                            "Grazing zone 1",
+                            "Grazing zone 2",
+                            "Grazing zone 3",
+                            "Grazing zone 4",
+                        ],
+                        "color": [
+                            "#696969",
+                            "#adff2f",
+                            "#556b2f",
+                            "#008b8b",
+                            "#006400",
+                            "#8fbc8b",
+                        ],
                     },
                 },
             }
-            | (params_dict.get("create_custom_map_layers") or {}),
+            | (params_dict.get("create_mnc_styled_layers") or {}),
             method="call",
         ),
-        "clean_local_geo_files": Node(
-            async_task=clean_file_keys.validate()
-            .handle_errors(task_instance_id="clean_local_geo_files")
+        "conservancy_gdf": Node(
+            async_task=create_gdf_from_dict.validate()
+            .handle_errors(task_instance_id="conservancy_gdf")
             .set_executor("lithops"),
             partial={
-                "file_dict": DependsOn("load_local_shapefiles"),
+                "gdf_dict": DependsOn("split_gdf_by_zone"),
+                "key": "Conservancy",
             }
-            | (params_dict.get("clean_local_geo_files") or {}),
-            method="call",
-        ),
-        "filter_aoi": Node(
-            async_task=select_koi.validate()
-            .handle_errors(task_instance_id="filter_aoi")
-            .set_executor("lithops"),
-            partial={
-                "file_dict": DependsOn("clean_local_geo_files"),
-                "key_value": "community_conservancy",
-            }
-            | (params_dict.get("filter_aoi") or {}),
+            | (params_dict.get("conservancy_gdf") or {}),
             method="call",
         ),
         "custom_text_layer": Node(
@@ -258,7 +478,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="custom_text_layer")
             .set_executor("lithops"),
             partial={
-                "txt_gdf": DependsOn("filter_aoi"),
+                "txt_gdf": DependsOn("conservancy_gdf"),
                 "label_column": "label",
                 "fallback_columns": ["name"],
                 "use_centroid": True,
@@ -544,7 +764,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 200},
+                "config": {"wait_for_timeout": 1000},
                 "html_path": DependsOn("persist_precipitation"),
             }
             | (params_dict.get("precipitation_png") or {}),
@@ -600,7 +820,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 200},
+                "config": {"wait_for_timeout": 1000},
                 "html_path": DependsOn("persist_temperature"),
             }
             | (params_dict.get("temperature_png") or {}),
@@ -656,7 +876,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 200},
+                "config": {"wait_for_timeout": 1000},
                 "html_path": DependsOn("persist_wind_speed"),
             }
             | (params_dict.get("wind_speed_png") or {}),
@@ -712,7 +932,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 200},
+                "config": {"wait_for_timeout": 1000},
                 "html_path": DependsOn("persist_wind_gusts"),
             }
             | (params_dict.get("wind_gusts_png") or {}),
@@ -768,7 +988,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 200},
+                "config": {"wait_for_timeout": 1000},
                 "html_path": DependsOn("persist_soil_temp"),
             }
             | (params_dict.get("soil_temp_png") or {}),
@@ -824,7 +1044,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 200},
+                "config": {"wait_for_timeout": 1000},
                 "html_path": DependsOn("persist_rel_humidity"),
             }
             | (params_dict.get("rel_humidity_png") or {}),
@@ -880,7 +1100,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 200},
+                "config": {"wait_for_timeout": 1000},
                 "html_path": DependsOn("persist_pressure"),
             }
             | (params_dict.get("pressure_png") or {}),
@@ -920,7 +1140,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("get_events_data"),
-                "column_name": "created_at",
+                "column_name": "time",
                 "output_type": "date",
                 "output_column_name": "date",
             }
@@ -1036,6 +1256,1400 @@ def main(params: Params):
                 "filename": "total_events_recorded.html",
             }
             | (params_dict.get("persist_total_events") or {}),
+            method="call",
+        ),
+        "total_events_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="total_events_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 1000},
+                "html_path": DependsOn("persist_total_events"),
+            }
+            | (params_dict.get("total_events_png") or {}),
+            method="call",
+        ),
+        "total_events_type_recorded": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="total_events_type_recorded")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["date", "event_type"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("total_events_type_recorded") or {}),
+            method="call",
+        ),
+        "persist_summary_event_type": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_summary_event_type")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("total_events_type_recorded"),
+                "filename": "total_events_recorded_by_type",
+            }
+            | (params_dict.get("persist_summary_event_type") or {}),
+            method="call",
+        ),
+        "filter_patrol_info_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="filter_patrol_info_events")
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "value": "patrol_information",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("filter_patrol_info_events") or {}),
+            method="call",
+        ),
+        "normalize_pi_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_pi_values")
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("filter_patrol_info_events"),
+            }
+            | (params_dict.get("normalize_pi_values") or {}),
+            method="call",
+        ),
+        "rename_patrol_info": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_patrol_info")
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__participants": "participants",
+                    "event_details__patrol_purpose": "purpose",
+                    "event_details__person_who_authorized": "authorized_by",
+                },
+                "df": DependsOn("normalize_pi_values"),
+            }
+            | (params_dict.get("rename_patrol_info") or {}),
+            method="call",
+        ),
+        "patrol_info_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="patrol_info_summary")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["purpose"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_patrols",
+                        "aggregator": "count",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("rename_patrol_info"),
+            }
+            | (params_dict.get("patrol_info_summary") or {}),
+            method="call",
+        ),
+        "include_pat_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_pat_totals")
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["purpose"],
+                "label": "Total",
+                "df": DependsOn("patrol_info_summary"),
+            }
+            | (params_dict.get("include_pat_totals") or {}),
+            method="call",
+        ),
+        "persist_patrol_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_patrol_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "patrol_purpose_summary",
+                "df": DependsOn("include_pat_totals"),
+            }
+            | (params_dict.get("persist_patrol_df") or {}),
+            method="call",
+        ),
+        "er_patrol_and_events_params": Node(
+            async_task=set_patrols_and_patrol_events_params.validate()
+            .handle_errors(task_instance_id="er_patrol_and_events_params")
+            .set_executor("lithops"),
+            partial={
+                "client": DependsOn("er_client_name"),
+                "time_range": DependsOn("time_range"),
+                "include_patrol_details": True,
+                "raise_on_empty": False,
+                "truncate_to_time_range": True,
+                "sub_page_size": 150,
+                "patrol_types": [
+                    "mnc_motorbike_patrol_nkorbob",
+                    "mnc_foot_patrol_naishi",
+                    "mnc_motorbike_patrol_enkikwei",
+                    "mnc_vehicle_patrol_nkorbob",
+                    "mnc_vehicle_patrol_rekero",
+                    "mnc_motorbike_patrol_naishi",
+                    "mnc_vehicle_patrol_naishi",
+                    "mnc_Vehicle_patrol_ndoto",
+                    "mnc_foot_patrol_mara_east",
+                    "mnc_motorbike_patrol_yiale",
+                    "mnc_motorbike_patrol_ndoto",
+                    "mnc_motorbike_patrol_hqteam",
+                    "mnc_vehicle_patrol_aitong",
+                    "mnc_foot_patrol_kicheche",
+                    "mnc_vehicle_patrol_hqteam",
+                    "mnc_motorbike_patrol_kicheche",
+                    "mnc_vehicle_patrol_enkuyanai",
+                    "mnc_foot_patrol_rekero",
+                    "mnc_foot_patrol_hqteam",
+                    "mnc_vehicle_patrol_kicheche",
+                    "mnc_foot_patrol  cheli team",
+                    "mnc_foot_patrol_aitong",
+                    "mnc_foot_patrol_enkikwei team",
+                    "mnc_vehicle_patrol_enkikwei team",
+                    "mnc_foot_patrol_enkuyanai",
+                    "mnc_vehicle_patrol_mara_east",
+                    "mnc_motorbike_patrol_rekero",
+                    "mnc_foot_patrol_ndoto",
+                    "mnc_motorbike_patrol_aitong",
+                    "mnc_foot_patrol_nkorbob",
+                    "mnc_motorbike_patrol_Airstrip",
+                    "Motorcycle Patrol",
+                    "Foot Patrol",
+                    "mnc_vehicle_patrol_cheli",
+                    "mnc_foot_patrol_musiara team",
+                    "mnc_motorbike_patrol_musiara team",
+                    "mnc_motorbike_patrol_cheli",
+                    "mnc_vehicle_patrol_musiara",
+                    "mnc_foot_patrol_Karen",
+                    "mnc_Vehicle_patrol_Karen",
+                    "mnc_motorbike_patrol_Karen",
+                    "mnc_motorbike_patrol_enkuyanai",
+                    "mnc_motorbike_grazing_zone1",
+                    "mnc_motorbike_grazing_zone4",
+                ],
+            }
+            | (params_dict.get("er_patrol_and_events_params") or {}),
+            method="call",
+        ),
+        "prefetch_patrols": Node(
+            async_task=get_patrols_from_combined_params.validate()
+            .handle_errors(task_instance_id="prefetch_patrols")
+            .set_executor("lithops"),
+            partial={
+                "combined_params": DependsOn("er_patrol_and_events_params"),
+            }
+            | (params_dict.get("prefetch_patrols") or {}),
+            method="call",
+        ),
+        "get_patrol_events_params": Node(
+            async_task=get_patrols_from_combined_parameters.validate()
+            .handle_errors(task_instance_id="get_patrol_events_params")
+            .set_executor("lithops"),
+            partial={
+                "combined_params": {
+                    "client": DependsOn("er_client_name"),
+                    "time_range": DependsOn("time_range"),
+                    "event_types": ["5c35b260-4711-49cb-a863-ad2b43317b29"],
+                    "patrol_types": [
+                        "mnc_motorbike_patrol_nkorbob",
+                        "mnc_foot_patrol_naishi",
+                        "mnc_motorbike_patrol_enkikwei",
+                        "mnc_vehicle_patrol_nkorbob",
+                        "mnc_vehicle_patrol_rekero",
+                        "mnc_motorbike_patrol_naishi",
+                        "mnc_vehicle_patrol_naishi",
+                        "mnc_Vehicle_patrol_ndoto",
+                        "mnc_foot_patrol_mara_east",
+                        "mnc_motorbike_patrol_yiale",
+                        "mnc_motorbike_patrol_ndoto",
+                        "mnc_motorbike_patrol_hqteam",
+                        "mnc_vehicle_patrol_aitong",
+                        "mnc_foot_patrol_kicheche",
+                        "mnc_vehicle_patrol_hqteam",
+                        "mnc_motorbike_patrol_kicheche",
+                        "mnc_vehicle_patrol_enkuyanai",
+                        "mnc_foot_patrol_rekero",
+                        "mnc_foot_patrol_hqteam",
+                        "mnc_vehicle_patrol_kicheche",
+                        "mnc_foot_patrol  cheli team",
+                        "mnc_foot_patrol_aitong",
+                        "mnc_foot_patrol_enkikwei team",
+                        "mnc_vehicle_patrol_enkikwei team",
+                        "mnc_foot_patrol_enkuyanai",
+                        "mnc_vehicle_patrol_mara_east",
+                        "mnc_motorbike_patrol_rekero",
+                        "mnc_foot_patrol_ndoto",
+                        "mnc_motorbike_patrol_aitong",
+                        "mnc_foot_patrol_nkorbob",
+                        "mnc_motorbike_patrol_Airstrip",
+                        "Motorcycle Patrol",
+                        "Foot Patrol",
+                        "mnc_vehicle_patrol_cheli",
+                        "mnc_foot_patrol_musiara team",
+                        "mnc_motorbike_patrol_musiara team",
+                        "mnc_motorbike_patrol_cheli",
+                        "mnc_vehicle_patrol_musiara",
+                        "mnc_foot_patrol_Karen",
+                        "mnc_Vehicle_patrol_Karen",
+                        "mnc_motorbike_patrol_Karen",
+                        "mnc_motorbike_patrol_enkuyanai",
+                        "mnc_motorbike_grazing_zone1",
+                        "mnc_motorbike_grazing_zone4",
+                    ],
+                },
+            }
+            | (params_dict.get("get_patrol_events_params") or {}),
+            method="call",
+        ),
+        "patrol_observations": Node(
+            async_task=get_patrol_observations_from_patrols_dataframe_and_combined_params.validate()
+            .handle_errors(task_instance_id="patrol_observations")
+            .set_executor("lithops"),
+            partial={
+                "patrols_df": DependsOn("get_patrol_events_params"),
+                "combined_params": {
+                    "client": DependsOn("er_client_name"),
+                    "time_range": DependsOn("time_range"),
+                    "event_types": ["5c35b260-4711-49cb-a863-ad2b43317b29"],
+                    "patrol_types": [
+                        "mnc_motorbike_patrol_nkorbob",
+                        "mnc_foot_patrol_naishi",
+                        "mnc_motorbike_patrol_enkikwei",
+                        "mnc_vehicle_patrol_nkorbob",
+                        "mnc_vehicle_patrol_rekero",
+                        "mnc_motorbike_patrol_naishi",
+                        "mnc_vehicle_patrol_naishi",
+                        "mnc_Vehicle_patrol_ndoto",
+                        "mnc_foot_patrol_mara_east",
+                        "mnc_motorbike_patrol_yiale",
+                        "mnc_motorbike_patrol_ndoto",
+                        "mnc_motorbike_patrol_hqteam",
+                        "mnc_vehicle_patrol_aitong",
+                        "mnc_foot_patrol_kicheche",
+                        "mnc_vehicle_patrol_hqteam",
+                        "mnc_motorbike_patrol_kicheche",
+                        "mnc_vehicle_patrol_enkuyanai",
+                        "mnc_foot_patrol_rekero",
+                        "mnc_foot_patrol_hqteam",
+                        "mnc_vehicle_patrol_kicheche",
+                        "mnc_foot_patrol  cheli team",
+                        "mnc_foot_patrol_aitong",
+                        "mnc_foot_patrol_enkikwei team",
+                        "mnc_vehicle_patrol_enkikwei team",
+                        "mnc_foot_patrol_enkuyanai",
+                        "mnc_vehicle_patrol_mara_east",
+                        "mnc_motorbike_patrol_rekero",
+                        "mnc_foot_patrol_ndoto",
+                        "mnc_motorbike_patrol_aitong",
+                        "mnc_foot_patrol_nkorbob",
+                        "mnc_motorbike_patrol_Airstrip",
+                        "Motorcycle Patrol",
+                        "Foot Patrol",
+                        "mnc_vehicle_patrol_cheli",
+                        "mnc_foot_patrol_musiara team",
+                        "mnc_motorbike_patrol_musiara team",
+                        "mnc_motorbike_patrol_cheli",
+                        "mnc_vehicle_patrol_musiara",
+                        "mnc_foot_patrol_Karen",
+                        "mnc_Vehicle_patrol_Karen",
+                        "mnc_motorbike_patrol_Karen",
+                        "mnc_motorbike_patrol_enkuyanai",
+                        "mnc_motorbike_grazing_zone1",
+                        "mnc_motorbike_grazing_zone4",
+                    ],
+                },
+            }
+            | (params_dict.get("patrol_observations") or {}),
+            method="call",
+        ),
+        "map_patrol_types": Node(
+            async_task=classify_mnc_patrol.validate()
+            .handle_errors(task_instance_id="map_patrol_types")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("patrol_observations"),
+                "patrol_col": "patrol_type__value",
+                "new_col": "patrol_cat_types",
+            }
+            | (params_dict.get("map_patrol_types") or {}),
+            method="call",
+        ),
+        "filter_foot_patrols": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="filter_foot_patrols")
+            .set_executor("lithops"),
+            partial={
+                "column_name": "patrol_cat_types",
+                "op": "equal",
+                "value": "foot",
+                "df": DependsOn("map_patrol_types"),
+            }
+            | (params_dict.get("filter_foot_patrols") or {}),
+            method="call",
+        ),
+        "filter_vehicle_patrols": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="filter_vehicle_patrols")
+            .set_executor("lithops"),
+            partial={
+                "column_name": "patrol_cat_types",
+                "op": "equal",
+                "value": "vehicle",
+                "df": DependsOn("map_patrol_types"),
+            }
+            | (params_dict.get("filter_vehicle_patrols") or {}),
+            method="call",
+        ),
+        "filter_motor_patrols": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="filter_motor_patrols")
+            .set_executor("lithops"),
+            partial={
+                "column_name": "patrol_cat_types",
+                "op": "equal",
+                "value": "foot",
+                "df": DependsOn("map_patrol_types"),
+            }
+            | (params_dict.get("filter_motor_patrols") or {}),
+            method="call",
+        ),
+        "foot_patrols": Node(
+            async_task=process_relocations.validate()
+            .handle_errors(task_instance_id="foot_patrols")
+            .set_executor("lithops"),
+            partial={
+                "observations": DependsOn("filter_foot_patrols"),
+                "relocs_columns": [
+                    "extra__id",
+                    "extra__created_at",
+                    "extra__subject_id",
+                    "geometry",
+                    "groupby_col",
+                    "fixtime",
+                    "junk_status",
+                    "patrol_id",
+                    "patrol_title",
+                    "patrol_serial_number",
+                    "patrol_start_time",
+                    "patrol_end_time",
+                    "patrol_type",
+                    "patrol_status",
+                    "patrol_subject",
+                    "patrol_type__value",
+                ],
+                "filter_point_coords": [
+                    {"x": 180.0, "y": 90.0},
+                    {"x": 0.0, "y": 0.0},
+                    {"x": 1.0, "y": 1.0},
+                ],
+            }
+            | (params_dict.get("foot_patrols") or {}),
+            method="call",
+        ),
+        "vehicle_patrols": Node(
+            async_task=process_relocations.validate()
+            .handle_errors(task_instance_id="vehicle_patrols")
+            .set_executor("lithops"),
+            partial={
+                "observations": DependsOn("filter_vehicle_patrols"),
+                "relocs_columns": [
+                    "extra__id",
+                    "extra__created_at",
+                    "extra__subject_id",
+                    "geometry",
+                    "groupby_col",
+                    "fixtime",
+                    "junk_status",
+                    "patrol_id",
+                    "patrol_title",
+                    "patrol_serial_number",
+                    "patrol_start_time",
+                    "patrol_end_time",
+                    "patrol_type",
+                    "patrol_status",
+                    "patrol_subject",
+                    "patrol_type__value",
+                ],
+                "filter_point_coords": [
+                    {"x": 180.0, "y": 90.0},
+                    {"x": 0.0, "y": 0.0},
+                    {"x": 1.0, "y": 1.0},
+                ],
+            }
+            | (params_dict.get("vehicle_patrols") or {}),
+            method="call",
+        ),
+        "motorbike_patrols": Node(
+            async_task=process_relocations.validate()
+            .handle_errors(task_instance_id="motorbike_patrols")
+            .set_executor("lithops"),
+            partial={
+                "observations": DependsOn("filter_motor_patrols"),
+                "relocs_columns": [
+                    "extra__id",
+                    "extra__created_at",
+                    "extra__subject_id",
+                    "geometry",
+                    "groupby_col",
+                    "fixtime",
+                    "junk_status",
+                    "patrol_id",
+                    "patrol_title",
+                    "patrol_serial_number",
+                    "patrol_start_time",
+                    "patrol_end_time",
+                    "patrol_type",
+                    "patrol_status",
+                    "patrol_subject",
+                    "patrol_type__value",
+                ],
+                "filter_point_coords": [
+                    {"x": 180.0, "y": 90.0},
+                    {"x": 0.0, "y": 0.0},
+                    {"x": 1.0, "y": 1.0},
+                ],
+            }
+            | (params_dict.get("motorbike_patrols") or {}),
+            method="call",
+        ),
+        "foot_trajs": Node(
+            async_task=relocations_to_trajectory.validate()
+            .handle_errors(task_instance_id="foot_trajs")
+            .set_executor("lithops"),
+            partial={
+                "relocations": DependsOn("foot_patrols"),
+            }
+            | (params_dict.get("foot_trajs") or {}),
+            method="call",
+        ),
+        "vehicle_trajs": Node(
+            async_task=relocations_to_trajectory.validate()
+            .handle_errors(task_instance_id="vehicle_trajs")
+            .set_executor("lithops"),
+            partial={
+                "relocations": DependsOn("vehicle_patrols"),
+            }
+            | (params_dict.get("vehicle_trajs") or {}),
+            method="call",
+        ),
+        "motor_trajs": Node(
+            async_task=relocations_to_trajectory.validate()
+            .handle_errors(task_instance_id="motor_trajs")
+            .set_executor("lithops"),
+            partial={
+                "relocations": DependsOn("motorbike_patrols"),
+            }
+            | (params_dict.get("motor_trajs") or {}),
+            method="call",
+        ),
+        "temporal_foot_traj": Node(
+            async_task=add_temporal_index.validate()
+            .handle_errors(task_instance_id="temporal_foot_traj")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("foot_trajs"),
+                "time_col": "segment_start",
+                "groupers": DependsOn("groupers"),
+                "cast_to_datetime": True,
+                "format": "mixed",
+            }
+            | (params_dict.get("temporal_foot_traj") or {}),
+            method="call",
+        ),
+        "temporal_vehicle_traj": Node(
+            async_task=add_temporal_index.validate()
+            .handle_errors(task_instance_id="temporal_vehicle_traj")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("vehicle_trajs"),
+                "time_col": "segment_start",
+                "groupers": DependsOn("groupers"),
+                "cast_to_datetime": True,
+                "format": "mixed",
+            }
+            | (params_dict.get("temporal_vehicle_traj") or {}),
+            method="call",
+        ),
+        "temporal_motor_traj": Node(
+            async_task=add_temporal_index.validate()
+            .handle_errors(task_instance_id="temporal_motor_traj")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("motor_trajs"),
+                "time_col": "segment_start",
+                "groupers": DependsOn("groupers"),
+                "cast_to_datetime": True,
+                "format": "mixed",
+            }
+            | (params_dict.get("temporal_motor_traj") or {}),
+            method="call",
+        ),
+        "rename_foot_trajs": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_foot_trajs")
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": ["heading", "extra__created_at", "extra__id"],
+                "retain_columns": [],
+                "rename_columns": {
+                    "extra__patrol_start_time": "patrol_start_time",
+                    "extra__patrol_end_time": "patrol_end_time",
+                    "extra__patrol_id": "patrol_id",
+                    "extra__patrol_serial_number": "patrol_serial_number",
+                    "extra__patrol_status": "patrol_status",
+                    "extra__patrol_subject": "patrol_subject_name",
+                    "extra__patrol_title": "patrol_title",
+                    "extra__patrol_type": "patrol_type_id",
+                    "extra__patrol_type__value": "patrol_type_value",
+                    "extra__subject_id": "subject_id",
+                },
+                "df": DependsOn("temporal_foot_traj"),
+            }
+            | (params_dict.get("rename_foot_trajs") or {}),
+            method="call",
+        ),
+        "rename_vehicle_trajs": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_vehicle_trajs")
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": ["heading", "extra__created_at", "extra__id"],
+                "retain_columns": [],
+                "rename_columns": {
+                    "extra__patrol_start_time": "patrol_start_time",
+                    "extra__patrol_end_time": "patrol_end_time",
+                    "extra__patrol_id": "patrol_id",
+                    "extra__patrol_serial_number": "patrol_serial_number",
+                    "extra__patrol_status": "patrol_status",
+                    "extra__patrol_subject": "patrol_subject_name",
+                    "extra__patrol_title": "patrol_title",
+                    "extra__patrol_type": "patrol_type_id",
+                    "extra__patrol_type__value": "patrol_type_value",
+                    "extra__subject_id": "subject_id",
+                },
+                "df": DependsOn("temporal_vehicle_traj"),
+            }
+            | (params_dict.get("rename_vehicle_trajs") or {}),
+            method="call",
+        ),
+        "rename_motor_trajs": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_motor_trajs")
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": ["heading", "extra__created_at", "extra__id"],
+                "retain_columns": [],
+                "rename_columns": {
+                    "extra__patrol_start_time": "patrol_start_time",
+                    "extra__patrol_end_time": "patrol_end_time",
+                    "extra__patrol_id": "patrol_id",
+                    "extra__patrol_serial_number": "patrol_serial_number",
+                    "extra__patrol_status": "patrol_status",
+                    "extra__patrol_subject": "patrol_subject_name",
+                    "extra__patrol_title": "patrol_title",
+                    "extra__patrol_type": "patrol_type_id",
+                    "extra__patrol_type__value": "patrol_type_value",
+                    "extra__subject_id": "subject_id",
+                },
+                "df": DependsOn("temporal_motor_traj"),
+            }
+            | (params_dict.get("rename_motor_trajs") or {}),
+            method="call",
+        ),
+        "split_foot_traj_group": Node(
+            async_task=split_groups.validate()
+            .handle_errors(task_instance_id="split_foot_traj_group")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_foot_trajs"),
+                "groupers": DependsOn("groupers"),
+            }
+            | (params_dict.get("split_foot_traj_group") or {}),
+            method="call",
+        ),
+        "split_vehicle_traj_group": Node(
+            async_task=split_groups.validate()
+            .handle_errors(task_instance_id="split_vehicle_traj_group")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_vehicle_trajs"),
+                "groupers": DependsOn("groupers"),
+            }
+            | (params_dict.get("split_vehicle_traj_group") or {}),
+            method="call",
+        ),
+        "split_motor_traj_group": Node(
+            async_task=split_groups.validate()
+            .handle_errors(task_instance_id="split_motor_traj_group")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_motor_trajs"),
+                "groupers": DependsOn("groupers"),
+            }
+            | (params_dict.get("split_motor_traj_group") or {}),
+            method="call",
+        ),
+        "foot_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="foot_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_type_value"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "distance_km",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "duration_hrs",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                ],
+                "reset_index": True,
+                "df": DependsOn("rename_foot_trajs"),
+            }
+            | (params_dict.get("foot_patrol_metrics") or {}),
+            method="call",
+        ),
+        "persist_foot_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_foot_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "foot_patrol_efforts",
+                "df": DependsOn("foot_patrol_metrics"),
+            }
+            | (params_dict.get("persist_foot_df") or {}),
+            method="call",
+        ),
+        "apply_footp_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_footp_colormap")
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "patrol_type_value",
+                "output_column_name": "foot_patrol_colors",
+                "colormap": "plasma",
+                "df": DependsOn("rename_foot_trajs"),
+            }
+            | (params_dict.get("apply_footp_colormap") or {}),
+            method="call",
+        ),
+        "generate_foot_layers": Node(
+            async_task=create_path_layer.validate()
+            .handle_errors(task_instance_id="generate_foot_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_color": "foot_patrol_colors",
+                    "get_width": 1.85,
+                    "width_scale": 1,
+                    "width_min_pixels": 2,
+                    "width_max_pixels": 6,
+                    "width_units": "pixels",
+                    "cap_rounded": True,
+                    "joint_rounded": True,
+                    "billboard": False,
+                    "opacity": 0.45,
+                    "stroked": True,
+                },
+                "legend": {
+                    "label_column": "patrol_type_value",
+                    "color_column": "foot_patrol_colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_footp_colormap"),
+            }
+            | (params_dict.get("generate_foot_layers") or {}),
+            method="call",
+        ),
+        "zoom_foot_patrols": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_foot_patrols")
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("conservancy_gdf"),
+            }
+            | (params_dict.get("zoom_foot_patrols") or {}),
+            method="call",
+        ),
+        "combine_custom_foot_patrols": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_foot_patrols")
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_foot_layers"),
+            }
+            | (params_dict.get("combine_custom_foot_patrols") or {}),
+            method="call",
+        ),
+        "draw_foot_patrol_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_foot_patrol_map")
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {
+                    "placement": "bottom-right",
+                    "title": "Foot patrol types",
+                },
+                "geo_layers": DependsOn("combine_custom_foot_patrols"),
+                "view_state": DependsOn("zoom_foot_patrols"),
+            }
+            | (params_dict.get("draw_foot_patrol_map") or {}),
+            method="call",
+        ),
+        "persist_foot_patrol_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_foot_patrol_urls")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_foot_patrol_map"),
+                "filename": "foot_patrols_map.html",
+            }
+            | (params_dict.get("persist_foot_patrol_urls") or {}),
+            method="call",
+        ),
+        "convert_foot_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_foot_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+                "html_path": DependsOn("persist_foot_patrol_urls"),
+            }
+            | (params_dict.get("convert_foot_png") or {}),
+            method="call",
+        ),
+        "vehicle_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="vehicle_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_type_value"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "distance_km",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "duration_hrs",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                ],
+                "reset_index": True,
+                "df": DependsOn("split_vehicle_traj_group"),
+            }
+            | (params_dict.get("vehicle_patrol_metrics") or {}),
+            method="call",
+        ),
+        "persist_vehicle_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_vehicle_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("vehicle_patrol_metrics"),
+                "filename": "vehicle_patrol_efforts",
+            }
+            | (params_dict.get("persist_vehicle_df") or {}),
+            method="call",
+        ),
+        "apply_vehicle_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_vehicle_colormap")
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "patrol_type_value",
+                "output_column_name": "colors",
+                "colormap": "plasma",
+                "df": DependsOn("split_vehicle_traj_group"),
+            }
+            | (params_dict.get("apply_vehicle_colormap") or {}),
+            method="call",
+        ),
+        "generate_vehicle_layers": Node(
+            async_task=create_path_layer.validate()
+            .handle_errors(task_instance_id="generate_vehicle_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_color": "colors",
+                    "get_width": 1.85,
+                    "width_scale": 1,
+                    "width_min_pixels": 2,
+                    "width_max_pixels": 6,
+                    "width_units": "pixels",
+                    "cap_rounded": True,
+                    "joint_rounded": True,
+                    "billboard": False,
+                    "opacity": 0.45,
+                    "stroked": True,
+                },
+                "legend": {
+                    "label_column": "patrol_type_value",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_vehicle_colormap"),
+            }
+            | (params_dict.get("generate_vehicle_layers") or {}),
+            method="call",
+        ),
+        "zoom_vehicle_patrols": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_vehicle_patrols")
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("conservancy_gdf"),
+            }
+            | (params_dict.get("zoom_vehicle_patrols") or {}),
+            method="call",
+        ),
+        "combine_custom_vehicle_patrols": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_vehicle_patrols")
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_vehicle_layers"),
+            }
+            | (params_dict.get("combine_custom_vehicle_patrols") or {}),
+            method="call",
+        ),
+        "draw_vehicle_patrol_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_vehicle_patrol_map")
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {
+                    "placement": "bottom-right",
+                    "title": "Vehicle patrol types",
+                },
+                "geo_layers": DependsOn("combine_custom_vehicle_patrols"),
+                "view_state": DependsOn("zoom_vehicle_patrols"),
+            }
+            | (params_dict.get("draw_vehicle_patrol_map") or {}),
+            method="call",
+        ),
+        "persist_vehicle_patrol_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_vehicle_patrol_urls")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_vehicle_patrol_map"),
+                "filename": "vehicle_patrols_map.html",
+            }
+            | (params_dict.get("persist_vehicle_patrol_urls") or {}),
+            method="call",
+        ),
+        "convert_vehicle_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_vehicle_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+                "html_path": DependsOn("persist_vehicle_patrol_urls"),
+            }
+            | (params_dict.get("convert_vehicle_png") or {}),
+            method="call",
+        ),
+        "motor_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="motor_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_type_value"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "distance_km",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "duration_hrs",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                ],
+                "reset_index": True,
+                "df": DependsOn("split_motor_traj_group"),
+            }
+            | (params_dict.get("motor_patrol_metrics") or {}),
+            method="call",
+        ),
+        "persist_motor_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_motor_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("motor_patrol_metrics"),
+                "filename": "motorbike_patrol_efforts",
+            }
+            | (params_dict.get("persist_motor_df") or {}),
+            method="call",
+        ),
+        "apply_motor_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_motor_colormap")
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "patrol_type_value",
+                "output_column_name": "colors",
+                "colormap": "plasma",
+                "df": DependsOn("split_motor_traj_group"),
+            }
+            | (params_dict.get("apply_motor_colormap") or {}),
+            method="call",
+        ),
+        "generate_motor_layers": Node(
+            async_task=create_path_layer.validate()
+            .handle_errors(task_instance_id="generate_motor_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_color": "colors",
+                    "get_width": 1.85,
+                    "width_scale": 1,
+                    "width_min_pixels": 2,
+                    "width_max_pixels": 6,
+                    "width_units": "pixels",
+                    "cap_rounded": True,
+                    "joint_rounded": True,
+                    "billboard": False,
+                    "opacity": 0.45,
+                    "stroked": True,
+                },
+                "legend": {
+                    "label_column": "patrol_type_value",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_motor_colormap"),
+            }
+            | (params_dict.get("generate_motor_layers") or {}),
+            method="call",
+        ),
+        "zoom_motor_patrols": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_motor_patrols")
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+            }
+            | (params_dict.get("zoom_motor_patrols") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["gdf"],
+                "argvalues": DependsOn("conservancy_gdf"),
+            },
+        ),
+        "combine_custom_motor_patrols": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_motor_patrols")
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_motor_layers"),
+            }
+            | (params_dict.get("combine_custom_motor_patrols") or {}),
+            method="call",
+        ),
+        "draw_motor_patrol_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_motor_patrol_map")
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {
+                    "placement": "bottom-right",
+                    "title": "Motorbike patrol types",
+                },
+                "geo_layers": DependsOn("combine_custom_motor_patrols"),
+                "view_state": DependsOn("zoom_motor_patrols"),
+            }
+            | (params_dict.get("draw_motor_patrol_map") or {}),
+            method="call",
+        ),
+        "persist_motor_patrol_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_motor_patrol_urls")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_motor_patrol_map"),
+                "filename": "motorbike_patrols_map.html",
+            }
+            | (params_dict.get("persist_motor_patrol_urls") or {}),
+            method="call",
+        ),
+        "convert_motor_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_motor_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+                "html_path": DependsOn("persist_motor_patrol_urls"),
+            }
+            | (params_dict.get("convert_motor_png") or {}),
+            method="call",
+        ),
+        "merge_trajs": Node(
+            async_task=merge_multiple_df.validate()
+            .handle_errors(task_instance_id="merge_trajs")
+            .set_executor("lithops"),
+            partial={
+                "list_df": DependsOnSequence(
+                    [
+                        DependsOn("foot_trajs"),
+                        DependsOn("vehicle_trajs"),
+                        DependsOn("motor_trajs"),
+                    ],
+                ),
+                "ignore_index": True,
+                "sort": False,
+            }
+            | (params_dict.get("merge_trajs") or {}),
+            method="call",
+        ),
+        "split_merged_trajs": Node(
+            async_task=split_groups.validate()
+            .handle_errors(task_instance_id="split_merged_trajs")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("merge_trajs"),
+                "groupers": DependsOn("groupers"),
+            }
+            | (params_dict.get("split_merged_trajs") or {}),
+            method="call",
+        ),
+        "ranger_patrol_metrics": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="ranger_patrol_metrics")
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["patrol_subject_name"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_patrols",
+                        "aggregator": "nunique",
+                        "column": "patrol_id",
+                    },
+                    {
+                        "display_name": "distance_km",
+                        "aggregator": "sum",
+                        "column": "dist_meters",
+                        "original_unit": "m",
+                        "new_unit": "km",
+                    },
+                    {
+                        "display_name": "duration_hrs",
+                        "aggregator": "sum",
+                        "column": "timespan_seconds",
+                        "original_unit": "s",
+                        "new_unit": "h",
+                    },
+                ],
+                "reset_index": True,
+                "df": DependsOn("split_merged_trajs"),
+            }
+            | (params_dict.get("ranger_patrol_metrics") or {}),
+            method="call",
+        ),
+        "persist_total_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_total_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("ranger_patrol_metrics"),
+                "filename": "overall_patrol_efforts",
+            }
+            | (params_dict.get("persist_total_df") or {}),
+            method="call",
+        ),
+        "patrol_grid_visits": Node(
+            async_task=create_patrol_coverage_grid.validate()
+            .handle_errors(task_instance_id="patrol_grid_visits")
+            .set_executor("lithops"),
+            partial={
+                "grid_cell_size": 1000,
+                "trajs": DependsOn("split_merged_trajs"),
+            }
+            | (params_dict.get("patrol_grid_visits") or {}),
+            method="call",
+        ),
+        "apply_classification_grid": Node(
+            async_task=apply_classification.validate()
+            .handle_errors(task_instance_id="apply_classification_grid")
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "unique_patrol_count",
+                "output_column_name": "density_bins",
+                "label_options": {"label_ranges": False, "label_decimals": 1},
+                "classification_options": {"k": 5, "scheme": "equal_interval"},
+                "df": DependsOn("patrol_grid_visits"),
+            }
+            | (params_dict.get("apply_classification_grid") or {}),
+            method="call",
+        ),
+        "apply_grid_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_grid_colormap")
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "density_bins",
+                "colormap": "RdYlGn",
+                "output_column_name": "density_colors",
+                "df": DependsOn("apply_classification_grid"),
+            }
+            | (params_dict.get("apply_grid_colormap") or {}),
+            method="call",
+        ),
+        "generate_grid_layers": Node(
+            async_task=create_polygon_layer_pydeck.validate()
+            .handle_errors(task_instance_id="generate_grid_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "density_colors",
+                    "opacity": 0.25,
+                    "get_line_width": 1,
+                    "stroked": True,
+                },
+                "legend": {
+                    "label_column": "density_bins",
+                    "color_column": "density_colors",
+                },
+                "tooltip_columns": ["density_bins", "density_colors"],
+                "geodataframe": DependsOn("apply_grid_colormap"),
+            }
+            | (params_dict.get("generate_grid_layers") or {}),
+            method="call",
+        ),
+        "zoom_grid_view": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_grid_view")
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+            }
+            | (params_dict.get("zoom_grid_view") or {}),
+            method="mapvalues",
+            kwargs={
+                "argnames": ["gdf"],
+                "argvalues": DependsOn("conservancy_gdf"),
+            },
+        ),
+        "combine_patrol_grid": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_patrol_grid")
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_grid_layers"),
+            }
+            | (params_dict.get("combine_patrol_grid") or {}),
+            method="call",
+        ),
+        "draw_grid_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_grid_map")
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Grid visits"},
+                "geo_layers": DependsOn("combine_patrol_grid"),
+                "view_state": DependsOn("zoom_grid_view"),
+            }
+            | (params_dict.get("draw_grid_map") or {}),
+            method="call",
+        ),
+        "persist_grid_map_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_grid_map_urls")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_grid_map"),
+                "filename": "patrol_coverage_map.html",
+            }
+            | (params_dict.get("persist_grid_map_urls") or {}),
+            method="call",
+        ),
+        "convert_patrol_grid_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_patrol_grid_png")
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+                "html_path": DependsOn("persist_grid_map_urls"),
+            }
+            | (params_dict.get("convert_patrol_grid_png") or {}),
+            method="call",
+        ),
+        "compute_patrol_occupancy": Node(
+            async_task=compute_occupancy.validate()
+            .handle_errors(task_instance_id="compute_patrol_occupancy")
+            .set_executor("lithops"),
+            partial={
+                "coverage_grid_gdf": DependsOn("patrol_grid_visits"),
+                "regions_gdf": DependsOn("conservancy_gdf"),
+                "crs": "epsg:4326",
+            }
+            | (params_dict.get("compute_patrol_occupancy") or {}),
+            method="call",
+        ),
+        "round_off_patrol": Node(
+            async_task=round_values.validate()
+            .handle_errors(task_instance_id="round_off_patrol")
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("compute_patrol_occupancy"),
+                "column": "occupancy_percentage",
+                "decimals": 2,
+            }
+            | (params_dict.get("round_off_patrol") or {}),
+            method="call",
+        ),
+        "persist_occupancy_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_occupancy_df")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("round_off_patrol"),
+                "filename": "patrol_coverage",
+            }
+            | (params_dict.get("persist_occupancy_df") or {}),
             method="call",
         ),
         "mnc_events_dashboard": Node(

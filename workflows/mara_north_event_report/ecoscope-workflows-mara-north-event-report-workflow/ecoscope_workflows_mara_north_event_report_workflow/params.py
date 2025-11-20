@@ -225,6 +225,67 @@ class EventsWtemporal(BaseModel):
     )
 
 
+class StatusEnum(str, Enum):
+    active = "active"
+    overdue = "overdue"
+    done = "done"
+    cancelled = "cancelled"
+
+
+class ErPatrolAndEventsParams(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    event_types: List[str] = Field(
+        ...,
+        description="Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types.",
+        title="Event Types",
+    )
+    status: Optional[List[StatusEnum]] = Field(
+        ["done"],
+        description="Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
+        title="Patrol Status",
+    )
+    include_null_geometry: Optional[bool] = Field(
+        True, title="Include Events Without a Geometry (point or polygon)"
+    )
+
+
+class MapPatrolTypes(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    patrol_column: str = Field(..., title="Patrol Column")
+    new_column: Optional[str] = Field("patrol_classification", title="New Column")
+
+
+class FilterFootPatrols(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class FilterVehiclePatrols(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class FilterMotorPatrols(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
 class TimezoneInfo(BaseModel):
     label: str = Field(..., title="Label")
     tzCode: str = Field(..., title="Tzcode")
@@ -234,6 +295,36 @@ class TimezoneInfo(BaseModel):
 
 class EarthRangerConnection(BaseModel):
     name: str = Field(..., title="Data Source")
+
+
+class ComparisonOperator(str, Enum):
+    equal = "equal"
+    ge = "ge"
+    gt = "gt"
+    le = "le"
+    lt = "lt"
+    ne = "ne"
+
+
+class TrajectorySegmentFilter(BaseModel):
+    min_length_meters: Optional[confloat(ge=0.001)] = Field(
+        0.001, title="Minimum Segment Length (Meters)"
+    )
+    max_length_meters: Optional[confloat(gt=0.001)] = Field(
+        100000, title="Maximum Segment Length (Meters)"
+    )
+    min_time_secs: Optional[confloat(ge=1.0)] = Field(
+        1, title="Minimum Segment Duration (Seconds)"
+    )
+    max_time_secs: Optional[confloat(gt=1.0)] = Field(
+        172800, title="Maximum Segment Duration (Seconds)"
+    )
+    min_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
+        0.01, title="Minimum Segment Speed (Kilometers per Hour)"
+    )
+    max_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
+        500, title="Maximum Segment Speed (Kilometers per Hour)"
+    )
 
 
 class TimeRange(BaseModel):
@@ -251,6 +342,78 @@ class ErClientName(BaseModel):
     )
     data_source: EarthRangerConnection = Field(
         ..., description="Select one of your configured data sources.", title=""
+    )
+
+
+class FilterPatrolInfoEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    op: ComparisonOperator = Field(
+        ..., description="The comparison operator", title="Op"
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class FootTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
+        default_factory=lambda: TrajectorySegmentFilter.model_validate(
+            {
+                "min_length_meters": 0.001,
+                "max_length_meters": 100000,
+                "min_time_secs": 1,
+                "max_time_secs": 172800,
+                "min_speed_kmhr": 0.01,
+                "max_speed_kmhr": 500,
+            }
+        ),
+        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+        title=" ",
+    )
+
+
+class VehicleTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
+        default_factory=lambda: TrajectorySegmentFilter.model_validate(
+            {
+                "min_length_meters": 0.001,
+                "max_length_meters": 100000,
+                "min_time_secs": 1,
+                "max_time_secs": 172800,
+                "min_speed_kmhr": 0.01,
+                "max_speed_kmhr": 500,
+            }
+        ),
+        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+        title=" ",
+    )
+
+
+class MotorTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
+        default_factory=lambda: TrajectorySegmentFilter.model_validate(
+            {
+                "min_length_meters": 0.001,
+                "max_length_meters": 100000,
+                "min_time_secs": 1,
+                "max_time_secs": 172800,
+                "min_speed_kmhr": 0.01,
+                "max_speed_kmhr": 500,
+            }
+        ),
+        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
+        title=" ",
     )
 
 
@@ -278,4 +441,31 @@ class Params(BaseModel):
     )
     events_wtemporal: Optional[EventsWtemporal] = Field(
         None, title="Add temporal index on events"
+    )
+    filter_patrol_info_events: Optional[FilterPatrolInfoEvents] = Field(
+        None, title="Filter events and get patrol information records"
+    )
+    er_patrol_and_events_params: Optional[ErPatrolAndEventsParams] = Field(
+        None, title="patrol and event types"
+    )
+    map_patrol_types: Optional[MapPatrolTypes] = Field(
+        None, title="Classify patrol types"
+    )
+    filter_foot_patrols: Optional[FilterFootPatrols] = Field(
+        None, title="Filter foot patrol observations"
+    )
+    filter_vehicle_patrols: Optional[FilterVehiclePatrols] = Field(
+        None, title="Filter vehicle patrol observations"
+    )
+    filter_motor_patrols: Optional[FilterMotorPatrols] = Field(
+        None, title="Filter motorbike patrol observations"
+    )
+    foot_trajs: Optional[FootTrajs] = Field(
+        None, title="Convert foot relocations to trajectories"
+    )
+    vehicle_trajs: Optional[VehicleTrajs] = Field(
+        None, title="Convert vehicle relocations to trajectories"
+    )
+    motor_trajs: Optional[MotorTrajs] = Field(
+        None, title="Convert motorbike relocations to trajectories"
     )
