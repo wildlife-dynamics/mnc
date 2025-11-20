@@ -18,7 +18,7 @@
       ],
       "type": "object",
       "description": "Add information that will help to differentiate this workflow from another.",
-      "title": "Set Workflow Details"
+      "title": "Set workflow details"
     },
     "time_range": {
       "additionalProperties": false,
@@ -51,7 +51,7 @@
       ],
       "type": "object",
       "description": "Choose the period of time to analyze.",
-      "title": "Time Range"
+      "title": "Time range"
     },
     "er_client_name": {
       "additionalProperties": false,
@@ -268,7 +268,7 @@
       },
       "type": "object",
       "required": [],
-      "title": "Configure Base Map Layers"
+      "title": "Configure base map layers"
     },
     "subject_observations": {
       "additionalProperties": false,
@@ -327,84 +327,6 @@
       "required": [],
       "type": "object",
       "title": "Add temporal index on events"
-    },
-    "foot_trajs": {
-      "additionalProperties": false,
-      "properties": {
-        "trajectory_segment_filter": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/TrajectorySegmentFilter"
-            }
-          ],
-          "default": {
-            "min_length_meters": 0.001,
-            "max_length_meters": 100000,
-            "min_time_secs": 1,
-            "max_time_secs": 172800,
-            "min_speed_kmhr": 0.01,
-            "max_speed_kmhr": 500
-          },
-          "title": " ",
-          "description": "Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
-          "ecoscope:advanced": true
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Convert foot relocations to trajectories"
-    },
-    "vehicle_trajs": {
-      "additionalProperties": false,
-      "properties": {
-        "trajectory_segment_filter": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/TrajectorySegmentFilter"
-            }
-          ],
-          "default": {
-            "min_length_meters": 0.001,
-            "max_length_meters": 100000,
-            "min_time_secs": 1,
-            "max_time_secs": 172800,
-            "min_speed_kmhr": 0.01,
-            "max_speed_kmhr": 500
-          },
-          "title": " ",
-          "description": "Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
-          "ecoscope:advanced": true
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Convert vehicle relocations to trajectories"
-    },
-    "motor_trajs": {
-      "additionalProperties": false,
-      "properties": {
-        "trajectory_segment_filter": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/TrajectorySegmentFilter"
-            }
-          ],
-          "default": {
-            "min_length_meters": 0.001,
-            "max_length_meters": 100000,
-            "min_time_secs": 1,
-            "max_time_secs": 172800,
-            "min_speed_kmhr": 0.01,
-            "max_speed_kmhr": 500
-          },
-          "title": " ",
-          "description": "Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
-          "ecoscope:advanced": true
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Convert motorbike relocations to trajectories"
     }
   },
   "$defs": {
@@ -448,54 +370,6 @@
       ],
       "title": "EarthRangerConnection",
       "type": "object"
-    },
-    "TrajectorySegmentFilter": {
-      "properties": {
-        "min_length_meters": {
-          "default": 0.001,
-          "ecoscope:advanced": true,
-          "minimum": 0.001,
-          "title": "Minimum Segment Length (Meters)",
-          "type": "number"
-        },
-        "max_length_meters": {
-          "default": 100000,
-          "ecoscope:advanced": true,
-          "exclusiveMinimum": 0.001,
-          "title": "Maximum Segment Length (Meters)",
-          "type": "number"
-        },
-        "min_time_secs": {
-          "default": 1,
-          "ecoscope:advanced": true,
-          "minimum": 1,
-          "title": "Minimum Segment Duration (Seconds)",
-          "type": "number"
-        },
-        "max_time_secs": {
-          "default": 172800,
-          "ecoscope:advanced": true,
-          "exclusiveMinimum": 1,
-          "title": "Maximum Segment Duration (Seconds)",
-          "type": "number"
-        },
-        "min_speed_kmhr": {
-          "default": 0.01,
-          "ecoscope:advanced": true,
-          "exclusiveMinimum": 0.001,
-          "title": "Minimum Segment Speed (Kilometers per Hour)",
-          "type": "number"
-        },
-        "max_speed_kmhr": {
-          "default": 500,
-          "ecoscope:advanced": true,
-          "exclusiveMinimum": 0.001,
-          "title": "Maximum Segment Speed (Kilometers per Hour)",
-          "type": "number"
-        }
-      },
-      "title": "TrajectorySegmentFilter",
-      "type": "object"
     }
   },
   "uiSchema": {
@@ -531,10 +405,7 @@
       "configure_base_maps",
       "subject_observations",
       "df_with_temporal_index",
-      "events_wtemporal",
-      "foot_trajs",
-      "vehicle_trajs",
-      "motor_trajs"
+      "events_wtemporal"
     ]
   },
   "additionalProperties": false

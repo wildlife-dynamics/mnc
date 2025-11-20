@@ -3,6 +3,7 @@ import os
 import re
 import math
 import logging
+import numpy as np
 from enum import Enum
 import geopandas as gpd
 from pathlib import Path
@@ -781,3 +782,45 @@ def merge_static_and_grouped_layers(
             other_layers.append(layer)
     
     return other_layers + text_layers
+
+@task
+def exclude_geom_outliers(
+    df: AnyGeoDataFrame,
+    z_threshold: float = 3.0,
+) -> AnyGeoDataFrame:
+    
+    if df.empty:
+        print("Warning: Input dataframe is empty")
+        return df
+    
+    if len(df) < 4:
+        print(f"Warning: Too few points ({len(df)}) for reliable outlier detection. Returning original data.")
+        return df
+    
+    if "geometry" not in df.columns:
+        raise ValueError("DataFrame must have a 'geometry' column")
+    df_work = df.copy()
+
+    df_work["x"] = df_work.geometry.x
+    df_work["y"] = df_work.geometry.y
+
+    centroid_x = df_work["x"].mean()
+    centroid_y = df_work["y"].mean()
+
+    df_work["dist_from_center"] = np.sqrt(
+        (df_work["x"] - centroid_x)**2 + (df_work["y"] - centroid_y)**2
+    )
+    
+    dist_mean = df_work["dist_from_center"].mean()
+    dist_std = df_work["dist_from_center"].std()
+    
+    if dist_std == 0:
+        print("Warning: All points at same location (std=0). No outliers removed.")
+        return df.copy()
+    
+    z_scores = (df_work["dist_from_center"] - dist_mean) / dist_std
+    mask = np.abs(z_scores) < z_threshold
+    df_clean = df[mask].copy()
+    outliers_count = (~mask).sum()
+    print(f"Outliers count: {outliers_count}")
+    return df_clean

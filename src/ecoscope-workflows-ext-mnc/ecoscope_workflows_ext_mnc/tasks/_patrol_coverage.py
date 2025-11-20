@@ -1,9 +1,9 @@
+import pandas as pd
 import geopandas as gpd
 from ecoscope_workflows_core.decorators import task
-from ecoscope_workflows_core.annotations import AnyGeoDataFrame
+from ecoscope_workflows_core.annotations import AnyGeoDataFrame,AnyDataFrame
 from ecoscope_workflows_ext_ecoscope.tasks.analysis._create_meshgrid import create_meshgrid
 from ecoscope_workflows_ext_ecoscope.tasks.analysis._time_density import CustomGridCellSize
-from ecoscope_workflows_ext_ecoscope.tasks.transformation._classification import apply_classification
 
 @task
 def create_patrol_coverage_grid(trajs:AnyGeoDataFrame, grid_cell_size=1000)->AnyGeoDataFrame:
@@ -71,3 +71,37 @@ def create_patrol_coverage_grid(trajs:AnyGeoDataFrame, grid_cell_size=1000)->Any
     full_grid_summary = full_grid_summary.sort_values(by="unique_patrol_count", ascending=False)
     print(f"full grid summary columns: {full_grid_summary.columns}")
     return full_grid_summary
+
+@task
+def compute_occupancy(
+    coverage_grid_gdf: AnyGeoDataFrame, 
+    regions_gdf: AnyGeoDataFrame,
+    crs: str,
+) -> AnyDataFrame:
+    
+    coverage_grid_projected = coverage_grid_gdf.to_crs(crs)
+    regions_projected = regions_gdf.to_crs(crs)
+    
+    patrol_coverage = coverage_grid_projected.geometry.unary_union
+    
+    # Validate patrol coverage
+    if patrol_coverage.is_empty:
+        raise ValueError("Patrol coverage geometry is empty.")
+    
+    total_coverage_area = patrol_coverage.area
+    if total_coverage_area == 0:
+        raise ValueError("Patrol coverage has zero area.")
+    
+    intersection_areas = regions_projected.intersection(patrol_coverage).area
+    occupancy_percentages = 100 * (intersection_areas / total_coverage_area)
+    results_df = pd.DataFrame({
+        'conservancy_name': regions_projected['name'].values,
+        'intersection_area': intersection_areas.values,
+        'occupancy_percentage': occupancy_percentages.values
+    })
+    
+    # Filter out conservancies with zero coverage and sort by occupancy
+    results_df = results_df[results_df['occupancy_percentage'] > 0].copy()
+    results_df = results_df.sort_values('occupancy_percentage', ascending=False).reset_index(drop=True)
+    
+    return results_df

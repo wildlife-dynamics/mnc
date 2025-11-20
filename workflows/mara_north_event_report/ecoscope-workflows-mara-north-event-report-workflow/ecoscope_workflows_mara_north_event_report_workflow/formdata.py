@@ -236,27 +236,6 @@ class EarthRangerConnection(BaseModel):
     name: str = Field(..., title="Data Source")
 
 
-class TrajectorySegmentFilter(BaseModel):
-    min_length_meters: Optional[confloat(ge=0.001)] = Field(
-        0.001, title="Minimum Segment Length (Meters)"
-    )
-    max_length_meters: Optional[confloat(gt=0.001)] = Field(
-        100000, title="Maximum Segment Length (Meters)"
-    )
-    min_time_secs: Optional[confloat(ge=1.0)] = Field(
-        1, title="Minimum Segment Duration (Seconds)"
-    )
-    max_time_secs: Optional[confloat(gt=1.0)] = Field(
-        172800, title="Maximum Segment Duration (Seconds)"
-    )
-    min_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
-        0.01, title="Minimum Segment Speed (Kilometers per Hour)"
-    )
-    max_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
-        500, title="Maximum Segment Speed (Kilometers per Hour)"
-    )
-
-
 class TimeRange(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -275,66 +254,6 @@ class ErClientName(BaseModel):
     )
 
 
-class FootTrajs(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
-        default_factory=lambda: TrajectorySegmentFilter.model_validate(
-            {
-                "min_length_meters": 0.001,
-                "max_length_meters": 100000,
-                "min_time_secs": 1,
-                "max_time_secs": 172800,
-                "min_speed_kmhr": 0.01,
-                "max_speed_kmhr": 500,
-            }
-        ),
-        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
-        title=" ",
-    )
-
-
-class VehicleTrajs(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
-        default_factory=lambda: TrajectorySegmentFilter.model_validate(
-            {
-                "min_length_meters": 0.001,
-                "max_length_meters": 100000,
-                "min_time_secs": 1,
-                "max_time_secs": 172800,
-                "min_speed_kmhr": 0.01,
-                "max_speed_kmhr": 500,
-            }
-        ),
-        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
-        title=" ",
-    )
-
-
-class MotorTrajs(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    trajectory_segment_filter: Optional[TrajectorySegmentFilter] = Field(
-        default_factory=lambda: TrajectorySegmentFilter.model_validate(
-            {
-                "min_length_meters": 0.001,
-                "max_length_meters": 100000,
-                "min_time_secs": 1,
-                "max_time_secs": 172800,
-                "min_speed_kmhr": 0.01,
-                "max_speed_kmhr": 500,
-            }
-        ),
-        description="Filter track data by setting limits on track segment length, duration, and speed. Segments outside these bounds are removed, reducing noise and to focus on meaningful movement patterns.",
-        title=" ",
-    )
-
-
 class FormData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -342,14 +261,14 @@ class FormData(BaseModel):
     workflow_details: Optional[WorkflowDetails] = Field(
         None,
         description="Add information that will help to differentiate this workflow from another.",
-        title="Set Workflow Details",
+        title="Set workflow details",
     )
     time_range: Optional[TimeRange] = Field(
-        None, description="Choose the period of time to analyze.", title="Time Range"
+        None, description="Choose the period of time to analyze.", title="Time range"
     )
     er_client_name: Optional[ErClientName] = Field(None, title="Connect to ER")
     configure_base_maps: Optional[ConfigureBaseMaps] = Field(
-        None, title="Configure Base Map Layers"
+        None, title="Configure base map layers"
     )
     subject_observations: Optional[SubjectObservations] = Field(
         None, title="Get subject observations from ER"
@@ -359,13 +278,4 @@ class FormData(BaseModel):
     )
     events_wtemporal: Optional[EventsWtemporal] = Field(
         None, title="Add temporal index on events"
-    )
-    foot_trajs: Optional[FootTrajs] = Field(
-        None, title="Convert foot relocations to trajectories"
-    )
-    vehicle_trajs: Optional[VehicleTrajs] = Field(
-        None, title="Convert vehicle relocations to trajectories"
-    )
-    motor_trajs: Optional[MotorTrajs] = Field(
-        None, title="Convert motorbike relocations to trajectories"
     )
