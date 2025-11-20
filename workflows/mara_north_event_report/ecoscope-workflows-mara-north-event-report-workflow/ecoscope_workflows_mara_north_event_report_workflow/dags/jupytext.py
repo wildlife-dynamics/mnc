@@ -66,6 +66,8 @@ from ecoscope_workflows_ext_mnc.tasks import (
     merge_static_and_grouped_layers,
     round_values,
     split_gdf_by_column,
+    view_df,
+    view_gdf,
     view_state_deck_gdf,
 )
 
@@ -1546,6 +1548,29 @@ extract_event_date = (
 
 
 # %% [markdown]
+# ## View df info
+
+# %%
+# parameters
+
+view_events_info_df_params = dict()
+
+# %%
+# call the task
+
+
+view_events_info_df = (
+    view_df.handle_errors(task_instance_id="view_events_info_df")
+    .partial(
+        gdf=extract_event_date,
+        name="patrol information events",
+        **view_events_info_df_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Add temporal index on events
 
 # %%
@@ -1591,6 +1616,29 @@ exclude_event_type_values = (
         column_name="event_type",
         value=["distancecountwildlife_rep", "distancecountpatrol_rep"],
         **exclude_event_type_values_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## View excluded df info
+
+# %%
+# parameters
+
+view_excluded_df_info_params = dict()
+
+# %%
+# call the task
+
+
+view_excluded_df_info = (
+    view_gdf.handle_errors(task_instance_id="view_excluded_df_info")
+    .partial(
+        gdf=exclude_event_type_values,
+        name="patrol information events",
+        **view_excluded_df_info_params,
     )
     .call()
 )
@@ -1864,6 +1912,29 @@ normalize_pi_values = (
         column="event_details",
         df=filter_patrol_info_events,
         **normalize_pi_values_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## View df info
+
+# %%
+# parameters
+
+view_patrol_df_info_params = dict()
+
+# %%
+# call the task
+
+
+view_patrol_df_info = (
+    view_df.handle_errors(task_instance_id="view_patrol_df_info")
+    .partial(
+        gdf=normalize_pi_values,
+        name="patrol information events",
+        **view_patrol_df_info_params,
     )
     .call()
 )

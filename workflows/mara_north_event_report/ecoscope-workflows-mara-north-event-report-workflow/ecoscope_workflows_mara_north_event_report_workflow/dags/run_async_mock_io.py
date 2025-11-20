@@ -62,7 +62,12 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import (
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value
+from ecoscope_workflows_ext_mnc.tasks import (
+    add_totals_row,
+    filter_by_value,
+    view_df,
+    view_gdf,
+)
 
 get_patrols_from_combined_params = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -162,8 +167,10 @@ def main(params: Params):
         "pressure_png": ["persist_pressure"],
         "get_events_data": ["er_client_name", "time_range"],
         "extract_event_date": ["get_events_data"],
+        "view_events_info_df": ["extract_event_date"],
         "events_wtemporal": ["extract_event_date", "groupers"],
         "exclude_event_type_values": ["events_wtemporal"],
+        "view_excluded_df_info": ["exclude_event_type_values"],
         "total_events_recorded": ["exclude_event_type_values"],
         "add_total_events_row": ["total_events_recorded"],
         "persist_tevents_df": ["add_total_events_row"],
@@ -174,6 +181,7 @@ def main(params: Params):
         "persist_summary_event_type": ["total_events_type_recorded"],
         "filter_patrol_info_events": ["exclude_event_type_values"],
         "normalize_pi_values": ["filter_patrol_info_events"],
+        "view_patrol_df_info": ["normalize_pi_values"],
         "rename_patrol_info": ["normalize_pi_values"],
         "patrol_info_summary": ["rename_patrol_info"],
         "include_pat_totals": ["patrol_info_summary"],
@@ -1147,6 +1155,17 @@ def main(params: Params):
             | (params_dict.get("extract_event_date") or {}),
             method="call",
         ),
+        "view_events_info_df": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_events_info_df")
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("extract_event_date"),
+                "name": "patrol information events",
+            }
+            | (params_dict.get("view_events_info_df") or {}),
+            method="call",
+        ),
         "events_wtemporal": Node(
             async_task=add_temporal_index.validate()
             .handle_errors(task_instance_id="events_wtemporal")
@@ -1169,6 +1188,17 @@ def main(params: Params):
                 "value": ["distancecountwildlife_rep", "distancecountpatrol_rep"],
             }
             | (params_dict.get("exclude_event_type_values") or {}),
+            method="call",
+        ),
+        "view_excluded_df_info": Node(
+            async_task=view_gdf.validate()
+            .handle_errors(task_instance_id="view_excluded_df_info")
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_event_type_values"),
+                "name": "patrol information events",
+            }
+            | (params_dict.get("view_excluded_df_info") or {}),
             method="call",
         ),
         "total_events_recorded": Node(
@@ -1324,6 +1354,17 @@ def main(params: Params):
                 "df": DependsOn("filter_patrol_info_events"),
             }
             | (params_dict.get("normalize_pi_values") or {}),
+            method="call",
+        ),
+        "view_patrol_df_info": Node(
+            async_task=view_df.validate()
+            .handle_errors(task_instance_id="view_patrol_df_info")
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("normalize_pi_values"),
+                "name": "patrol information events",
+            }
+            | (params_dict.get("view_patrol_df_info") or {}),
             method="call",
         ),
         "rename_patrol_info": Node(

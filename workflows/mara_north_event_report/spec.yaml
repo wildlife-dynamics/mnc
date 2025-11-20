@@ -739,6 +739,13 @@ workflow:
       output_type: date
       output_column_name: date
 
+  - name: View df info 
+    id: view_events_info_df
+    task: view_df
+    partial:
+      gdf: ${{ workflow.extract_event_date.return }}
+      name: patrol information events 
+
   - name: Add temporal index on events
     id: events_wtemporal
     task: add_temporal_index
@@ -756,6 +763,13 @@ workflow:
       value:
         - distancecountwildlife_rep
         - distancecountpatrol_rep
+
+  - name: View excluded df info
+    id: view_excluded_df_info
+    task: view_gdf
+    partial:
+      gdf: ${{ workflow.exclude_event_type_values.return }}
+      name: patrol information events 
 
   # Calculate total events recorded, persist as csv and draw line chart
   - name: Calculate Total Events
@@ -858,8 +872,6 @@ workflow:
       df: ${{ workflow.total_events_type_recorded.return }}
       filename: total_events_recorded_by_type
 
-
-
   # Patrol types 
   - name: Filter events and get patrol information records 
     id: filter_patrol_info_events
@@ -876,6 +888,13 @@ workflow:
     partial:
       column: event_details
       df: ${{ workflow.filter_patrol_info_events.return }}
+
+  - name: View df info 
+    id: view_patrol_df_info
+    task: view_df
+    partial:
+      gdf: ${{ workflow.normalize_pi_values.return }}
+      name: patrol information events 
 
   - name: Rename patrol information columns 
     id: rename_patrol_info
