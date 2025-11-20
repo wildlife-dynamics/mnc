@@ -4,8 +4,8 @@ workflow_details:
 
 # Desired time range
 time_range:
-  since: "2025-10-01T00:00:00Z"
-  until: "2025-10-21T23:59:59Z"
+  since: "2025-07-01T00:00:00Z"
+  until: "2025-09-30T23:59:59Z"
 
 # Connect to EarthRanger
 er_client_name:
