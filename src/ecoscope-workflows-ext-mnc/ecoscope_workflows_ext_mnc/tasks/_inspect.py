@@ -45,4 +45,6 @@ def view_gdf(gdf: Annotated[AnyGeoDataFrame, Field(description="A GeoDataFrame t
     for col in gdf.columns:
         print(f"column name: {col}")
 
+    print(f"Showing the first five rows : {gdf.head()}")
+
        

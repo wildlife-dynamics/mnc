@@ -741,10 +741,10 @@ workflow:
 
   - name: View df info 
     id: view_events_info_df
-    task: view_df
+    task: view_gdf
     partial:
       gdf: ${{ workflow.extract_event_date.return }}
-      name: patrol information events 
+      name: overall events
 
   - name: Add temporal index on events
     id: events_wtemporal
@@ -769,7 +769,7 @@ workflow:
     task: view_gdf
     partial:
       gdf: ${{ workflow.exclude_event_type_values.return }}
-      name: patrol information events 
+      name: excluded patrol information events 
 
   # Calculate total events recorded, persist as csv and draw line chart
   - name: Calculate Total Events
@@ -891,10 +891,10 @@ workflow:
 
   - name: View df info 
     id: view_patrol_df_info
-    task: view_df
+    task: view_gdf
     partial:
       gdf: ${{ workflow.normalize_pi_values.return }}
-      name: patrol information events 
+      name: normalized patrol information events 
 
   - name: Rename patrol information columns 
     id: rename_patrol_info

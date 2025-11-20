@@ -61,12 +61,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import (
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import (
-    add_totals_row,
-    filter_by_value,
-    view_df,
-    view_gdf,
-)
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value, view_gdf
 
 get_patrols_from_combined_params = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -977,11 +972,11 @@ def main(params: Params):
     )
 
     view_events_info_df = (
-        view_df.validate()
+        view_gdf.validate()
         .handle_errors(task_instance_id="view_events_info_df")
         .partial(
             gdf=extract_event_date,
-            name="patrol information events",
+            name="overall events",
             **(params_dict.get("view_events_info_df") or {}),
         )
         .call()
@@ -1016,7 +1011,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="view_excluded_df_info")
         .partial(
             gdf=exclude_event_type_values,
-            name="patrol information events",
+            name="excluded patrol information events",
             **(params_dict.get("view_excluded_df_info") or {}),
         )
         .call()
@@ -1178,11 +1173,11 @@ def main(params: Params):
     )
 
     view_patrol_df_info = (
-        view_df.validate()
+        view_gdf.validate()
         .handle_errors(task_instance_id="view_patrol_df_info")
         .partial(
             gdf=normalize_pi_values,
-            name="patrol information events",
+            name="normalized patrol information events",
             **(params_dict.get("view_patrol_df_info") or {}),
         )
         .call()

@@ -62,12 +62,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import (
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import (
-    add_totals_row,
-    filter_by_value,
-    view_df,
-    view_gdf,
-)
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value, view_gdf
 
 get_patrols_from_combined_params = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -1156,12 +1151,12 @@ def main(params: Params):
             method="call",
         ),
         "view_events_info_df": Node(
-            async_task=view_df.validate()
+            async_task=view_gdf.validate()
             .handle_errors(task_instance_id="view_events_info_df")
             .set_executor("lithops"),
             partial={
                 "gdf": DependsOn("extract_event_date"),
-                "name": "patrol information events",
+                "name": "overall events",
             }
             | (params_dict.get("view_events_info_df") or {}),
             method="call",
@@ -1196,7 +1191,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "gdf": DependsOn("exclude_event_type_values"),
-                "name": "patrol information events",
+                "name": "excluded patrol information events",
             }
             | (params_dict.get("view_excluded_df_info") or {}),
             method="call",
@@ -1357,12 +1352,12 @@ def main(params: Params):
             method="call",
         ),
         "view_patrol_df_info": Node(
-            async_task=view_df.validate()
+            async_task=view_gdf.validate()
             .handle_errors(task_instance_id="view_patrol_df_info")
             .set_executor("lithops"),
             partial={
                 "gdf": DependsOn("normalize_pi_values"),
-                "name": "patrol information events",
+                "name": "normalized patrol information events",
             }
             | (params_dict.get("view_patrol_df_info") or {}),
             method="call",
