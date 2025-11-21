@@ -2069,19 +2069,6 @@ def main(params: Params):
         .call()
     )
 
-    persist_patrol_trajs_gpkg = (
-        persist_df.validate()
-        .handle_errors(task_instance_id="persist_patrol_trajs_gpkg")
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="gpkg",
-            df=merge_trajs,
-            filename="trajectories",
-            **(params_dict.get("persist_patrol_trajs_gpkg") or {}),
-        )
-        .call()
-    )
-
     persist_patrol_trajs = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_patrol_trajs")
@@ -2095,15 +2082,26 @@ def main(params: Params):
         .call()
     )
 
-    persist_patrol_trajs_csv = (
-        persist_df.validate()
-        .handle_errors(task_instance_id="persist_patrol_trajs_csv")
+    rename_combined_trajs = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_combined_trajs")
         .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
+            drop_columns=["heading", "extra__created_at", "extra__id"],
+            retain_columns=[],
+            rename_columns={
+                "extra__patrol_start_time": "patrol_start_time",
+                "extra__patrol_end_time": "patrol_end_time",
+                "extra__patrol_id": "patrol_id",
+                "extra__patrol_serial_number": "patrol_serial_number",
+                "extra__patrol_status": "patrol_status",
+                "extra__patrol_subject": "patrol_subject_name",
+                "extra__patrol_title": "patrol_title",
+                "extra__patrol_type": "patrol_type_id",
+                "extra__patrol_type__value": "patrol_type_value",
+                "extra__subject_id": "subject_id",
+            },
             df=merge_trajs,
-            filename="trajectories",
-            **(params_dict.get("persist_patrol_trajs_csv") or {}),
+            **(params_dict.get("rename_combined_trajs") or {}),
         )
         .call()
     )
@@ -2135,7 +2133,7 @@ def main(params: Params):
                 },
             ],
             reset_index=True,
-            df=merge_trajs,
+            df=rename_combined_trajs,
             **(params_dict.get("ranger_patrol_metrics") or {}),
         )
         .call()

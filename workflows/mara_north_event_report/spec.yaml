@@ -1746,15 +1746,6 @@ workflow:
       sort: false
 
   - name: persist patrol trajs 
-    id: persist_patrol_trajs_gpkg
-    task: persist_df
-    partial:
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filetype: gpkg
-      df: ${{ workflow.merge_trajs.return }}
-      filename: trajectories
-  
-  - name: persist patrol trajs 
     id: persist_patrol_trajs
     task: persist_df
     partial:
@@ -1763,14 +1754,27 @@ workflow:
       df: ${{ workflow.merge_trajs.return }}
       filename: trajectories
 
-  - name: persist patrol trajs 
-    id: persist_patrol_trajs_csv
-    task: persist_df
+  - name: Rename merged trajectory columns 
+    id: rename_combined_trajs
+    task: map_columns
     partial:
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filetype: csv
+      drop_columns:
+        - heading
+        - extra__created_at
+        - extra__id 
+      retain_columns: []
+      rename_columns:
+        extra__patrol_start_time: patrol_start_time
+        extra__patrol_end_time: patrol_end_time
+        extra__patrol_id: patrol_id
+        extra__patrol_serial_number: patrol_serial_number
+        extra__patrol_status: patrol_status
+        extra__patrol_subject: patrol_subject_name
+        extra__patrol_title: patrol_title 
+        extra__patrol_type: patrol_type_id
+        extra__patrol_type__value: patrol_type_value 
+        extra__subject_id: subject_id
       df: ${{ workflow.merge_trajs.return }}
-      filename: trajectories
 
   - name: Summarize overall ranger patrol metrics
     id: ranger_patrol_metrics
@@ -1793,7 +1797,7 @@ workflow:
           original_unit: s
           new_unit: h
       reset_index: true
-      df: ${{ workflow.merge_trajs.return }}
+      df: ${{ workflow.rename_combined_trajs.return }}
 
   - name: Add totals row to overall patrol metrics
     id: add_ranger_metrics_totals

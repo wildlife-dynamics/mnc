@@ -253,10 +253,9 @@ def main(params: Params):
         ],
         "persist_motor_patrol_urls": ["draw_motor_patrol_map"],
         "merge_trajs": ["foot_trajs", "vehicle_trajs", "motor_trajs"],
-        "persist_patrol_trajs_gpkg": ["merge_trajs"],
         "persist_patrol_trajs": ["merge_trajs"],
-        "persist_patrol_trajs_csv": ["merge_trajs"],
-        "ranger_patrol_metrics": ["merge_trajs"],
+        "rename_combined_trajs": ["merge_trajs"],
+        "ranger_patrol_metrics": ["rename_combined_trajs"],
         "add_ranger_metrics_totals": ["ranger_patrol_metrics"],
         "persist_total_df": ["add_ranger_metrics_totals"],
         "patrol_grid_visits": ["merge_trajs"],
@@ -2367,19 +2366,6 @@ def main(params: Params):
             | (params_dict.get("merge_trajs") or {}),
             method="call",
         ),
-        "persist_patrol_trajs_gpkg": Node(
-            async_task=persist_df.validate()
-            .handle_errors(task_instance_id="persist_patrol_trajs_gpkg")
-            .set_executor("lithops"),
-            partial={
-                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "filetype": "gpkg",
-                "df": DependsOn("merge_trajs"),
-                "filename": "trajectories",
-            }
-            | (params_dict.get("persist_patrol_trajs_gpkg") or {}),
-            method="call",
-        ),
         "persist_patrol_trajs": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_patrol_trajs")
@@ -2393,17 +2379,28 @@ def main(params: Params):
             | (params_dict.get("persist_patrol_trajs") or {}),
             method="call",
         ),
-        "persist_patrol_trajs_csv": Node(
-            async_task=persist_df.validate()
-            .handle_errors(task_instance_id="persist_patrol_trajs_csv")
+        "rename_combined_trajs": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_combined_trajs")
             .set_executor("lithops"),
             partial={
-                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "filetype": "csv",
+                "drop_columns": ["heading", "extra__created_at", "extra__id"],
+                "retain_columns": [],
+                "rename_columns": {
+                    "extra__patrol_start_time": "patrol_start_time",
+                    "extra__patrol_end_time": "patrol_end_time",
+                    "extra__patrol_id": "patrol_id",
+                    "extra__patrol_serial_number": "patrol_serial_number",
+                    "extra__patrol_status": "patrol_status",
+                    "extra__patrol_subject": "patrol_subject_name",
+                    "extra__patrol_title": "patrol_title",
+                    "extra__patrol_type": "patrol_type_id",
+                    "extra__patrol_type__value": "patrol_type_value",
+                    "extra__subject_id": "subject_id",
+                },
                 "df": DependsOn("merge_trajs"),
-                "filename": "trajectories",
             }
-            | (params_dict.get("persist_patrol_trajs_csv") or {}),
+            | (params_dict.get("rename_combined_trajs") or {}),
             method="call",
         ),
         "ranger_patrol_metrics": Node(
@@ -2434,7 +2431,7 @@ def main(params: Params):
                     },
                 ],
                 "reset_index": True,
-                "df": DependsOn("merge_trajs"),
+                "df": DependsOn("rename_combined_trajs"),
             }
             | (params_dict.get("ranger_patrol_metrics") or {}),
             method="call",
