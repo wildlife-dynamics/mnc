@@ -25,7 +25,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     filter_df,
     map_columns,
 )
-from ecoscope_workflows_ext_custom.tasks.io import html_to_png, load_df
+from ecoscope_workflows_ext_custom.tasks.io import load_df
 from ecoscope_workflows_ext_custom.tasks.results import (
     create_path_layer,
     create_polygon_layer_pydeck,
@@ -882,30 +882,6 @@ persist_precipitation = (
 
 
 # %% [markdown]
-# ## Convert precipitation html to png
-
-# %%
-# parameters
-
-precipitation_png_params = dict()
-
-# %%
-# call the task
-
-
-precipitation_png = (
-    html_to_png.handle_errors(task_instance_id="precipitation_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 1000},
-        html_path=persist_precipitation,
-        **precipitation_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Draw temperature chart
 
 # %%
@@ -972,30 +948,6 @@ persist_temperature = (
         text=temperature_chart,
         filename="temperature_readings_over_time.html",
         **persist_temperature_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert temperature html to png
-
-# %%
-# parameters
-
-temperature_png_params = dict()
-
-# %%
-# call the task
-
-
-temperature_png = (
-    html_to_png.handle_errors(task_instance_id="temperature_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 1000},
-        html_path=persist_temperature,
-        **temperature_png_params,
     )
     .call()
 )
@@ -1074,30 +1026,6 @@ persist_wind_speed = (
 
 
 # %% [markdown]
-# ## Convert wind speed html to png
-
-# %%
-# parameters
-
-wind_speed_png_params = dict()
-
-# %%
-# call the task
-
-
-wind_speed_png = (
-    html_to_png.handle_errors(task_instance_id="wind_speed_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 1000},
-        html_path=persist_wind_speed,
-        **wind_speed_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Draw wind gusts chart
 
 # %%
@@ -1164,30 +1092,6 @@ persist_wind_gusts = (
         text=wind_gusts_chart,
         filename="wind_gusts_readings_over_time.html",
         **persist_wind_gusts_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert wind gusts html to png
-
-# %%
-# parameters
-
-wind_gusts_png_params = dict()
-
-# %%
-# call the task
-
-
-wind_gusts_png = (
-    html_to_png.handle_errors(task_instance_id="wind_gusts_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 1000},
-        html_path=persist_wind_gusts,
-        **wind_gusts_png_params,
     )
     .call()
 )
@@ -1266,30 +1170,6 @@ persist_soil_temp = (
 
 
 # %% [markdown]
-# ## Convert soil temperature html to png
-
-# %%
-# parameters
-
-soil_temp_png_params = dict()
-
-# %%
-# call the task
-
-
-soil_temp_png = (
-    html_to_png.handle_errors(task_instance_id="soil_temp_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 1000},
-        html_path=persist_soil_temp,
-        **soil_temp_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Draw relative humidity chart
 
 # %%
@@ -1362,30 +1242,6 @@ persist_rel_humidity = (
 
 
 # %% [markdown]
-# ## Convert relative humidity html to png
-
-# %%
-# parameters
-
-rel_humidity_png_params = dict()
-
-# %%
-# call the task
-
-
-rel_humidity_png = (
-    html_to_png.handle_errors(task_instance_id="rel_humidity_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 1000},
-        html_path=persist_rel_humidity,
-        **rel_humidity_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Draw atmospheric pressure chart
 
 # %%
@@ -1452,30 +1308,6 @@ persist_pressure = (
         text=pressure_chart,
         filename="atmospheric_pressure_readings_over_time.html",
         **persist_pressure_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert atmospheric pressure html to png
-
-# %%
-# parameters
-
-pressure_png_params = dict()
-
-# %%
-# call the task
-
-
-pressure_png = (
-    html_to_png.handle_errors(task_instance_id="pressure_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 1000},
-        html_path=persist_pressure,
-        **pressure_png_params,
     )
     .call()
 )
@@ -1789,30 +1621,6 @@ persist_total_events = (
 
 
 # %% [markdown]
-# ## Convert total events html to png
-
-# %%
-# parameters
-
-total_events_png_params = dict()
-
-# %%
-# call the task
-
-
-total_events_png = (
-    html_to_png.handle_errors(task_instance_id="total_events_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 1000},
-        html_path=persist_total_events,
-        **total_events_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Calculate total events recorded by event type
 
 # %%
@@ -2049,7 +1857,6 @@ persist_patrol_df = (
 # parameters
 
 er_patrol_and_events_params_params = dict(
-    event_types=...,
     status=...,
     include_null_geometry=...,
 )
@@ -2069,6 +1876,7 @@ er_patrol_and_events_params = (
         raise_on_empty=False,
         truncate_to_time_range=True,
         sub_page_size=150,
+        event_types=[],
         patrol_types=[
             "mnc_motorbike_patrol_nkorbob",
             "mnc_foot_patrol_naishi",
@@ -2296,7 +2104,6 @@ patrol_observations = (
 # parameters
 
 map_patrol_types_params = dict(
-    patrol_column=...,
     new_column=...,
 )
 
@@ -2308,7 +2115,7 @@ map_patrol_types = (
     classify_mnc_patrol.handle_errors(task_instance_id="map_patrol_types")
     .partial(
         df=patrol_observations,
-        patrol_col="patrol_type__value",
+        patrol_column="patrol_type__value",
         new_col="patrol_cat_types",
         **map_patrol_types_params,
     )
@@ -3083,30 +2890,6 @@ persist_foot_patrol_urls = (
 
 
 # %% [markdown]
-# ## Convert foot patrol map to png
-
-# %%
-# parameters
-
-convert_foot_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_foot_png = (
-    html_to_png.handle_errors(task_instance_id="convert_foot_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        html_path=persist_foot_patrol_urls,
-        **convert_foot_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Summarize vehicle patrol metrics
 
 # %%
@@ -3349,30 +3132,6 @@ persist_vehicle_patrol_urls = (
 
 
 # %% [markdown]
-# ## Convert vehicle patrol map to png
-
-# %%
-# parameters
-
-convert_vehicle_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_vehicle_png = (
-    html_to_png.handle_errors(task_instance_id="convert_vehicle_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        html_path=persist_vehicle_patrol_urls,
-        **convert_vehicle_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Summarize motorbike patrol metrics
 
 # %%
@@ -3609,30 +3368,6 @@ persist_motor_patrol_urls = (
         text=draw_motor_patrol_map,
         filename="motorbike_patrols_map.html",
         **persist_motor_patrol_urls_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert motorbike patrol map to png
-
-# %%
-# parameters
-
-convert_motor_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_motor_png = (
-    html_to_png.handle_errors(task_instance_id="convert_motor_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        html_path=persist_motor_patrol_urls,
-        **convert_motor_png_params,
     )
     .call()
 )
@@ -3953,30 +3688,6 @@ persist_grid_map_urls = (
         text=draw_grid_map,
         filename="patrol_coverage_map.html",
         **persist_grid_map_urls_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert patrol grid map to png
-
-# %%
-# parameters
-
-convert_patrol_grid_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_patrol_grid_png = (
-    html_to_png.handle_errors(task_instance_id="convert_patrol_grid_png")
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        html_path=persist_grid_map_urls,
-        **convert_patrol_grid_png_params,
     )
     .call()
 )

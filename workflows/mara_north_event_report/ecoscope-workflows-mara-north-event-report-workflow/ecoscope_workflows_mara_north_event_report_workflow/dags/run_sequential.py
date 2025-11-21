@@ -15,7 +15,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     filter_df,
     map_columns,
 )
-from ecoscope_workflows_ext_custom.tasks.io import html_to_png, load_df
+from ecoscope_workflows_ext_custom.tasks.io import load_df
 from ecoscope_workflows_ext_custom.tasks.results import (
     create_path_layer,
     create_polygon_layer_pydeck,
@@ -536,18 +536,6 @@ def main(params: Params):
         .call()
     )
 
-    precipitation_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="precipitation_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 1000},
-            html_path=persist_precipitation,
-            **(params_dict.get("precipitation_png") or {}),
-        )
-        .call()
-    )
-
     temperature_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="temperature_chart")
@@ -588,18 +576,6 @@ def main(params: Params):
             text=temperature_chart,
             filename="temperature_readings_over_time.html",
             **(params_dict.get("persist_temperature") or {}),
-        )
-        .call()
-    )
-
-    temperature_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="temperature_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 1000},
-            html_path=persist_temperature,
-            **(params_dict.get("temperature_png") or {}),
         )
         .call()
     )
@@ -648,18 +624,6 @@ def main(params: Params):
         .call()
     )
 
-    wind_speed_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="wind_speed_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 1000},
-            html_path=persist_wind_speed,
-            **(params_dict.get("wind_speed_png") or {}),
-        )
-        .call()
-    )
-
     wind_gusts_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="wind_gusts_chart")
@@ -700,18 +664,6 @@ def main(params: Params):
             text=wind_gusts_chart,
             filename="wind_gusts_readings_over_time.html",
             **(params_dict.get("persist_wind_gusts") or {}),
-        )
-        .call()
-    )
-
-    wind_gusts_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="wind_gusts_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 1000},
-            html_path=persist_wind_gusts,
-            **(params_dict.get("wind_gusts_png") or {}),
         )
         .call()
     )
@@ -760,18 +712,6 @@ def main(params: Params):
         .call()
     )
 
-    soil_temp_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="soil_temp_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 1000},
-            html_path=persist_soil_temp,
-            **(params_dict.get("soil_temp_png") or {}),
-        )
-        .call()
-    )
-
     rel_humidity_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="rel_humidity_chart")
@@ -816,18 +756,6 @@ def main(params: Params):
         .call()
     )
 
-    rel_humidity_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="rel_humidity_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 1000},
-            html_path=persist_rel_humidity,
-            **(params_dict.get("rel_humidity_png") or {}),
-        )
-        .call()
-    )
-
     pressure_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="pressure_chart")
@@ -868,18 +796,6 @@ def main(params: Params):
             text=pressure_chart,
             filename="atmospheric_pressure_readings_over_time.html",
             **(params_dict.get("persist_pressure") or {}),
-        )
-        .call()
-    )
-
-    pressure_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="pressure_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 1000},
-            html_path=persist_pressure,
-            **(params_dict.get("pressure_png") or {}),
         )
         .call()
     )
@@ -1058,18 +974,6 @@ def main(params: Params):
         .call()
     )
 
-    total_events_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="total_events_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 1000},
-            html_path=persist_total_events,
-            **(params_dict.get("total_events_png") or {}),
-        )
-        .call()
-    )
-
     total_events_type_recorded = (
         summarize_df.validate()
         .handle_errors(task_instance_id="total_events_type_recorded")
@@ -1204,6 +1108,7 @@ def main(params: Params):
             raise_on_empty=False,
             truncate_to_time_range=True,
             sub_page_size=150,
+            event_types=[],
             patrol_types=[
                 "mnc_motorbike_patrol_nkorbob",
                 "mnc_foot_patrol_naishi",
@@ -1391,7 +1296,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="map_patrol_types")
         .partial(
             df=patrol_observations,
-            patrol_col="patrol_type__value",
+            patrol_column="patrol_type__value",
             new_col="patrol_cat_types",
             **(params_dict.get("map_patrol_types") or {}),
         )
@@ -1853,18 +1758,6 @@ def main(params: Params):
         .call()
     )
 
-    convert_foot_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="convert_foot_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 20000},
-            html_path=persist_foot_patrol_urls,
-            **(params_dict.get("convert_foot_png") or {}),
-        )
-        .call()
-    )
-
     vehicle_patrol_metrics = (
         summarize_df.validate()
         .handle_errors(task_instance_id="vehicle_patrol_metrics")
@@ -2010,18 +1903,6 @@ def main(params: Params):
         .call()
     )
 
-    convert_vehicle_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="convert_vehicle_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 20000},
-            html_path=persist_vehicle_patrol_urls,
-            **(params_dict.get("convert_vehicle_png") or {}),
-        )
-        .call()
-    )
-
     motor_patrol_metrics = (
         summarize_df.validate()
         .handle_errors(task_instance_id="motor_patrol_metrics")
@@ -2161,18 +2042,6 @@ def main(params: Params):
             text=draw_motor_patrol_map,
             filename="motorbike_patrols_map.html",
             **(params_dict.get("persist_motor_patrol_urls") or {}),
-        )
-        .call()
-    )
-
-    convert_motor_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="convert_motor_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 20000},
-            html_path=persist_motor_patrol_urls,
-            **(params_dict.get("convert_motor_png") or {}),
         )
         .call()
     )
@@ -2351,18 +2220,6 @@ def main(params: Params):
             text=draw_grid_map,
             filename="patrol_coverage_map.html",
             **(params_dict.get("persist_grid_map_urls") or {}),
-        )
-        .call()
-    )
-
-    convert_patrol_grid_png = (
-        html_to_png.validate()
-        .handle_errors(task_instance_id="convert_patrol_grid_png")
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            config={"wait_for_timeout": 20000},
-            html_path=persist_grid_map_urls,
-            **(params_dict.get("convert_patrol_grid_png") or {}),
         )
         .call()
     )

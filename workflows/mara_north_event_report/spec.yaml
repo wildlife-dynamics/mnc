@@ -411,14 +411,14 @@ workflow:
       text: ${{ workflow.precipitation_chart.return }}
       filename: precipitation_readings_over_time.html
 
-  - name: Convert precipitation html to png
-    id: precipitation_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 1000
-      html_path: ${{ workflow.persist_precipitation.return }}
+  # - name: Convert precipitation html to png
+  #   id: precipitation_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 1000
+  #     html_path: ${{ workflow.persist_precipitation.return }}
 
   # Draw temperature chart ,persist
   - name: Draw temperature chart
@@ -458,14 +458,14 @@ workflow:
       text: ${{ workflow.temperature_chart.return }}
       filename: temperature_readings_over_time.html
 
-  - name: Convert temperature html to png
-    id: temperature_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 1000
-      html_path: ${{ workflow.persist_temperature.return }}
+  # - name: Convert temperature html to png
+  #   id: temperature_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 1000
+  #     html_path: ${{ workflow.persist_temperature.return }}
 
   # Draw wind speed  chart, persist and add widgets
   - name: Draw wind speed chart 
@@ -505,14 +505,14 @@ workflow:
       text: ${{ workflow.wind_speed_chart.return }}
       filename: wind_speed_readings_over_time.html
 
-  - name: Convert wind speed html to png
-    id: wind_speed_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 1000
-      html_path: ${{ workflow.persist_wind_speed.return }}
+  # - name: Convert wind speed html to png
+  #   id: wind_speed_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 1000
+  #     html_path: ${{ workflow.persist_wind_speed.return }}
 
   # Draw wind gusts  chart, persist and add widgets
   - name: Draw wind gusts chart 
@@ -552,14 +552,14 @@ workflow:
       text: ${{ workflow.wind_gusts_chart.return }}
       filename: wind_gusts_readings_over_time.html
 
-  - name: Convert wind gusts html to png
-    id: wind_gusts_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 1000
-      html_path: ${{ workflow.persist_wind_gusts.return }}
+  # - name: Convert wind gusts html to png
+  #   id: wind_gusts_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 1000
+  #     html_path: ${{ workflow.persist_wind_gusts.return }}
 
   # Draw soil temperature chart, persist and add widgets
   - name: Draw soil temperature chart 
@@ -599,14 +599,14 @@ workflow:
       text: ${{ workflow.soil_temp_chart.return }}
       filename: soil_temperature_readings_over_time.html
 
-  - name: Convert soil temperature html to png
-    id: soil_temp_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 1000
-      html_path: ${{ workflow.persist_soil_temp.return }}
+  # - name: Convert soil temperature html to png
+  #   id: soil_temp_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 1000
+  #     html_path: ${{ workflow.persist_soil_temp.return }}
 
   # Draw relative humidity and persist
   - name: Draw relative humidity chart
@@ -646,14 +646,14 @@ workflow:
       text: ${{ workflow.rel_humidity_chart.return }}
       filename: relative_humidity_readings_over_time.html
 
-  - name: Convert relative humidity html to png
-    id: rel_humidity_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 1000
-      html_path: ${{ workflow.persist_rel_humidity.return }}
+  # - name: Convert relative humidity html to png
+  #   id: rel_humidity_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 1000
+  #     html_path: ${{ workflow.persist_rel_humidity.return }}
 
   # Draw atmospheric pressure and persist
   - name: Draw atmospheric pressure chart
@@ -693,16 +693,14 @@ workflow:
       text: ${{ workflow.pressure_chart.return }}
       filename: atmospheric_pressure_readings_over_time.html
 
-  - name: Convert atmospheric pressure html to png
-    id: pressure_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 1000
-      html_path: ${{ workflow.persist_pressure.return }}
-
-
+  # - name: Convert atmospheric pressure html to png
+  #   id: pressure_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 1000
+  #     html_path: ${{ workflow.persist_pressure.return }}
 
   # 2. Patrol Efforts
   # Get all events 
@@ -840,14 +838,14 @@ workflow:
       text: ${{ workflow.draw_events_chart.return }}
       filename: total_events_recorded.html
 
-  - name: Convert total events html to png 
-    id: total_events_png
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 1000
-      html_path: ${{ workflow.persist_total_events.return }}
+  # - name: Convert total events html to png 
+  #   id: total_events_png
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 1000
+  #     html_path: ${{ workflow.persist_total_events.return }}
 
   - name: Calculate total events recorded by event type
     id: total_events_type_recorded
@@ -951,6 +949,7 @@ workflow:
       raise_on_empty: false
       truncate_to_time_range: true
       sub_page_size: 150
+      event_types: []
       patrol_types:
           - mnc_motorbike_patrol_nkorbob
           - mnc_foot_patrol_naishi
@@ -1119,7 +1118,7 @@ workflow:
     task: classify_mnc_patrol
     partial:
       df: ${{ workflow.patrol_observations.return }}
-      patrol_col: patrol_type__value
+      patrol_column: patrol_type__value
       new_col: patrol_cat_types
 
   - name: Filter foot patrol observations 
@@ -1485,15 +1484,14 @@ workflow:
       text: ${{ workflow.draw_foot_patrol_map.return }}
       filename: foot_patrols_map.html 
   
-  - name: Convert foot patrol map to png 
-    id: convert_foot_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 20000
-      html_path: ${{ workflow.persist_foot_patrol_urls.return }}
-  
+  # - name: Convert foot patrol map to png 
+  #   id: convert_foot_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 20000
+  #     html_path: ${{ workflow.persist_foot_patrol_urls.return }}
   
   - name: Summarize vehicle patrol metrics
     id: vehicle_patrol_metrics
@@ -1602,14 +1600,14 @@ workflow:
       text: ${{ workflow.draw_vehicle_patrol_map.return }}
       filename: vehicle_patrols_map.html
 
-  - name: Convert vehicle patrol map to png 
-    id: convert_vehicle_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 20000
-      html_path: ${{ workflow.persist_vehicle_patrol_urls.return }}
+  # - name: Convert vehicle patrol map to png 
+  #   id: convert_vehicle_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 20000
+  #     html_path: ${{ workflow.persist_vehicle_patrol_urls.return }}
 
  # Motorbike patrol metrics and persist
   - name: Summarize motorbike patrol metrics
@@ -1722,16 +1720,15 @@ workflow:
       text: ${{ workflow.draw_motor_patrol_map.return }}
       filename: motorbike_patrols_map.html
 
-  - name: Convert motorbike patrol map to png 
-    id: convert_motor_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 20000
-      html_path: ${{ workflow.persist_motor_patrol_urls.return }}
+  # - name: Convert motorbike patrol map to png 
+  #   id: convert_motor_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 20000
+  #     html_path: ${{ workflow.persist_motor_patrol_urls.return }}
   
-
   # Merging all the trajectories ie foot , vehicle and motorbike
   - name: Merge motorbike ,vehicle and foot patrol trajectories 
     id: merge_trajs 
@@ -1877,14 +1874,14 @@ workflow:
       text: ${{ workflow.draw_grid_map.return }}
       filename: patrol_coverage_map.html 
   
-  - name: Convert patrol grid map to png 
-    id: convert_patrol_grid_png 
-    task: html_to_png
-    partial:
-      output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      config:
-        wait_for_timeout: 20000
-      html_path: ${{ workflow.persist_grid_map_urls.return }}
+  # - name: Convert patrol grid map to png 
+  #   id: convert_patrol_grid_png 
+  #   task: html_to_png
+  #   partial:
+  #     output_dir : ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     config:
+  #       wait_for_timeout: 20000
+  #     html_path: ${{ workflow.persist_grid_map_urls.return }}
 
   - name: Compute patrol occupancy
     id: compute_patrol_occupancy

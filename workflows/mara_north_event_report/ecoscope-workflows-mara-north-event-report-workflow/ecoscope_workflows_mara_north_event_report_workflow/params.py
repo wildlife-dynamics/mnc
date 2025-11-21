@@ -245,11 +245,6 @@ class ErPatrolAndEventsParams(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    event_types: List[str] = Field(
-        ...,
-        description="Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types.",
-        title="Event Types",
-    )
     status: Optional[List[StatusEnum]] = Field(
         ["done"],
         description="Choose to analyze patrols with a certain status. If left empty, patrols of all status will be analyzed",
@@ -264,7 +259,6 @@ class MapPatrolTypes(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    patrol_column: str = Field(..., title="Patrol Column")
     new_column: Optional[str] = Field("patrol_classification", title="New Column")
 
 

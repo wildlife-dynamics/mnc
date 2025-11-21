@@ -16,7 +16,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     filter_df,
     map_columns,
 )
-from ecoscope_workflows_ext_custom.tasks.io import html_to_png, load_df
+from ecoscope_workflows_ext_custom.tasks.io import load_df
 from ecoscope_workflows_ext_custom.tasks.results import (
     create_path_layer,
     create_polygon_layer_pydeck,
@@ -95,25 +95,18 @@ def main(params: Params):
         "persist_daily_weather_summary": ["daily_weather"],
         "precipitation_chart": ["daily_weather"],
         "persist_precipitation": ["precipitation_chart"],
-        "precipitation_png": ["persist_precipitation"],
         "temperature_chart": ["daily_weather"],
         "persist_temperature": ["temperature_chart"],
-        "temperature_png": ["persist_temperature"],
         "wind_speed_chart": ["daily_weather"],
         "persist_wind_speed": ["wind_speed_chart"],
-        "wind_speed_png": ["persist_wind_speed"],
         "wind_gusts_chart": ["daily_weather"],
         "persist_wind_gusts": ["wind_gusts_chart"],
-        "wind_gusts_png": ["persist_wind_gusts"],
         "soil_temp_chart": ["daily_weather"],
         "persist_soil_temp": ["soil_temp_chart"],
-        "soil_temp_png": ["persist_soil_temp"],
         "rel_humidity_chart": ["daily_weather"],
         "persist_rel_humidity": ["rel_humidity_chart"],
-        "rel_humidity_png": ["persist_rel_humidity"],
         "pressure_chart": ["daily_weather"],
         "persist_pressure": ["pressure_chart"],
-        "pressure_png": ["persist_pressure"],
         "get_events_data": ["er_client_name", "time_range"],
         "extract_event_date": ["get_events_data"],
         "view_events_info_df": ["extract_event_date"],
@@ -125,7 +118,6 @@ def main(params: Params):
         "persist_tevents_df": ["add_total_events_row"],
         "draw_events_chart": ["total_events_recorded"],
         "persist_total_events": ["draw_events_chart"],
-        "total_events_png": ["persist_total_events"],
         "total_events_type_recorded": ["exclude_event_type_values"],
         "persist_summary_event_type": ["total_events_type_recorded"],
         "filter_patrol_info_events": ["exclude_event_type_values"],
@@ -178,7 +170,6 @@ def main(params: Params):
             "zoom_foot_patrols",
         ],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
-        "convert_foot_png": ["persist_foot_patrol_urls"],
         "vehicle_patrol_metrics": ["split_vehicle_traj_group"],
         "persist_vehicle_df": ["vehicle_patrol_metrics"],
         "apply_vehicle_colormap": ["split_vehicle_traj_group"],
@@ -195,7 +186,6 @@ def main(params: Params):
             "zoom_vehicle_patrols",
         ],
         "persist_vehicle_patrol_urls": ["draw_vehicle_patrol_map"],
-        "convert_vehicle_png": ["persist_vehicle_patrol_urls"],
         "motor_patrol_metrics": ["split_motor_traj_group"],
         "persist_motor_df": ["motor_patrol_metrics"],
         "apply_motor_colormap": ["split_motor_traj_group"],
@@ -212,7 +202,6 @@ def main(params: Params):
             "zoom_motor_patrols",
         ],
         "persist_motor_patrol_urls": ["draw_motor_patrol_map"],
-        "convert_motor_png": ["persist_motor_patrol_urls"],
         "merge_trajs": ["foot_trajs", "vehicle_trajs", "motor_trajs"],
         "split_merged_trajs": ["merge_trajs", "groupers"],
         "ranger_patrol_metrics": ["split_merged_trajs"],
@@ -233,7 +222,6 @@ def main(params: Params):
             "zoom_grid_view",
         ],
         "persist_grid_map_urls": ["draw_grid_map"],
-        "convert_patrol_grid_png": ["persist_grid_map_urls"],
         "compute_patrol_occupancy": ["patrol_grid_visits", "conservancy_gdf"],
         "round_off_patrol": ["compute_patrol_occupancy"],
         "persist_occupancy_df": ["round_off_patrol"],
@@ -715,18 +703,6 @@ def main(params: Params):
             | (params_dict.get("persist_precipitation") or {}),
             method="call",
         ),
-        "precipitation_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="precipitation_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 1000},
-                "html_path": DependsOn("persist_precipitation"),
-            }
-            | (params_dict.get("precipitation_png") or {}),
-            method="call",
-        ),
         "temperature_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="temperature_chart")
@@ -769,18 +745,6 @@ def main(params: Params):
                 "filename": "temperature_readings_over_time.html",
             }
             | (params_dict.get("persist_temperature") or {}),
-            method="call",
-        ),
-        "temperature_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="temperature_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 1000},
-                "html_path": DependsOn("persist_temperature"),
-            }
-            | (params_dict.get("temperature_png") or {}),
             method="call",
         ),
         "wind_speed_chart": Node(
@@ -827,18 +791,6 @@ def main(params: Params):
             | (params_dict.get("persist_wind_speed") or {}),
             method="call",
         ),
-        "wind_speed_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="wind_speed_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 1000},
-                "html_path": DependsOn("persist_wind_speed"),
-            }
-            | (params_dict.get("wind_speed_png") or {}),
-            method="call",
-        ),
         "wind_gusts_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="wind_gusts_chart")
@@ -881,18 +833,6 @@ def main(params: Params):
                 "filename": "wind_gusts_readings_over_time.html",
             }
             | (params_dict.get("persist_wind_gusts") or {}),
-            method="call",
-        ),
-        "wind_gusts_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="wind_gusts_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 1000},
-                "html_path": DependsOn("persist_wind_gusts"),
-            }
-            | (params_dict.get("wind_gusts_png") or {}),
             method="call",
         ),
         "soil_temp_chart": Node(
@@ -939,18 +879,6 @@ def main(params: Params):
             | (params_dict.get("persist_soil_temp") or {}),
             method="call",
         ),
-        "soil_temp_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="soil_temp_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 1000},
-                "html_path": DependsOn("persist_soil_temp"),
-            }
-            | (params_dict.get("soil_temp_png") or {}),
-            method="call",
-        ),
         "rel_humidity_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="rel_humidity_chart")
@@ -995,18 +923,6 @@ def main(params: Params):
             | (params_dict.get("persist_rel_humidity") or {}),
             method="call",
         ),
-        "rel_humidity_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="rel_humidity_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 1000},
-                "html_path": DependsOn("persist_rel_humidity"),
-            }
-            | (params_dict.get("rel_humidity_png") or {}),
-            method="call",
-        ),
         "pressure_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="pressure_chart")
@@ -1049,18 +965,6 @@ def main(params: Params):
                 "filename": "atmospheric_pressure_readings_over_time.html",
             }
             | (params_dict.get("persist_pressure") or {}),
-            method="call",
-        ),
-        "pressure_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="pressure_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 1000},
-                "html_path": DependsOn("persist_pressure"),
-            }
-            | (params_dict.get("pressure_png") or {}),
             method="call",
         ),
         "get_events_data": Node(
@@ -1237,18 +1141,6 @@ def main(params: Params):
             | (params_dict.get("persist_total_events") or {}),
             method="call",
         ),
-        "total_events_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="total_events_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 1000},
-                "html_path": DependsOn("persist_total_events"),
-            }
-            | (params_dict.get("total_events_png") or {}),
-            method="call",
-        ),
         "total_events_type_recorded": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="total_events_type_recorded")
@@ -1388,6 +1280,7 @@ def main(params: Params):
                 "raise_on_empty": False,
                 "truncate_to_time_range": True,
                 "sub_page_size": 150,
+                "event_types": [],
                 "patrol_types": [
                     "mnc_motorbike_patrol_nkorbob",
                     "mnc_foot_patrol_naishi",
@@ -1575,7 +1468,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("patrol_observations"),
-                "patrol_col": "patrol_type__value",
+                "patrol_column": "patrol_type__value",
                 "new_col": "patrol_cat_types",
             }
             | (params_dict.get("map_patrol_types") or {}),
@@ -2049,18 +1942,6 @@ def main(params: Params):
             | (params_dict.get("persist_foot_patrol_urls") or {}),
             method="call",
         ),
-        "convert_foot_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="convert_foot_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 20000},
-                "html_path": DependsOn("persist_foot_patrol_urls"),
-            }
-            | (params_dict.get("convert_foot_png") or {}),
-            method="call",
-        ),
         "vehicle_patrol_metrics": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="vehicle_patrol_metrics")
@@ -2212,18 +2093,6 @@ def main(params: Params):
                 "filename": "vehicle_patrols_map.html",
             }
             | (params_dict.get("persist_vehicle_patrol_urls") or {}),
-            method="call",
-        ),
-        "convert_vehicle_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="convert_vehicle_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 20000},
-                "html_path": DependsOn("persist_vehicle_patrol_urls"),
-            }
-            | (params_dict.get("convert_vehicle_png") or {}),
             method="call",
         ),
         "motor_patrol_metrics": Node(
@@ -2380,18 +2249,6 @@ def main(params: Params):
                 "filename": "motorbike_patrols_map.html",
             }
             | (params_dict.get("persist_motor_patrol_urls") or {}),
-            method="call",
-        ),
-        "convert_motor_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="convert_motor_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 20000},
-                "html_path": DependsOn("persist_motor_patrol_urls"),
-            }
-            | (params_dict.get("convert_motor_png") or {}),
             method="call",
         ),
         "merge_trajs": Node(
@@ -2592,18 +2449,6 @@ def main(params: Params):
                 "filename": "patrol_coverage_map.html",
             }
             | (params_dict.get("persist_grid_map_urls") or {}),
-            method="call",
-        ),
-        "convert_patrol_grid_png": Node(
-            async_task=html_to_png.validate()
-            .handle_errors(task_instance_id="convert_patrol_grid_png")
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "config": {"wait_for_timeout": 20000},
-                "html_path": DependsOn("persist_grid_map_urls"),
-            }
-            | (params_dict.get("convert_patrol_grid_png") or {}),
             method="call",
         ),
         "compute_patrol_occupancy": Node(

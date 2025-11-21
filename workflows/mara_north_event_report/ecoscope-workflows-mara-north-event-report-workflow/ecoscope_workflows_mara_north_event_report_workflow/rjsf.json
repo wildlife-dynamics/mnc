@@ -345,14 +345,6 @@
     "er_patrol_and_events_params": {
       "additionalProperties": false,
       "properties": {
-        "event_types": {
-          "items": {
-            "type": "string"
-          },
-          "title": "Event Types",
-          "type": "array",
-          "description": "Specify the event type(s) to analyze (optional). Leave this section empty to analyze all event types."
-        },
         "status": {
           "default": [
             "done"
@@ -377,28 +369,20 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "event_types"
-      ],
+      "required": [],
       "type": "object",
       "title": "patrol and event types"
     },
     "map_patrol_types": {
       "additionalProperties": false,
       "properties": {
-        "patrol_column": {
-          "title": "Patrol Column",
-          "type": "string"
-        },
         "new_column": {
           "default": "patrol_classification",
           "title": "New Column",
           "type": "string"
         }
       },
-      "required": [
-        "patrol_column"
-      ],
+      "required": [],
       "type": "object",
       "title": "Classify patrol types"
     },
@@ -642,15 +626,8 @@
     },
     "er_patrol_and_events_params": {
       "ui:order": [
-        "event_types",
         "status",
         "include_null_geometry"
-      ]
-    },
-    "map_patrol_types": {
-      "ui:order": [
-        "patrol_column",
-        "new_column"
       ]
     },
     "ui:order": [
