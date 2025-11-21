@@ -5,7 +5,7 @@ from ._summarize import make_event_summary_df
 from ._zip import zip_grouped_by_key,flatten_tuple
 from ._inspect import print_output,view_df,view_gdf
 from ._download_file import download_file_and_persist
-from ._filter import filter_by_value
+from ._filter import filter_by_value , exclude_by_value
 from ._patrol_coverage import create_patrol_coverage_grid,compute_occupancy
 from ._tabular import (
     order_bins,
@@ -53,6 +53,7 @@ __all__ = [
     "add_totals_row",
     "clean_file_keys",
     "draw_custom_map",
+    "exclude_by_value",
     "filter_by_value",
     "make_text_layer",
     "compute_occupancy",

@@ -756,7 +756,7 @@ workflow:
 
   - name: Exclude specific events types from total events
     id: exclude_event_type_values
-    task: filter_by_value
+    task: exclude_by_value
     partial:  
       df: ${{ workflow.events_wtemporal.return }}
       column_name: event_type 

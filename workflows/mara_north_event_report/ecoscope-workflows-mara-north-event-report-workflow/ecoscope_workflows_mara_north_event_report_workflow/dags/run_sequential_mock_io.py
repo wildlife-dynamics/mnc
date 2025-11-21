@@ -61,7 +61,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import (
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, filter_by_value, view_gdf
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, exclude_by_value, view_gdf
 
 get_patrols_from_combined_params = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -995,7 +995,7 @@ def main(params: Params):
     )
 
     exclude_event_type_values = (
-        filter_by_value.validate()
+        exclude_by_value.validate()
         .handle_errors(task_instance_id="exclude_event_type_values")
         .partial(
             df=events_wtemporal,

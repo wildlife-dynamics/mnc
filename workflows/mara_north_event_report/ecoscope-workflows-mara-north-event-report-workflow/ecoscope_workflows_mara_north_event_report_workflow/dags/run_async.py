@@ -49,7 +49,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_styled_layers_from_dict,
     download_file_and_persist,
     draw_custom_map,
-    filter_by_value,
+    exclude_by_value,
     get_patrol_observations_from_patrols_dataframe_and_combined_params,
     get_patrols_from_combined_parameters,
     make_text_layer,
@@ -1128,7 +1128,7 @@ def main(params: Params):
             method="call",
         ),
         "exclude_event_type_values": Node(
-            async_task=filter_by_value.validate()
+            async_task=exclude_by_value.validate()
             .handle_errors(task_instance_id="exclude_event_type_values")
             .set_executor("lithops"),
             partial={
