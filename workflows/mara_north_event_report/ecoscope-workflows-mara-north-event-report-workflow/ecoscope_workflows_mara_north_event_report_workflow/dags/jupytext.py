@@ -3574,7 +3574,9 @@ patrol_grid_visits_params = dict()
 
 patrol_grid_visits = (
     create_patrol_coverage_grid.handle_errors(task_instance_id="patrol_grid_visits")
-    .partial(grid_cell_size=1000, trajs=merge_trajs, **patrol_grid_visits_params)
+    .partial(
+        grid_cell_size=1000, trajs=rename_combined_trajs, **patrol_grid_visits_params
+    )
     .call()
 )
 

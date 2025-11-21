@@ -2169,7 +2169,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="patrol_grid_visits")
         .partial(
             grid_cell_size=1000,
-            trajs=merge_trajs,
+            trajs=rename_combined_trajs,
             **(params_dict.get("patrol_grid_visits") or {}),
         )
         .call()

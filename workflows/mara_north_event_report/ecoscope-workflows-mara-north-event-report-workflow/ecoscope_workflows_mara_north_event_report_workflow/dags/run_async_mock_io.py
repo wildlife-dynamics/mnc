@@ -258,7 +258,7 @@ def main(params: Params):
         "ranger_patrol_metrics": ["rename_combined_trajs"],
         "add_ranger_metrics_totals": ["ranger_patrol_metrics"],
         "persist_total_df": ["add_ranger_metrics_totals"],
-        "patrol_grid_visits": ["merge_trajs"],
+        "patrol_grid_visits": ["rename_combined_trajs"],
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
         "generate_grid_layers": ["apply_grid_colormap"],
@@ -2467,7 +2467,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "grid_cell_size": 1000,
-                "trajs": DependsOn("merge_trajs"),
+                "trajs": DependsOn("rename_combined_trajs"),
             }
             | (params_dict.get("patrol_grid_visits") or {}),
             method="call",

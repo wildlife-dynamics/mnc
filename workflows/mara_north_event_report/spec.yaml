@@ -1822,7 +1822,7 @@ workflow:
     task: create_patrol_coverage_grid
     partial:
       grid_cell_size: 1000
-      trajs: ${{ workflow.merge_trajs.return }}
+      trajs: ${{ workflow.rename_combined_trajs.return }}
 
   - name: Apply bin classification on grids
     id: apply_classification_grid
