@@ -255,13 +255,6 @@ class ErPatrolAndEventsParams(BaseModel):
     )
 
 
-class MapPatrolTypes(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    new_column: Optional[str] = Field("patrol_classification", title="New Column")
-
-
 class FilterFootPatrols(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -287,6 +280,31 @@ class FilterMotorPatrols(BaseModel):
     reset_index: Optional[bool] = Field(
         False, description="If reset index, default is False", title="Reset Index"
     )
+
+
+class FilterMobileBoma(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class FilterPredation(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class ReplaceSpeciesNull(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    column_name: str = Field(..., title="Column Name")
 
 
 class TimezoneInfo(BaseModel):
@@ -430,9 +448,6 @@ class FormData(BaseModel):
     er_patrol_and_events_params: Optional[ErPatrolAndEventsParams] = Field(
         None, title="patrol and event types"
     )
-    map_patrol_types: Optional[MapPatrolTypes] = Field(
-        None, title="Classify patrol types"
-    )
     filter_foot_patrols: Optional[FilterFootPatrols] = Field(
         None, title="Filter foot patrol observations"
     )
@@ -450,4 +465,13 @@ class FormData(BaseModel):
     )
     motor_trajs: Optional[MotorTrajs] = Field(
         None, title="Convert motorbike relocations to trajectories"
+    )
+    filter_mobile_boma: Optional[FilterMobileBoma] = Field(
+        None, title="Filter events to get mobile boma rep"
+    )
+    filter_predation: Optional[FilterPredation] = Field(
+        None, title="Filter events to get livestock predation events"
+    )
+    replace_species_null: Optional[ReplaceSpeciesNull] = Field(
+        None, title="Replace livestock species null with unknown"
     )

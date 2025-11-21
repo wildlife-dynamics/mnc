@@ -373,19 +373,6 @@
       "type": "object",
       "title": "patrol and event types"
     },
-    "map_patrol_types": {
-      "additionalProperties": false,
-      "properties": {
-        "new_column": {
-          "default": "patrol_classification",
-          "title": "New Column",
-          "type": "string"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Classify patrol types"
-    },
     "filter_foot_patrols": {
       "additionalProperties": false,
       "properties": {
@@ -505,6 +492,48 @@
       "required": [],
       "type": "object",
       "title": "Convert motorbike relocations to trajectories"
+    },
+    "filter_mobile_boma": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Filter events to get mobile boma rep"
+    },
+    "filter_predation": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Filter events to get livestock predation events"
+    },
+    "replace_species_null": {
+      "additionalProperties": false,
+      "properties": {
+        "column_name": {
+          "title": "Column Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "column_name"
+      ],
+      "type": "object",
+      "title": "Replace livestock species null with unknown"
     }
   },
   "$defs": {
@@ -640,13 +669,15 @@
       "events_wtemporal",
       "filter_patrol_info_events",
       "er_patrol_and_events_params",
-      "map_patrol_types",
       "filter_foot_patrols",
       "filter_vehicle_patrols",
       "filter_motor_patrols",
       "foot_trajs",
       "vehicle_trajs",
-      "motor_trajs"
+      "motor_trajs",
+      "filter_mobile_boma",
+      "filter_predation",
+      "replace_species_null"
     ]
   },
   "additionalProperties": false

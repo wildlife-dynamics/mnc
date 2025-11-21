@@ -30,7 +30,7 @@ def add_totals_row(
     return pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
 
 @task
-def replace_missing_with_label(df, column_name, label="unknown"):
+def replace_missing_with_label(df:AnyDataFrame, column_name:str, label:str):
     # Validate column exists
     if column_name not in df.columns:
         raise ValueError(
@@ -199,3 +199,4 @@ def round_values(df:AnyDataFrame, column:str, decimals:int):
     
     df[column] = df[column].round(decimals)
     return df
+

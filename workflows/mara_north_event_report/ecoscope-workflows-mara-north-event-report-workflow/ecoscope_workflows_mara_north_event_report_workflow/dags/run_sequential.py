@@ -19,6 +19,7 @@ from ecoscope_workflows_ext_custom.tasks.io import load_df
 from ecoscope_workflows_ext_custom.tasks.results import (
     create_path_layer,
     create_polygon_layer_pydeck,
+    create_scatterplot_layer,
     set_base_maps_pydeck,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df
@@ -43,17 +44,21 @@ from ecoscope_workflows_ext_mnc.tasks import (
     add_totals_row,
     classify_mnc_patrol,
     compute_occupancy,
+    convert_to_int,
     create_gdf_from_dict,
     create_patrol_coverage_grid,
     create_styled_layers_from_dict,
     download_file_and_persist,
     draw_custom_map,
     exclude_by_value,
+    exclude_geom_outliers,
     get_patrol_observations_from_patrols_dataframe_and_combined_params,
     get_patrols_from_combined_parameters,
     make_text_layer,
     merge_multiple_df,
     merge_static_and_grouped_layers,
+    remove_invalid_point_geometries,
+    replace_missing_with_label,
     round_values,
     split_gdf_by_column,
     view_gdf,
@@ -1297,7 +1302,7 @@ def main(params: Params):
         .partial(
             df=patrol_observations,
             patrol_column="patrol_type__value",
-            new_col="patrol_cat_types",
+            new_column="patrol_cat_types",
             **(params_dict.get("map_patrol_types") or {}),
         )
         .call()
@@ -2257,6 +2262,463 @@ def main(params: Params):
             df=round_off_patrol,
             filename="patrol_coverage",
             **(params_dict.get("persist_occupancy_df") or {}),
+        )
+        .call()
+    )
+
+    filter_mobile_boma = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="filter_mobile_boma")
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="mobile_boma_rep",
+            df=exclude_event_type_values,
+            **(params_dict.get("filter_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    normalize_mb_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_mb_values")
+        .partial(
+            column="event_details",
+            df=filter_mobile_boma,
+            **(params_dict.get("normalize_mb_values") or {}),
+        )
+        .call()
+    )
+
+    rename_mobile_boma = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_mobile_boma")
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={"event_details__mobile_boma": "boma"},
+            df=normalize_mb_values,
+            **(params_dict.get("rename_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    mobile_boma_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="mobile_boma_summary")
+        .partial(
+            groupby_cols=["boma"],
+            summary_params=[
+                {"display_name": "total_count", "aggregator": "count", "column": "id"}
+            ],
+            reset_index=True,
+            df=rename_mobile_boma,
+            **(params_dict.get("mobile_boma_summary") or {}),
+        )
+        .call()
+    )
+
+    include_mb_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_mb_totals")
+        .partial(
+            label_col=["boma"],
+            label="Total",
+            df=mobile_boma_summary,
+            **(params_dict.get("include_mb_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_mobile_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_mobile_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="mobile_boma_summary",
+            df=include_mb_totals,
+            **(params_dict.get("persist_mobile_df") or {}),
+        )
+        .call()
+    )
+
+    apply_mb_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_mb_colormap")
+        .partial(
+            input_column_name="event_type",
+            output_column_name="event_type_colors",
+            colormap="plasma",
+            df=rename_mobile_boma,
+            **(params_dict.get("apply_mb_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_mb_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_mb_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "event_type_colors",
+                "get_radius": 4,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "label_column": "event_type",
+                "color_column": "event_type_colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_mb_colormap,
+            **(params_dict.get("generate_mb_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_mobile_boma = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_mobile_boma")
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=conservancy_gdf,
+            **(params_dict.get("zoom_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_mobile_boma = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_mobile_boma")
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_mb_layers,
+            **(params_dict.get("combine_custom_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    draw_mb_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_mb_map")
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Mobile Boma"},
+            geo_layers=combine_custom_mobile_boma,
+            view_state=zoom_mobile_boma,
+            **(params_dict.get("draw_mb_map") or {}),
+        )
+        .call()
+    )
+
+    persist_mobile_boma_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_mobile_boma_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_mb_map,
+            filename="boma_movement_map.html",
+            **(params_dict.get("persist_mobile_boma_urls") or {}),
+        )
+        .call()
+    )
+
+    filter_predation = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="filter_predation")
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="livestock_predation_rep",
+            df=exclude_event_type_values,
+            **(params_dict.get("filter_predation") or {}),
+        )
+        .call()
+    )
+
+    normalize_predation_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_predation_values")
+        .partial(
+            column="event_details",
+            df=filter_predation,
+            **(params_dict.get("normalize_predation_values") or {}),
+        )
+        .call()
+    )
+
+    rename_livestock_predation = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_livestock_predation")
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__livestockpredation_comments": "livestock_predation_comments",
+                "event_details__livestockpredation_datetime": "predation_datetime",
+                "event_details__livestockpredation_location": "predation_location",
+                "event_details__livestockpredation_causedeath": "predation_cause_of_death",
+                "event_details__livestockpredation_retaliation": "predation_retaliation",
+                "event_details__livestockpredation_supervision": "predation_supervision",
+                "event_details__livestockpredation_predatorcount": "predator_count",
+                "event_details__livestockpredation_killedjuvenile": "killed_juvenile",
+                "event_details__livestockpredation_livestockowner": "livestock_owner",
+                "event_details__livestockpredation_distancetopeople": "distance_to_people",
+                "event_details__livestockpredation_livestockspecies": "livestock_species",
+                "event_details__livestockpredation_woundedsurvivors": "wounded_survivors",
+                "event_details__livestockpredation_livestockaffected": "livestock_affected",
+                "event_details__livestockpredation_suspectedpredator": "suspected_predator",
+                "event_details__livestockpredation_bomacontext": "boma_context",
+                "event_details__livestockpredation_killedadultmale": "killed_adult_male",
+                "event_details__livestockpredation_bomaconstruction": "boma_construction",
+                "event_details__livestockpredation_killedadultfemale": "killed_adult_female",
+                "event_details__livestockpredation_woundedjuvenile": "wounded_juvenile",
+                "event_details__livestockpredation_woundedadultfemale": "wounded_adult_female",
+                "event_details__livestockpredation_woundedadultmale": "wounded_adult_male",
+                "event_details__livestockpredation_bomaheight": "boma_height",
+                "event_details__livestockpredation_bomavisibility": "boma_visibility",
+            },
+            df=normalize_mb_values,
+            **(params_dict.get("rename_livestock_predation") or {}),
+        )
+        .call()
+    )
+
+    replace_predator_nulls = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_predator_nulls")
+        .partial(
+            df=rename_livestock_predation,
+            column_name="suspected_predator",
+            label="unknown",
+            **(params_dict.get("replace_predator_nulls") or {}),
+        )
+        .call()
+    )
+
+    replace_species_null = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_species_null")
+        .partial(
+            df=replace_predator_nulls,
+            column="livestock_species",
+            label="unknown",
+            **(params_dict.get("replace_species_null") or {}),
+        )
+        .call()
+    )
+
+    convert_livestock_int = (
+        convert_to_int.validate()
+        .handle_errors(task_instance_id="convert_livestock_int")
+        .partial(
+            df=replace_species_null,
+            columns=["livestock_affected"],
+            errors="coerce",
+            fill_value=0,
+            inplace=False,
+            **(params_dict.get("convert_livestock_int") or {}),
+        )
+        .call()
+    )
+
+    livestock_predation_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="livestock_predation_summary")
+        .partial(
+            groupby_cols=["date", "suspected_predator", "livestock_species"],
+            summary_params=[
+                {
+                    "display_name": "no_affected",
+                    "aggregator": "sum",
+                    "column": "livestock_affected",
+                }
+            ],
+            reset_index=True,
+            df=convert_livestock_int,
+            **(params_dict.get("livestock_predation_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_livestock_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_livestock_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="livestock_predation_events",
+            df=include_mb_totals,
+            **(params_dict.get("persist_livestock_df") or {}),
+        )
+        .call()
+    )
+
+    livestock_events_recorded = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="livestock_events_recorded")
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=convert_livestock_int,
+            **(params_dict.get("livestock_events_recorded") or {}),
+        )
+        .call()
+    )
+
+    add_total_livestock = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="add_total_livestock")
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=livestock_events_recorded,
+            **(params_dict.get("add_total_livestock") or {}),
+        )
+        .call()
+    )
+
+    livestock_events_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="livestock_events_df")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=add_total_livestock,
+            filename="livestock_events_recorded",
+            **(params_dict.get("livestock_events_df") or {}),
+        )
+        .call()
+    )
+
+    exclude_livestock_outliers = (
+        exclude_geom_outliers.validate()
+        .handle_errors(task_instance_id="exclude_livestock_outliers")
+        .partial(
+            df=convert_livestock_int,
+            z_threshold=3,
+            **(params_dict.get("exclude_livestock_outliers") or {}),
+        )
+        .call()
+    )
+
+    remove_invalid_geoms = (
+        remove_invalid_point_geometries.validate()
+        .handle_errors(task_instance_id="remove_invalid_geoms")
+        .partial(
+            gdf=exclude_livestock_outliers,
+            **(params_dict.get("remove_invalid_geoms") or {}),
+        )
+        .call()
+    )
+
+    apply_livestock_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_livestock_colormap")
+        .partial(
+            input_column_name="livestock_species",
+            output_column_name="colors",
+            colormap="Reds_r",
+            df=remove_invalid_geoms,
+            **(params_dict.get("apply_livestock_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_livestock_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_livestock_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": 4,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "label_column": "livestock_species",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_mb_colormap,
+            **(params_dict.get("generate_livestock_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_livestock_events = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_livestock_events")
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=conservancy_gdf,
+            **(params_dict.get("zoom_livestock_events") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_livestock = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_livestock")
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_livestock_layers,
+            **(params_dict.get("combine_custom_livestock") or {}),
+        )
+        .call()
+    )
+
+    draw_livestock_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_livestock_map")
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Livestock affected"},
+            geo_layers=combine_custom_livestock,
+            view_state=zoom_livestock_events,
+            **(params_dict.get("draw_livestock_map") or {}),
+        )
+        .call()
+    )
+
+    persist_livestock_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_livestock_urls")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_mb_map,
+            filename="livestock_predation_events.html",
+            **(params_dict.get("persist_livestock_urls") or {}),
         )
         .call()
     )
