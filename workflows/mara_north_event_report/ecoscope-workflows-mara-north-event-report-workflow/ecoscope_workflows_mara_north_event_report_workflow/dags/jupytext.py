@@ -2132,7 +2132,7 @@ filter_motor_patrols = (
     .partial(
         column_name="patrol_cat_types",
         op="equal",
-        value="foot",
+        value="motorcycle",
         df=map_patrol_types,
         **filter_motor_patrols_params,
     )
@@ -2570,6 +2570,30 @@ foot_patrol_metrics = (
 
 
 # %% [markdown]
+# ## Add totals row
+
+# %%
+# parameters
+
+add_fp_metrics_totals_params = dict()
+
+# %%
+# call the task
+
+
+add_fp_metrics_totals = (
+    add_totals_row.handle_errors(task_instance_id="add_fp_metrics_totals")
+    .partial(
+        label_col=["patrol_type_value"],
+        label="Total",
+        df=foot_patrol_metrics,
+        **add_fp_metrics_totals_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Persist foot patrol metrics
 
 # %%
@@ -2587,7 +2611,7 @@ persist_foot_df = (
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
         filename="foot_patrol_efforts",
-        df=foot_patrol_metrics,
+        df=add_fp_metrics_totals,
         **persist_foot_df_params,
     )
     .call()
@@ -2842,6 +2866,30 @@ vehicle_patrol_metrics = (
 
 
 # %% [markdown]
+# ## Add totals row to vehicle patrols summary
+
+# %%
+# parameters
+
+add_vh_metrics_totals_params = dict()
+
+# %%
+# call the task
+
+
+add_vh_metrics_totals = (
+    add_totals_row.handle_errors(task_instance_id="add_vh_metrics_totals")
+    .partial(
+        label_col=["patrol_type_value"],
+        label="Total",
+        df=vehicle_patrol_metrics,
+        **add_vh_metrics_totals_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Persist vehicle patrol metrics
 
 # %%
@@ -2858,7 +2906,7 @@ persist_vehicle_df = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
-        df=vehicle_patrol_metrics,
+        df=add_vh_metrics_totals,
         filename="vehicle_patrol_efforts",
         **persist_vehicle_df_params,
     )
@@ -3084,6 +3132,30 @@ motor_patrol_metrics = (
 
 
 # %% [markdown]
+# ## Add totals row to motorbike patrols
+
+# %%
+# parameters
+
+add_mb_metrics_totals_params = dict()
+
+# %%
+# call the task
+
+
+add_mb_metrics_totals = (
+    add_totals_row.handle_errors(task_instance_id="add_mb_metrics_totals")
+    .partial(
+        label_col=["patrol_type_value"],
+        label="Total",
+        df=motor_patrol_metrics,
+        **add_mb_metrics_totals_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Persist motorbike patrol metrics
 
 # %%
@@ -3100,7 +3172,7 @@ persist_motor_df = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
-        df=motor_patrol_metrics,
+        df=add_mb_metrics_totals,
         filename="motorbike_patrol_efforts",
         **persist_motor_df_params,
     )
@@ -3194,8 +3266,8 @@ zoom_motor_patrols_params = dict()
 
 zoom_motor_patrols = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_motor_patrols")
-    .partial(pitch=0, bearing=0, **zoom_motor_patrols_params)
-    .mapvalues(argnames=["gdf"], argvalues=conservancy_gdf)
+    .partial(pitch=0, bearing=0, gdf=conservancy_gdf, **zoom_motor_patrols_params)
+    .call()
 )
 
 
@@ -3350,6 +3422,30 @@ ranger_patrol_metrics = (
 
 
 # %% [markdown]
+# ## Add totals row to overall patrol metrics
+
+# %%
+# parameters
+
+add_ranger_metrics_totals_params = dict()
+
+# %%
+# call the task
+
+
+add_ranger_metrics_totals = (
+    add_totals_row.handle_errors(task_instance_id="add_ranger_metrics_totals")
+    .partial(
+        label_col=["patrol_subject_name"],
+        label="Total",
+        df=ranger_patrol_metrics,
+        **add_ranger_metrics_totals_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Persist total patrol coverage
 
 # %%
@@ -3366,7 +3462,7 @@ persist_total_df = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
-        df=ranger_patrol_metrics,
+        df=add_ranger_metrics_totals,
         filename="overall_patrol_efforts",
         **persist_total_df_params,
     )
@@ -3495,8 +3591,8 @@ zoom_grid_view_params = dict()
 
 zoom_grid_view = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_grid_view")
-    .partial(pitch=0, bearing=0, **zoom_grid_view_params)
-    .mapvalues(argnames=["gdf"], argvalues=conservancy_gdf)
+    .partial(pitch=0, bearing=0, gdf=conservancy_gdf, **zoom_grid_view_params)
+    .call()
 )
 
 

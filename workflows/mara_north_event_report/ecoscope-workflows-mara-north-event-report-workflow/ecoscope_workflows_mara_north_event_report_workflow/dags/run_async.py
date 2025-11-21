@@ -154,7 +154,8 @@ def main(params: Params):
         "rename_vehicle_trajs": ["temporal_vehicle_traj"],
         "rename_motor_trajs": ["temporal_motor_traj"],
         "foot_patrol_metrics": ["rename_foot_trajs"],
-        "persist_foot_df": ["foot_patrol_metrics"],
+        "add_fp_metrics_totals": ["foot_patrol_metrics"],
+        "persist_foot_df": ["add_fp_metrics_totals"],
         "apply_footp_colormap": ["rename_foot_trajs"],
         "generate_foot_layers": ["apply_footp_colormap"],
         "zoom_foot_patrols": ["conservancy_gdf"],
@@ -171,7 +172,8 @@ def main(params: Params):
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
         "view_vehicle_patrols": ["rename_vehicle_trajs"],
         "vehicle_patrol_metrics": ["rename_vehicle_trajs"],
-        "persist_vehicle_df": ["vehicle_patrol_metrics"],
+        "add_vh_metrics_totals": ["vehicle_patrol_metrics"],
+        "persist_vehicle_df": ["add_vh_metrics_totals"],
         "apply_vehicle_colormap": ["rename_vehicle_trajs"],
         "generate_vehicle_layers": ["apply_vehicle_colormap"],
         "zoom_vehicle_patrols": ["conservancy_gdf"],
@@ -187,7 +189,8 @@ def main(params: Params):
         ],
         "persist_vehicle_patrol_urls": ["draw_vehicle_patrol_map"],
         "motor_patrol_metrics": ["rename_motor_trajs"],
-        "persist_motor_df": ["motor_patrol_metrics"],
+        "add_mb_metrics_totals": ["motor_patrol_metrics"],
+        "persist_motor_df": ["add_mb_metrics_totals"],
         "apply_motor_colormap": ["rename_motor_trajs"],
         "generate_motor_layers": ["apply_motor_colormap"],
         "zoom_motor_patrols": ["conservancy_gdf"],
@@ -204,7 +207,8 @@ def main(params: Params):
         "persist_motor_patrol_urls": ["draw_motor_patrol_map"],
         "merge_trajs": ["foot_trajs", "vehicle_trajs", "motor_trajs"],
         "ranger_patrol_metrics": ["merge_trajs"],
-        "persist_total_df": ["ranger_patrol_metrics"],
+        "add_ranger_metrics_totals": ["ranger_patrol_metrics"],
+        "persist_total_df": ["add_ranger_metrics_totals"],
         "patrol_grid_visits": ["merge_trajs"],
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
@@ -1520,7 +1524,7 @@ def main(params: Params):
             partial={
                 "column_name": "patrol_cat_types",
                 "op": "equal",
-                "value": "foot",
+                "value": "motorcycle",
                 "df": DependsOn("map_patrol_types"),
             }
             | (params_dict.get("filter_motor_patrols") or {}),
@@ -1802,6 +1806,18 @@ def main(params: Params):
             | (params_dict.get("foot_patrol_metrics") or {}),
             method="call",
         ),
+        "add_fp_metrics_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="add_fp_metrics_totals")
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["patrol_type_value"],
+                "label": "Total",
+                "df": DependsOn("foot_patrol_metrics"),
+            }
+            | (params_dict.get("add_fp_metrics_totals") or {}),
+            method="call",
+        ),
         "persist_foot_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_foot_df")
@@ -1810,7 +1826,7 @@ def main(params: Params):
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
                 "filename": "foot_patrol_efforts",
-                "df": DependsOn("foot_patrol_metrics"),
+                "df": DependsOn("add_fp_metrics_totals"),
             }
             | (params_dict.get("persist_foot_df") or {}),
             method="call",
@@ -1973,6 +1989,18 @@ def main(params: Params):
             | (params_dict.get("vehicle_patrol_metrics") or {}),
             method="call",
         ),
+        "add_vh_metrics_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="add_vh_metrics_totals")
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["patrol_type_value"],
+                "label": "Total",
+                "df": DependsOn("vehicle_patrol_metrics"),
+            }
+            | (params_dict.get("add_vh_metrics_totals") or {}),
+            method="call",
+        ),
         "persist_vehicle_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_vehicle_df")
@@ -1980,7 +2008,7 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
-                "df": DependsOn("vehicle_patrol_metrics"),
+                "df": DependsOn("add_vh_metrics_totals"),
                 "filename": "vehicle_patrol_efforts",
             }
             | (params_dict.get("persist_vehicle_df") or {}),
@@ -2126,6 +2154,18 @@ def main(params: Params):
             | (params_dict.get("motor_patrol_metrics") or {}),
             method="call",
         ),
+        "add_mb_metrics_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="add_mb_metrics_totals")
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["patrol_type_value"],
+                "label": "Total",
+                "df": DependsOn("motor_patrol_metrics"),
+            }
+            | (params_dict.get("add_mb_metrics_totals") or {}),
+            method="call",
+        ),
         "persist_motor_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_motor_df")
@@ -2133,7 +2173,7 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
-                "df": DependsOn("motor_patrol_metrics"),
+                "df": DependsOn("add_mb_metrics_totals"),
                 "filename": "motorbike_patrol_efforts",
             }
             | (params_dict.get("persist_motor_df") or {}),
@@ -2194,13 +2234,10 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
+                "gdf": DependsOn("conservancy_gdf"),
             }
             | (params_dict.get("zoom_motor_patrols") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["gdf"],
-                "argvalues": DependsOn("conservancy_gdf"),
-            },
+            method="call",
         ),
         "combine_custom_motor_patrols": Node(
             async_task=merge_static_and_grouped_layers.validate()
@@ -2300,6 +2337,18 @@ def main(params: Params):
             | (params_dict.get("ranger_patrol_metrics") or {}),
             method="call",
         ),
+        "add_ranger_metrics_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="add_ranger_metrics_totals")
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["patrol_subject_name"],
+                "label": "Total",
+                "df": DependsOn("ranger_patrol_metrics"),
+            }
+            | (params_dict.get("add_ranger_metrics_totals") or {}),
+            method="call",
+        ),
         "persist_total_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_total_df")
@@ -2307,7 +2356,7 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
-                "df": DependsOn("ranger_patrol_metrics"),
+                "df": DependsOn("add_ranger_metrics_totals"),
                 "filename": "overall_patrol_efforts",
             }
             | (params_dict.get("persist_total_df") or {}),
@@ -2386,13 +2435,10 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
+                "gdf": DependsOn("conservancy_gdf"),
             }
             | (params_dict.get("zoom_grid_view") or {}),
-            method="mapvalues",
-            kwargs={
-                "argnames": ["gdf"],
-                "argvalues": DependsOn("conservancy_gdf"),
-            },
+            method="call",
         ),
         "combine_patrol_grid": Node(
             async_task=merge_static_and_grouped_layers.validate()

@@ -1124,7 +1124,7 @@ workflow:
     partial:
       column_name: patrol_cat_types
       op: equal
-      value: foot
+      value: motorcycle
       df:  ${{ workflow.map_patrol_types.return }}
 
   - name: Transform foot observations to relocs
@@ -1357,6 +1357,15 @@ workflow:
       reset_index: true
       df: ${{ workflow.rename_foot_trajs.return }}
 
+  - name: Add totals row
+    id: add_fp_metrics_totals
+    task: add_totals_row
+    partial: 
+      label_col: 
+        - patrol_type_value
+      label: Total 
+      df: ${{ workflow.foot_patrol_metrics.return }}
+
   - name: Persist foot patrol metrics
     id: persist_foot_df
     task: persist_df
@@ -1364,7 +1373,7 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       filename: foot_patrol_efforts
-      df: ${{ workflow.foot_patrol_metrics.return }}
+      df: ${{ workflow.add_fp_metrics_totals.return }}
 
 # Draw foot patrol maps , persist and convert them to html
   - name: Apply Colormap to foot patrols
@@ -1485,13 +1494,23 @@ workflow:
       reset_index: true
       df: ${{ workflow.rename_vehicle_trajs.return }}
 
+  - name: Add totals row to vehicle patrols summary
+    id: add_vh_metrics_totals
+    task: add_totals_row
+    partial: 
+      label_col: 
+        - patrol_type_value
+      label: Total 
+      df: ${{ workflow.vehicle_patrol_metrics.return }}
+
+
   - name: Persist vehicle patrol metrics
     id: persist_vehicle_df
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.vehicle_patrol_metrics.return }}
+      df: ${{ workflow.add_vh_metrics_totals.return }}
       filename: vehicle_patrol_efforts
 
  # Draw vehicle patrol maps , persist and convert the map to png
@@ -1602,15 +1621,23 @@ workflow:
       reset_index: true
       df: ${{ workflow.rename_motor_trajs.return }}
 
+  - name: Add totals row to motorbike patrols
+    id: add_mb_metrics_totals
+    task: add_totals_row
+    partial: 
+      label_col: 
+        - patrol_type_value
+      label: Total 
+      df: ${{ workflow.motor_patrol_metrics.return }}
+
   - name: Persist motorbike patrol metrics
     id: persist_motor_df
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.motor_patrol_metrics.return }}
+      df: ${{ workflow.add_mb_metrics_totals.return }}
       filename: motorbike_patrol_efforts
-
 
   # Draw motor patrol maps , persist and convert map to png  
   - name: Apply Colormap to motor patrols
@@ -1654,9 +1681,7 @@ workflow:
     partial:
       pitch: 0
       bearing: 0
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.conservancy_gdf.return }}
+      gdf: ${{ workflow.conservancy_gdf.return }}
 
   - name: Combine custom loaded map layers and motor patrol layers 
     id: combine_custom_motor_patrols
@@ -1734,13 +1759,22 @@ workflow:
       reset_index: true
       df: ${{ workflow.merge_trajs.return }}
 
+  - name: Add totals row to overall patrol metrics
+    id: add_ranger_metrics_totals
+    task: add_totals_row
+    partial: 
+      label_col: 
+        - patrol_subject_name
+      label: Total 
+      df: ${{ workflow.ranger_patrol_metrics.return }}
+
   - name: Persist total patrol coverage 
     id: persist_total_df
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.ranger_patrol_metrics.return }}
+      df: ${{ workflow.add_ranger_metrics_totals.return }}
       filename: overall_patrol_efforts
 
   - name: Compute patrol visits 
@@ -1801,9 +1835,7 @@ workflow:
     partial:
       pitch: 0
       bearing: 0
-    mapvalues:
-      argnames: gdf
-      argvalues: ${{ workflow.conservancy_gdf.return }}
+      gdf: ${{ workflow.conservancy_gdf.return }}
 
   - name: Combine custom loaded map layers and patrol grid layer 
     id: combine_patrol_grid

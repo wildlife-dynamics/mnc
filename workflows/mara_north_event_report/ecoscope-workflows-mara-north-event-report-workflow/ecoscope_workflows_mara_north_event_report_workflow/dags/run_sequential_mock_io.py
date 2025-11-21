@@ -1352,7 +1352,7 @@ def main(params: Params):
         .partial(
             column_name="patrol_cat_types",
             op="equal",
-            value="foot",
+            value="motorcycle",
             df=map_patrol_types,
             **(params_dict.get("filter_motor_patrols") or {}),
         )
@@ -1630,6 +1630,18 @@ def main(params: Params):
         .call()
     )
 
+    add_fp_metrics_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="add_fp_metrics_totals")
+        .partial(
+            label_col=["patrol_type_value"],
+            label="Total",
+            df=foot_patrol_metrics,
+            **(params_dict.get("add_fp_metrics_totals") or {}),
+        )
+        .call()
+    )
+
     persist_foot_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_foot_df")
@@ -1637,7 +1649,7 @@ def main(params: Params):
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
             filename="foot_patrol_efforts",
-            df=foot_patrol_metrics,
+            df=add_fp_metrics_totals,
             **(params_dict.get("persist_foot_df") or {}),
         )
         .call()
@@ -1793,13 +1805,25 @@ def main(params: Params):
         .call()
     )
 
+    add_vh_metrics_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="add_vh_metrics_totals")
+        .partial(
+            label_col=["patrol_type_value"],
+            label="Total",
+            df=vehicle_patrol_metrics,
+            **(params_dict.get("add_vh_metrics_totals") or {}),
+        )
+        .call()
+    )
+
     persist_vehicle_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_vehicle_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
-            df=vehicle_patrol_metrics,
+            df=add_vh_metrics_totals,
             filename="vehicle_patrol_efforts",
             **(params_dict.get("persist_vehicle_df") or {}),
         )
@@ -1938,13 +1962,25 @@ def main(params: Params):
         .call()
     )
 
+    add_mb_metrics_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="add_mb_metrics_totals")
+        .partial(
+            label_col=["patrol_type_value"],
+            label="Total",
+            df=motor_patrol_metrics,
+            **(params_dict.get("add_mb_metrics_totals") or {}),
+        )
+        .call()
+    )
+
     persist_motor_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_motor_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
-            df=motor_patrol_metrics,
+            df=add_mb_metrics_totals,
             filename="motorbike_patrol_efforts",
             **(params_dict.get("persist_motor_df") or {}),
         )
@@ -2002,8 +2038,13 @@ def main(params: Params):
     zoom_motor_patrols = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_motor_patrols")
-        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_motor_patrols") or {}))
-        .mapvalues(argnames=["gdf"], argvalues=conservancy_gdf)
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=conservancy_gdf,
+            **(params_dict.get("zoom_motor_patrols") or {}),
+        )
+        .call()
     )
 
     combine_custom_motor_patrols = (
@@ -2093,13 +2134,25 @@ def main(params: Params):
         .call()
     )
 
+    add_ranger_metrics_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="add_ranger_metrics_totals")
+        .partial(
+            label_col=["patrol_subject_name"],
+            label="Total",
+            df=ranger_patrol_metrics,
+            **(params_dict.get("add_ranger_metrics_totals") or {}),
+        )
+        .call()
+    )
+
     persist_total_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_total_df")
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
-            df=ranger_patrol_metrics,
+            df=add_ranger_metrics_totals,
             filename="overall_patrol_efforts",
             **(params_dict.get("persist_total_df") or {}),
         )
@@ -2172,8 +2225,13 @@ def main(params: Params):
     zoom_grid_view = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_grid_view")
-        .partial(pitch=0, bearing=0, **(params_dict.get("zoom_grid_view") or {}))
-        .mapvalues(argnames=["gdf"], argvalues=conservancy_gdf)
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=conservancy_gdf,
+            **(params_dict.get("zoom_grid_view") or {}),
+        )
+        .call()
     )
 
     combine_patrol_grid = (
