@@ -59,7 +59,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import (
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, exclude_by_value, view_gdf
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, exclude_by_value
 
 get_patrols_from_combined_params = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -105,6 +105,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     remove_invalid_point_geometries,
     replace_missing_with_label,
     round_values,
+    view_gdf,
     view_state_deck_gdf,
 )
 
@@ -891,17 +892,6 @@ def main(params: Params):
         .call()
     )
 
-    view_events_info_df = (
-        view_gdf.validate()
-        .handle_errors(task_instance_id="view_events_info_df")
-        .partial(
-            gdf=extract_event_date,
-            name="overall events",
-            **(params_dict.get("view_events_info_df") or {}),
-        )
-        .call()
-    )
-
     events_wtemporal = (
         add_temporal_index.validate()
         .handle_errors(task_instance_id="events_wtemporal")
@@ -922,17 +912,6 @@ def main(params: Params):
             column_name="event_type",
             value=["distancecountwildlife_rep", "distancecountpatrol_rep"],
             **(params_dict.get("exclude_event_type_values") or {}),
-        )
-        .call()
-    )
-
-    view_excluded_df_info = (
-        view_gdf.validate()
-        .handle_errors(task_instance_id="view_excluded_df_info")
-        .partial(
-            gdf=exclude_event_type_values,
-            name="excluded patrol information events",
-            **(params_dict.get("view_excluded_df_info") or {}),
         )
         .call()
     )
@@ -1076,17 +1055,6 @@ def main(params: Params):
             column="event_details",
             df=filter_patrol_info_events,
             **(params_dict.get("normalize_pi_values") or {}),
-        )
-        .call()
-    )
-
-    view_patrol_df_info = (
-        view_gdf.validate()
-        .handle_errors(task_instance_id="view_patrol_df_info")
-        .partial(
-            gdf=normalize_pi_values,
-            name="normalized patrol information events",
-            **(params_dict.get("view_patrol_df_info") or {}),
         )
         .call()
     )
@@ -1808,9 +1776,27 @@ def main(params: Params):
         .call()
     )
 
+    view_vehicle_patrols = (
+        view_gdf.validate()
+        .handle_errors(task_instance_id="view_vehicle_patrols")
+        .partial(
+            gdf=split_vehicle_traj_group,
+            name="vehicle patrol metrics",
+            **(params_dict.get("view_vehicle_patrols") or {}),
+        )
+        .call()
+    )
+
     vehicle_patrol_metrics = (
         summarize_df.validate()
         .handle_errors(task_instance_id="vehicle_patrol_metrics")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["patrol_type_value"],
             summary_params=[

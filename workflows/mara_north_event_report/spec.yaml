@@ -737,13 +737,6 @@ workflow:
       output_type: date
       output_column_name: date
 
-  - name: View df info 
-    id: view_events_info_df
-    task: view_gdf
-    partial:
-      gdf: ${{ workflow.extract_event_date.return }}
-      name: overall events
-
   - name: Add temporal index on events
     id: events_wtemporal
     task: add_temporal_index
@@ -761,13 +754,6 @@ workflow:
       value:
         - distancecountwildlife_rep
         - distancecountpatrol_rep
-
-  - name: View excluded df info
-    id: view_excluded_df_info
-    task: view_gdf
-    partial:
-      gdf: ${{ workflow.exclude_event_type_values.return }}
-      name: excluded patrol information events 
 
   # Calculate total events recorded, persist as csv and draw line chart
   - name: Calculate Total Events
@@ -886,13 +872,6 @@ workflow:
     partial:
       column: event_details
       df: ${{ workflow.filter_patrol_info_events.return }}
-
-  - name: View df info 
-    id: view_patrol_df_info
-    task: view_gdf
-    partial:
-      gdf: ${{ workflow.normalize_pi_values.return }}
-      name: normalized patrol information events 
 
   - name: Rename patrol information columns 
     id: rename_patrol_info
@@ -1492,10 +1471,21 @@ workflow:
   #     config:
   #       wait_for_timeout: 20000
   #     html_path: ${{ workflow.persist_foot_patrol_urls.return }}
-  
+
+  - name: View  vehicle df info 
+    id: view_vehicle_patrols
+    task: view_gdf
+    partial:
+      gdf: ${{ workflow.split_vehicle_traj_group.return }}
+      name: vehicle patrol metrics 
+
   - name: Summarize vehicle patrol metrics
     id: vehicle_patrol_metrics
     task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
     partial:
       groupby_cols:
         - patrol_type_value

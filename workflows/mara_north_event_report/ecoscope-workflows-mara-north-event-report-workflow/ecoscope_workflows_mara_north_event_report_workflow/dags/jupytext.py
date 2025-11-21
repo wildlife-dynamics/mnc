@@ -1384,27 +1384,6 @@ extract_event_date = (
 
 
 # %% [markdown]
-# ## View df info
-
-# %%
-# parameters
-
-view_events_info_df_params = dict()
-
-# %%
-# call the task
-
-
-view_events_info_df = (
-    view_gdf.handle_errors(task_instance_id="view_events_info_df")
-    .partial(
-        gdf=extract_event_date, name="overall events", **view_events_info_df_params
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Add temporal index on events
 
 # %%
@@ -1450,29 +1429,6 @@ exclude_event_type_values = (
         column_name="event_type",
         value=["distancecountwildlife_rep", "distancecountpatrol_rep"],
         **exclude_event_type_values_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## View excluded df info
-
-# %%
-# parameters
-
-view_excluded_df_info_params = dict()
-
-# %%
-# call the task
-
-
-view_excluded_df_info = (
-    view_gdf.handle_errors(task_instance_id="view_excluded_df_info")
-    .partial(
-        gdf=exclude_event_type_values,
-        name="excluded patrol information events",
-        **view_excluded_df_info_params,
     )
     .call()
 )
@@ -1722,29 +1678,6 @@ normalize_pi_values = (
         column="event_details",
         df=filter_patrol_info_events,
         **normalize_pi_values_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## View df info
-
-# %%
-# parameters
-
-view_patrol_df_info_params = dict()
-
-# %%
-# call the task
-
-
-view_patrol_df_info = (
-    view_gdf.handle_errors(task_instance_id="view_patrol_df_info")
-    .partial(
-        gdf=normalize_pi_values,
-        name="normalized patrol information events",
-        **view_patrol_df_info_params,
     )
     .call()
 )
@@ -2893,6 +2826,29 @@ persist_foot_patrol_urls = (
 
 
 # %% [markdown]
+# ## View  vehicle df info
+
+# %%
+# parameters
+
+view_vehicle_patrols_params = dict()
+
+# %%
+# call the task
+
+
+view_vehicle_patrols = (
+    view_gdf.handle_errors(task_instance_id="view_vehicle_patrols")
+    .partial(
+        gdf=split_vehicle_traj_group,
+        name="vehicle patrol metrics",
+        **view_vehicle_patrols_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Summarize vehicle patrol metrics
 
 # %%
@@ -2906,6 +2862,13 @@ vehicle_patrol_metrics_params = dict()
 
 vehicle_patrol_metrics = (
     summarize_df.handle_errors(task_instance_id="vehicle_patrol_metrics")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
     .partial(
         groupby_cols=["patrol_type_value"],
         summary_params=[

@@ -60,7 +60,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import (
 )
 from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import normalize_column
-from ecoscope_workflows_ext_mnc.tasks import add_totals_row, exclude_by_value, view_gdf
+from ecoscope_workflows_ext_mnc.tasks import add_totals_row, exclude_by_value
 
 get_patrols_from_combined_params = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -106,6 +106,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
     remove_invalid_point_geometries,
     replace_missing_with_label,
     round_values,
+    view_gdf,
     view_state_deck_gdf,
 )
 
@@ -159,10 +160,8 @@ def main(params: Params):
         "persist_pressure": ["pressure_chart"],
         "get_events_data": ["er_client_name", "time_range"],
         "extract_event_date": ["get_events_data"],
-        "view_events_info_df": ["extract_event_date"],
         "events_wtemporal": ["extract_event_date", "groupers"],
         "exclude_event_type_values": ["events_wtemporal"],
-        "view_excluded_df_info": ["exclude_event_type_values"],
         "total_events_recorded": ["exclude_event_type_values"],
         "add_total_events_row": ["total_events_recorded"],
         "persist_tevents_df": ["add_total_events_row"],
@@ -172,7 +171,6 @@ def main(params: Params):
         "persist_summary_event_type": ["total_events_type_recorded"],
         "filter_patrol_info_events": ["exclude_event_type_values"],
         "normalize_pi_values": ["filter_patrol_info_events"],
-        "view_patrol_df_info": ["normalize_pi_values"],
         "rename_patrol_info": ["normalize_pi_values"],
         "patrol_info_summary": ["rename_patrol_info"],
         "include_pat_totals": ["patrol_info_summary"],
@@ -220,6 +218,7 @@ def main(params: Params):
             "zoom_foot_patrols",
         ],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
+        "view_vehicle_patrols": ["split_vehicle_traj_group"],
         "vehicle_patrol_metrics": ["split_vehicle_traj_group"],
         "persist_vehicle_df": ["vehicle_patrol_metrics"],
         "apply_vehicle_colormap": ["split_vehicle_traj_group"],
@@ -1105,17 +1104,6 @@ def main(params: Params):
             | (params_dict.get("extract_event_date") or {}),
             method="call",
         ),
-        "view_events_info_df": Node(
-            async_task=view_gdf.validate()
-            .handle_errors(task_instance_id="view_events_info_df")
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("extract_event_date"),
-                "name": "overall events",
-            }
-            | (params_dict.get("view_events_info_df") or {}),
-            method="call",
-        ),
         "events_wtemporal": Node(
             async_task=add_temporal_index.validate()
             .handle_errors(task_instance_id="events_wtemporal")
@@ -1138,17 +1126,6 @@ def main(params: Params):
                 "value": ["distancecountwildlife_rep", "distancecountpatrol_rep"],
             }
             | (params_dict.get("exclude_event_type_values") or {}),
-            method="call",
-        ),
-        "view_excluded_df_info": Node(
-            async_task=view_gdf.validate()
-            .handle_errors(task_instance_id="view_excluded_df_info")
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_event_type_values"),
-                "name": "excluded patrol information events",
-            }
-            | (params_dict.get("view_excluded_df_info") or {}),
             method="call",
         ),
         "total_events_recorded": Node(
@@ -1292,17 +1269,6 @@ def main(params: Params):
                 "df": DependsOn("filter_patrol_info_events"),
             }
             | (params_dict.get("normalize_pi_values") or {}),
-            method="call",
-        ),
-        "view_patrol_df_info": Node(
-            async_task=view_gdf.validate()
-            .handle_errors(task_instance_id="view_patrol_df_info")
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("normalize_pi_values"),
-                "name": "normalized patrol information events",
-            }
-            | (params_dict.get("view_patrol_df_info") or {}),
             method="call",
         ),
         "rename_patrol_info": Node(
@@ -2039,9 +2005,27 @@ def main(params: Params):
             | (params_dict.get("persist_foot_patrol_urls") or {}),
             method="call",
         ),
+        "view_vehicle_patrols": Node(
+            async_task=view_gdf.validate()
+            .handle_errors(task_instance_id="view_vehicle_patrols")
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("split_vehicle_traj_group"),
+                "name": "vehicle patrol metrics",
+            }
+            | (params_dict.get("view_vehicle_patrols") or {}),
+            method="call",
+        ),
         "vehicle_patrol_metrics": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="vehicle_patrol_metrics")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["patrol_type_value"],
