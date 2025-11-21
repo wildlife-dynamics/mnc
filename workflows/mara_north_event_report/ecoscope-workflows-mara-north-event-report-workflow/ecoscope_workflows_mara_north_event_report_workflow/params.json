@@ -270,6 +270,20 @@
       "required": [],
       "title": "Configure base map layers"
     },
+    "overall_grazing_zones": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Create group ranch gdf from loaded gdf"
+    },
     "subject_observations": {
       "additionalProperties": false,
       "properties": {
@@ -664,6 +678,7 @@
       "time_range",
       "er_client_name",
       "configure_base_maps",
+      "overall_grazing_zones",
       "subject_observations",
       "df_with_temporal_index",
       "events_wtemporal",

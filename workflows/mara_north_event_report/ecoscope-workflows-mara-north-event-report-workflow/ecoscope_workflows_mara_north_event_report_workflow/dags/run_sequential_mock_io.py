@@ -15,6 +15,7 @@ from ecoscope_workflows_core.tasks.config import set_workflow_details
 from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection
+from ecoscope_workflows_core.tasks.transformation import filter_df
 from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
 from ecoscope_workflows_ext_custom.tasks.io import load_df
 from ecoscope_workflows_ext_custom.tasks.results import set_base_maps_pydeck
@@ -297,6 +298,19 @@ def main(params: Params):
             gdf_dict=split_gdf_by_zone,
             key="Conservancy",
             **(params_dict.get("conservancy_gdf") or {}),
+        )
+        .call()
+    )
+
+    overall_grazing_zones = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="overall_grazing_zones")
+        .partial(
+            column_name="grazing_zone",
+            op="ne",
+            value="Conservancy",
+            df=load_local_shapefiles,
+            **(params_dict.get("overall_grazing_zones") or {}),
         )
         .call()
     )
@@ -1709,7 +1723,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=conservancy_gdf,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_foot_patrols") or {}),
         )
         .call()
@@ -1884,7 +1898,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=conservancy_gdf,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_vehicle_patrols") or {}),
         )
         .call()
@@ -2041,7 +2055,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=conservancy_gdf,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_motor_patrols") or {}),
         )
         .call()
@@ -2097,6 +2111,45 @@ def main(params: Params):
             ignore_index=True,
             sort=False,
             **(params_dict.get("merge_trajs") or {}),
+        )
+        .call()
+    )
+
+    persist_patrol_trajs_gpkg = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_patrol_trajs_gpkg")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="gpkg",
+            df=merge_trajs,
+            filename="trajectories",
+            **(params_dict.get("persist_patrol_trajs_gpkg") or {}),
+        )
+        .call()
+    )
+
+    persist_patrol_trajs = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_patrol_trajs")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="geoparquet",
+            df=merge_trajs,
+            filename="trajectories",
+            **(params_dict.get("persist_patrol_trajs") or {}),
+        )
+        .call()
+    )
+
+    persist_patrol_trajs_csv = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_patrol_trajs_csv")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=merge_trajs,
+            filename="trajectories",
+            **(params_dict.get("persist_patrol_trajs_csv") or {}),
         )
         .call()
     )
@@ -2228,7 +2281,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=conservancy_gdf,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_grid_view") or {}),
         )
         .call()
@@ -2278,7 +2331,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="compute_patrol_occupancy")
         .partial(
             coverage_grid_gdf=patrol_grid_visits,
-            regions_gdf=conservancy_gdf,
+            regions_gdf=overall_grazing_zones,
             crs="epsg:4326",
             **(params_dict.get("compute_patrol_occupancy") or {}),
         )
@@ -2434,7 +2487,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=conservancy_gdf,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_mobile_boma") or {}),
         )
         .call()
@@ -2722,7 +2775,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=conservancy_gdf,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_livestock_events") or {}),
         )
         .call()

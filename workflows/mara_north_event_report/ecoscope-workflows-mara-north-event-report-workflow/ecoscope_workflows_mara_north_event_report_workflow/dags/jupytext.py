@@ -399,6 +399,33 @@ conservancy_gdf = (
 
 
 # %% [markdown]
+# ## Create group ranch gdf from loaded gdf
+
+# %%
+# parameters
+
+overall_grazing_zones_params = dict(
+    reset_index=...,
+)
+
+# %%
+# call the task
+
+
+overall_grazing_zones = (
+    filter_df.handle_errors(task_instance_id="overall_grazing_zones")
+    .partial(
+        column_name="grazing_zone",
+        op="ne",
+        value="Conservancy",
+        df=load_local_shapefiles,
+        **overall_grazing_zones_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Create text layer
 
 # %%
@@ -2704,7 +2731,7 @@ zoom_foot_patrols_params = dict()
 
 zoom_foot_patrols = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_foot_patrols")
-    .partial(pitch=0, bearing=0, gdf=conservancy_gdf, **zoom_foot_patrols_params)
+    .partial(pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_foot_patrols_params)
     .call()
 )
 
@@ -3000,7 +3027,9 @@ zoom_vehicle_patrols_params = dict()
 
 zoom_vehicle_patrols = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_vehicle_patrols")
-    .partial(pitch=0, bearing=0, gdf=conservancy_gdf, **zoom_vehicle_patrols_params)
+    .partial(
+        pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_vehicle_patrols_params
+    )
     .call()
 )
 
@@ -3266,7 +3295,7 @@ zoom_motor_patrols_params = dict()
 
 zoom_motor_patrols = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_motor_patrols")
-    .partial(pitch=0, bearing=0, gdf=conservancy_gdf, **zoom_motor_patrols_params)
+    .partial(pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_motor_patrols_params)
     .call()
 )
 
@@ -3371,6 +3400,81 @@ merge_trajs = (
         ignore_index=True,
         sort=False,
         **merge_trajs_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## persist patrol trajs
+
+# %%
+# parameters
+
+persist_patrol_trajs_gpkg_params = dict()
+
+# %%
+# call the task
+
+
+persist_patrol_trajs_gpkg = (
+    persist_df.handle_errors(task_instance_id="persist_patrol_trajs_gpkg")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="gpkg",
+        df=merge_trajs,
+        filename="trajectories",
+        **persist_patrol_trajs_gpkg_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## persist patrol trajs
+
+# %%
+# parameters
+
+persist_patrol_trajs_params = dict()
+
+# %%
+# call the task
+
+
+persist_patrol_trajs = (
+    persist_df.handle_errors(task_instance_id="persist_patrol_trajs")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="geoparquet",
+        df=merge_trajs,
+        filename="trajectories",
+        **persist_patrol_trajs_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## persist patrol trajs
+
+# %%
+# parameters
+
+persist_patrol_trajs_csv_params = dict()
+
+# %%
+# call the task
+
+
+persist_patrol_trajs_csv = (
+    persist_df.handle_errors(task_instance_id="persist_patrol_trajs_csv")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        df=merge_trajs,
+        filename="trajectories",
+        **persist_patrol_trajs_csv_params,
     )
     .call()
 )
@@ -3591,7 +3695,7 @@ zoom_grid_view_params = dict()
 
 zoom_grid_view = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_grid_view")
-    .partial(pitch=0, bearing=0, gdf=conservancy_gdf, **zoom_grid_view_params)
+    .partial(pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_grid_view_params)
     .call()
 )
 
@@ -3693,7 +3797,7 @@ compute_patrol_occupancy = (
     compute_occupancy.handle_errors(task_instance_id="compute_patrol_occupancy")
     .partial(
         coverage_grid_gdf=patrol_grid_visits,
-        regions_gdf=conservancy_gdf,
+        regions_gdf=overall_grazing_zones,
         crs="epsg:4326",
         **compute_patrol_occupancy_params,
     )
@@ -3978,7 +4082,7 @@ zoom_mobile_boma_params = dict()
 
 zoom_mobile_boma = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_mobile_boma")
-    .partial(pitch=0, bearing=0, gdf=conservancy_gdf, **zoom_mobile_boma_params)
+    .partial(pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_mobile_boma_params)
     .call()
 )
 
@@ -4490,7 +4594,9 @@ zoom_livestock_events_params = dict()
 
 zoom_livestock_events = (
     view_state_deck_gdf.handle_errors(task_instance_id="zoom_livestock_events")
-    .partial(pitch=0, bearing=0, gdf=conservancy_gdf, **zoom_livestock_events_params)
+    .partial(
+        pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_livestock_events_params
+    )
     .call()
 )
 

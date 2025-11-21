@@ -84,6 +84,7 @@ def main(params: Params):
         "split_gdf_by_zone": ["load_local_shapefiles"],
         "create_mnc_styled_layers": ["split_gdf_by_zone"],
         "conservancy_gdf": ["split_gdf_by_zone"],
+        "overall_grazing_zones": ["load_local_shapefiles"],
         "custom_text_layer": ["conservancy_gdf"],
         "subject_observations": ["er_client_name", "time_range"],
         "extract_precipitation": ["subject_observations"],
@@ -158,7 +159,7 @@ def main(params: Params):
         "persist_foot_df": ["add_fp_metrics_totals"],
         "apply_footp_colormap": ["rename_foot_trajs"],
         "generate_foot_layers": ["apply_footp_colormap"],
-        "zoom_foot_patrols": ["conservancy_gdf"],
+        "zoom_foot_patrols": ["overall_grazing_zones"],
         "combine_custom_foot_patrols": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -176,7 +177,7 @@ def main(params: Params):
         "persist_vehicle_df": ["add_vh_metrics_totals"],
         "apply_vehicle_colormap": ["rename_vehicle_trajs"],
         "generate_vehicle_layers": ["apply_vehicle_colormap"],
-        "zoom_vehicle_patrols": ["conservancy_gdf"],
+        "zoom_vehicle_patrols": ["overall_grazing_zones"],
         "combine_custom_vehicle_patrols": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -193,7 +194,7 @@ def main(params: Params):
         "persist_motor_df": ["add_mb_metrics_totals"],
         "apply_motor_colormap": ["rename_motor_trajs"],
         "generate_motor_layers": ["apply_motor_colormap"],
-        "zoom_motor_patrols": ["conservancy_gdf"],
+        "zoom_motor_patrols": ["overall_grazing_zones"],
         "combine_custom_motor_patrols": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -206,6 +207,9 @@ def main(params: Params):
         ],
         "persist_motor_patrol_urls": ["draw_motor_patrol_map"],
         "merge_trajs": ["foot_trajs", "vehicle_trajs", "motor_trajs"],
+        "persist_patrol_trajs_gpkg": ["merge_trajs"],
+        "persist_patrol_trajs": ["merge_trajs"],
+        "persist_patrol_trajs_csv": ["merge_trajs"],
         "ranger_patrol_metrics": ["merge_trajs"],
         "add_ranger_metrics_totals": ["ranger_patrol_metrics"],
         "persist_total_df": ["add_ranger_metrics_totals"],
@@ -213,7 +217,7 @@ def main(params: Params):
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
         "generate_grid_layers": ["apply_grid_colormap"],
-        "zoom_grid_view": ["conservancy_gdf"],
+        "zoom_grid_view": ["overall_grazing_zones"],
         "combine_patrol_grid": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -225,7 +229,7 @@ def main(params: Params):
             "zoom_grid_view",
         ],
         "persist_grid_map_urls": ["draw_grid_map"],
-        "compute_patrol_occupancy": ["patrol_grid_visits", "conservancy_gdf"],
+        "compute_patrol_occupancy": ["patrol_grid_visits", "overall_grazing_zones"],
         "round_off_patrol": ["compute_patrol_occupancy"],
         "persist_occupancy_df": ["round_off_patrol"],
         "filter_mobile_boma": ["exclude_event_type_values"],
@@ -236,7 +240,7 @@ def main(params: Params):
         "persist_mobile_df": ["include_mb_totals"],
         "apply_mb_colormap": ["rename_mobile_boma"],
         "generate_mb_layers": ["apply_mb_colormap"],
-        "zoom_mobile_boma": ["conservancy_gdf"],
+        "zoom_mobile_boma": ["overall_grazing_zones"],
         "combine_custom_mobile_boma": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -263,7 +267,7 @@ def main(params: Params):
         "remove_invalid_geoms": ["exclude_livestock_outliers"],
         "apply_livestock_colormap": ["remove_invalid_geoms"],
         "generate_livestock_layers": ["apply_mb_colormap"],
-        "zoom_livestock_events": ["conservancy_gdf"],
+        "zoom_livestock_events": ["overall_grazing_zones"],
         "combine_custom_livestock": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -466,6 +470,19 @@ def main(params: Params):
                 "key": "Conservancy",
             }
             | (params_dict.get("conservancy_gdf") or {}),
+            method="call",
+        ),
+        "overall_grazing_zones": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="overall_grazing_zones")
+            .set_executor("lithops"),
+            partial={
+                "column_name": "grazing_zone",
+                "op": "ne",
+                "value": "Conservancy",
+                "df": DependsOn("load_local_shapefiles"),
+            }
+            | (params_dict.get("overall_grazing_zones") or {}),
             method="call",
         ),
         "custom_text_layer": Node(
@@ -1886,7 +1903,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("conservancy_gdf"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_foot_patrols") or {}),
             method="call",
@@ -2069,7 +2086,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("conservancy_gdf"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_vehicle_patrols") or {}),
             method="call",
@@ -2234,7 +2251,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("conservancy_gdf"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_motor_patrols") or {}),
             method="call",
@@ -2302,6 +2319,45 @@ def main(params: Params):
                 "sort": False,
             }
             | (params_dict.get("merge_trajs") or {}),
+            method="call",
+        ),
+        "persist_patrol_trajs_gpkg": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_patrol_trajs_gpkg")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "gpkg",
+                "df": DependsOn("merge_trajs"),
+                "filename": "trajectories",
+            }
+            | (params_dict.get("persist_patrol_trajs_gpkg") or {}),
+            method="call",
+        ),
+        "persist_patrol_trajs": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_patrol_trajs")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "geoparquet",
+                "df": DependsOn("merge_trajs"),
+                "filename": "trajectories",
+            }
+            | (params_dict.get("persist_patrol_trajs") or {}),
+            method="call",
+        ),
+        "persist_patrol_trajs_csv": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_patrol_trajs_csv")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("merge_trajs"),
+                "filename": "trajectories",
+            }
+            | (params_dict.get("persist_patrol_trajs_csv") or {}),
             method="call",
         ),
         "ranger_patrol_metrics": Node(
@@ -2435,7 +2491,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("conservancy_gdf"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_grid_view") or {}),
             method="call",
@@ -2490,7 +2546,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "coverage_grid_gdf": DependsOn("patrol_grid_visits"),
-                "regions_gdf": DependsOn("conservancy_gdf"),
+                "regions_gdf": DependsOn("overall_grazing_zones"),
                 "crs": "epsg:4326",
             }
             | (params_dict.get("compute_patrol_occupancy") or {}),
@@ -2650,7 +2706,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("conservancy_gdf"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_mobile_boma") or {}),
             method="call",
@@ -2943,7 +2999,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("conservancy_gdf"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_livestock_events") or {}),
             method="call",

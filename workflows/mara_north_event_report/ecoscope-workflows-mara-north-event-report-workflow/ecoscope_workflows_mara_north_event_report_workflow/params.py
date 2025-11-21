@@ -186,6 +186,15 @@ class ConfigureBaseMaps(BaseModel):
     )
 
 
+class OverallGrazingZones(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
 class SubjectObservations(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -432,6 +441,9 @@ class Params(BaseModel):
     er_client_name: Optional[ErClientName] = Field(None, title="Connect to ER")
     configure_base_maps: Optional[ConfigureBaseMaps] = Field(
         None, title="Configure base map layers"
+    )
+    overall_grazing_zones: Optional[OverallGrazingZones] = Field(
+        None, title="Create group ranch gdf from loaded gdf"
     )
     subject_observations: Optional[SubjectObservations] = Field(
         None, title="Get subject observations from ER"
