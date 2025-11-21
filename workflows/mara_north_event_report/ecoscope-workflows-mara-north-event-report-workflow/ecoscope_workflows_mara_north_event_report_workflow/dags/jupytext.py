@@ -3661,7 +3661,6 @@ generate_grid_layers = (
             "stroked": True,
         },
         legend={"label_column": "density_bins", "color_column": "density_colors"},
-        tooltip_columns=["density_bins", "density_colors"],
         geodataframe=apply_grid_colormap,
         **generate_grid_layers_params,
     )
