@@ -1919,7 +1919,7 @@ workflow:
     task: compute_occupancy 
     partial:  
       coverage_grid_gdf: ${{ workflow.patrol_grid_visits.return }}
-      regions_gdf: ${{ workflow.overall_grazing_zones.return }}
+      regions_gdf: ${{ workflow.conservancy_gdf.return }}
       crs: epsg:4326
   
   - name: round off values to two decimal places

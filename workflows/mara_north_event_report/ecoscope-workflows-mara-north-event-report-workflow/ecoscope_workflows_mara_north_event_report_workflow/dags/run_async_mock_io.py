@@ -274,7 +274,7 @@ def main(params: Params):
             "zoom_grid_view",
         ],
         "persist_grid_map_urls": ["draw_grid_map"],
-        "compute_patrol_occupancy": ["patrol_grid_visits", "overall_grazing_zones"],
+        "compute_patrol_occupancy": ["patrol_grid_visits", "conservancy_gdf"],
         "round_off_patrol": ["compute_patrol_occupancy"],
         "persist_occupancy_df": ["round_off_patrol"],
         "filter_mobile_boma": ["exclude_event_type_values"],
@@ -2588,7 +2588,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "coverage_grid_gdf": DependsOn("patrol_grid_visits"),
-                "regions_gdf": DependsOn("overall_grazing_zones"),
+                "regions_gdf": DependsOn("conservancy_gdf"),
                 "crs": "epsg:4326",
             }
             | (params_dict.get("compute_patrol_occupancy") or {}),

@@ -3784,7 +3784,7 @@ compute_patrol_occupancy = (
     compute_occupancy.handle_errors(task_instance_id="compute_patrol_occupancy")
     .partial(
         coverage_grid_gdf=patrol_grid_visits,
-        regions_gdf=overall_grazing_zones,
+        regions_gdf=conservancy_gdf,
         crs="epsg:4326",
         **compute_patrol_occupancy_params,
     )
