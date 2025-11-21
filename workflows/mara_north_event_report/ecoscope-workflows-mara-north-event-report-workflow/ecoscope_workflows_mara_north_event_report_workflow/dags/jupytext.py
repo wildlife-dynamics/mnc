@@ -14,7 +14,7 @@ import os
 
 from ecoscope_workflows_core.tasks.config import set_workflow_details
 from ecoscope_workflows_core.tasks.filter import set_time_range
-from ecoscope_workflows_core.tasks.groupby import set_groupers, split_groups
+from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import persist_text, set_er_connection
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 from ecoscope_workflows_core.tasks.skip import any_dependency_skipped, any_is_empty_df
@@ -2525,65 +2525,6 @@ rename_motor_trajs = (
 
 
 # %% [markdown]
-# ## Split foot trajectories by group
-
-# %%
-# parameters
-
-split_foot_traj_group_params = dict()
-
-# %%
-# call the task
-
-
-split_foot_traj_group = (
-    split_groups.handle_errors(task_instance_id="split_foot_traj_group")
-    .partial(df=rename_foot_trajs, groupers=groupers, **split_foot_traj_group_params)
-    .call()
-)
-
-
-# %% [markdown]
-# ## Split vehicle trajectories by group
-
-# %%
-# parameters
-
-split_vehicle_traj_group_params = dict()
-
-# %%
-# call the task
-
-
-split_vehicle_traj_group = (
-    split_groups.handle_errors(task_instance_id="split_vehicle_traj_group")
-    .partial(
-        df=rename_vehicle_trajs, groupers=groupers, **split_vehicle_traj_group_params
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Split motor trajectories by group
-
-# %%
-# parameters
-
-split_motor_traj_group_params = dict()
-
-# %%
-# call the task
-
-
-split_motor_traj_group = (
-    split_groups.handle_errors(task_instance_id="split_motor_traj_group")
-    .partial(df=rename_motor_trajs, groupers=groupers, **split_motor_traj_group_params)
-    .call()
-)
-
-
-# %% [markdown]
 # ## Summarize foot patrol metrics
 
 # %%
@@ -2840,7 +2781,7 @@ view_vehicle_patrols_params = dict()
 view_vehicle_patrols = (
     view_gdf.handle_errors(task_instance_id="view_vehicle_patrols")
     .partial(
-        gdf=split_vehicle_traj_group,
+        gdf=rename_vehicle_trajs,
         name="vehicle patrol metrics",
         **view_vehicle_patrols_params,
     )
@@ -2893,7 +2834,7 @@ vehicle_patrol_metrics = (
             },
         ],
         reset_index=True,
-        df=split_vehicle_traj_group,
+        df=rename_vehicle_trajs,
         **vehicle_patrol_metrics_params,
     )
     .call()
@@ -2943,7 +2884,7 @@ apply_vehicle_colormap = (
         input_column_name="patrol_type_value",
         output_column_name="colors",
         colormap="plasma",
-        df=split_vehicle_traj_group,
+        df=rename_vehicle_trajs,
         **apply_vehicle_colormap_params,
     )
     .call()
@@ -3135,7 +3076,7 @@ motor_patrol_metrics = (
             },
         ],
         reset_index=True,
-        df=split_motor_traj_group,
+        df=rename_motor_trajs,
         **motor_patrol_metrics_params,
     )
     .call()
@@ -3185,7 +3126,7 @@ apply_motor_colormap = (
         input_column_name="patrol_type_value",
         output_column_name="colors",
         colormap="plasma",
-        df=split_motor_traj_group,
+        df=rename_motor_trajs,
         **apply_motor_colormap_params,
     )
     .call()
@@ -3364,25 +3305,6 @@ merge_trajs = (
 
 
 # %% [markdown]
-# ## Split merged trajectories by group
-
-# %%
-# parameters
-
-split_merged_trajs_params = dict()
-
-# %%
-# call the task
-
-
-split_merged_trajs = (
-    split_groups.handle_errors(task_instance_id="split_merged_trajs")
-    .partial(df=merge_trajs, groupers=groupers, **split_merged_trajs_params)
-    .call()
-)
-
-
-# %% [markdown]
 # ## Summarize overall ranger patrol metrics
 
 # %%
@@ -3420,7 +3342,7 @@ ranger_patrol_metrics = (
             },
         ],
         reset_index=True,
-        df=split_merged_trajs,
+        df=merge_trajs,
         **ranger_patrol_metrics_params,
     )
     .call()
@@ -3466,7 +3388,7 @@ patrol_grid_visits_params = dict()
 
 patrol_grid_visits = (
     create_patrol_coverage_grid.handle_errors(task_instance_id="patrol_grid_visits")
-    .partial(grid_cell_size=1000, trajs=split_merged_trajs, **patrol_grid_visits_params)
+    .partial(grid_cell_size=1000, trajs=merge_trajs, **patrol_grid_visits_params)
     .call()
 )
 

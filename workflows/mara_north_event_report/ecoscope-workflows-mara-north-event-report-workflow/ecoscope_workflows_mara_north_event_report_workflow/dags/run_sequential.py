@@ -4,7 +4,7 @@ import os
 
 from ecoscope_workflows_core.tasks.config import set_workflow_details
 from ecoscope_workflows_core.tasks.filter import set_time_range
-from ecoscope_workflows_core.tasks.groupby import set_groupers, split_groups
+from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import persist_text, set_er_connection
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 from ecoscope_workflows_core.tasks.skip import any_dependency_skipped, any_is_empty_df
@@ -1552,39 +1552,6 @@ def main(params: Params):
         .call()
     )
 
-    split_foot_traj_group = (
-        split_groups.validate()
-        .handle_errors(task_instance_id="split_foot_traj_group")
-        .partial(
-            df=rename_foot_trajs,
-            groupers=groupers,
-            **(params_dict.get("split_foot_traj_group") or {}),
-        )
-        .call()
-    )
-
-    split_vehicle_traj_group = (
-        split_groups.validate()
-        .handle_errors(task_instance_id="split_vehicle_traj_group")
-        .partial(
-            df=rename_vehicle_trajs,
-            groupers=groupers,
-            **(params_dict.get("split_vehicle_traj_group") or {}),
-        )
-        .call()
-    )
-
-    split_motor_traj_group = (
-        split_groups.validate()
-        .handle_errors(task_instance_id="split_motor_traj_group")
-        .partial(
-            df=rename_motor_trajs,
-            groupers=groupers,
-            **(params_dict.get("split_motor_traj_group") or {}),
-        )
-        .call()
-    )
-
     foot_patrol_metrics = (
         summarize_df.validate()
         .handle_errors(task_instance_id="foot_patrol_metrics")
@@ -1734,7 +1701,7 @@ def main(params: Params):
         view_gdf.validate()
         .handle_errors(task_instance_id="view_vehicle_patrols")
         .partial(
-            gdf=split_vehicle_traj_group,
+            gdf=rename_vehicle_trajs,
             name="vehicle patrol metrics",
             **(params_dict.get("view_vehicle_patrols") or {}),
         )
@@ -1775,7 +1742,7 @@ def main(params: Params):
                 },
             ],
             reset_index=True,
-            df=split_vehicle_traj_group,
+            df=rename_vehicle_trajs,
             **(params_dict.get("vehicle_patrol_metrics") or {}),
         )
         .call()
@@ -1801,7 +1768,7 @@ def main(params: Params):
             input_column_name="patrol_type_value",
             output_column_name="colors",
             colormap="plasma",
-            df=split_vehicle_traj_group,
+            df=rename_vehicle_trajs,
             **(params_dict.get("apply_vehicle_colormap") or {}),
         )
         .call()
@@ -1920,7 +1887,7 @@ def main(params: Params):
                 },
             ],
             reset_index=True,
-            df=split_motor_traj_group,
+            df=rename_motor_trajs,
             **(params_dict.get("motor_patrol_metrics") or {}),
         )
         .call()
@@ -1946,7 +1913,7 @@ def main(params: Params):
             input_column_name="patrol_type_value",
             output_column_name="colors",
             colormap="plasma",
-            df=split_motor_traj_group,
+            df=rename_motor_trajs,
             **(params_dict.get("apply_motor_colormap") or {}),
         )
         .call()
@@ -2048,17 +2015,6 @@ def main(params: Params):
         .call()
     )
 
-    split_merged_trajs = (
-        split_groups.validate()
-        .handle_errors(task_instance_id="split_merged_trajs")
-        .partial(
-            df=merge_trajs,
-            groupers=groupers,
-            **(params_dict.get("split_merged_trajs") or {}),
-        )
-        .call()
-    )
-
     ranger_patrol_metrics = (
         summarize_df.validate()
         .handle_errors(task_instance_id="ranger_patrol_metrics")
@@ -2086,7 +2042,7 @@ def main(params: Params):
                 },
             ],
             reset_index=True,
-            df=split_merged_trajs,
+            df=merge_trajs,
             **(params_dict.get("ranger_patrol_metrics") or {}),
         )
         .call()
@@ -2110,7 +2066,7 @@ def main(params: Params):
         .handle_errors(task_instance_id="patrol_grid_visits")
         .partial(
             grid_cell_size=1000,
-            trajs=split_merged_trajs,
+            trajs=merge_trajs,
             **(params_dict.get("patrol_grid_visits") or {}),
         )
         .call()

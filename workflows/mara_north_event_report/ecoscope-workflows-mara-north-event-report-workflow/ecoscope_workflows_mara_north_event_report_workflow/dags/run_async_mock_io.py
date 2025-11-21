@@ -66,7 +66,6 @@ get_patrols_from_combined_params = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
     func_name="get_patrols_from_combined_params",  # 🧪
 )  # 🧪
-from ecoscope_workflows_core.tasks.groupby import split_groups
 from ecoscope_workflows_core.tasks.io import persist_text
 from ecoscope_workflows_core.tasks.results import gather_dashboard
 from ecoscope_workflows_core.tasks.skip import any_dependency_skipped, any_is_empty_df
@@ -199,9 +198,6 @@ def main(params: Params):
         "rename_foot_trajs": ["temporal_foot_traj"],
         "rename_vehicle_trajs": ["temporal_vehicle_traj"],
         "rename_motor_trajs": ["temporal_motor_traj"],
-        "split_foot_traj_group": ["rename_foot_trajs", "groupers"],
-        "split_vehicle_traj_group": ["rename_vehicle_trajs", "groupers"],
-        "split_motor_traj_group": ["rename_motor_trajs", "groupers"],
         "foot_patrol_metrics": ["rename_foot_trajs"],
         "persist_foot_df": ["foot_patrol_metrics"],
         "apply_footp_colormap": ["rename_foot_trajs"],
@@ -218,10 +214,10 @@ def main(params: Params):
             "zoom_foot_patrols",
         ],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
-        "view_vehicle_patrols": ["split_vehicle_traj_group"],
-        "vehicle_patrol_metrics": ["split_vehicle_traj_group"],
+        "view_vehicle_patrols": ["rename_vehicle_trajs"],
+        "vehicle_patrol_metrics": ["rename_vehicle_trajs"],
         "persist_vehicle_df": ["vehicle_patrol_metrics"],
-        "apply_vehicle_colormap": ["split_vehicle_traj_group"],
+        "apply_vehicle_colormap": ["rename_vehicle_trajs"],
         "generate_vehicle_layers": ["apply_vehicle_colormap"],
         "zoom_vehicle_patrols": ["conservancy_gdf"],
         "combine_custom_vehicle_patrols": [
@@ -235,9 +231,9 @@ def main(params: Params):
             "zoom_vehicle_patrols",
         ],
         "persist_vehicle_patrol_urls": ["draw_vehicle_patrol_map"],
-        "motor_patrol_metrics": ["split_motor_traj_group"],
+        "motor_patrol_metrics": ["rename_motor_trajs"],
         "persist_motor_df": ["motor_patrol_metrics"],
-        "apply_motor_colormap": ["split_motor_traj_group"],
+        "apply_motor_colormap": ["rename_motor_trajs"],
         "generate_motor_layers": ["apply_motor_colormap"],
         "zoom_motor_patrols": ["conservancy_gdf"],
         "combine_custom_motor_patrols": [
@@ -252,10 +248,9 @@ def main(params: Params):
         ],
         "persist_motor_patrol_urls": ["draw_motor_patrol_map"],
         "merge_trajs": ["foot_trajs", "vehicle_trajs", "motor_trajs"],
-        "split_merged_trajs": ["merge_trajs", "groupers"],
-        "ranger_patrol_metrics": ["split_merged_trajs"],
+        "ranger_patrol_metrics": ["merge_trajs"],
         "persist_total_df": ["ranger_patrol_metrics"],
-        "patrol_grid_visits": ["split_merged_trajs"],
+        "patrol_grid_visits": ["merge_trajs"],
         "apply_classification_grid": ["patrol_grid_visits"],
         "apply_grid_colormap": ["apply_classification_grid"],
         "generate_grid_layers": ["apply_grid_colormap"],
@@ -1819,39 +1814,6 @@ def main(params: Params):
             | (params_dict.get("rename_motor_trajs") or {}),
             method="call",
         ),
-        "split_foot_traj_group": Node(
-            async_task=split_groups.validate()
-            .handle_errors(task_instance_id="split_foot_traj_group")
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("rename_foot_trajs"),
-                "groupers": DependsOn("groupers"),
-            }
-            | (params_dict.get("split_foot_traj_group") or {}),
-            method="call",
-        ),
-        "split_vehicle_traj_group": Node(
-            async_task=split_groups.validate()
-            .handle_errors(task_instance_id="split_vehicle_traj_group")
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("rename_vehicle_trajs"),
-                "groupers": DependsOn("groupers"),
-            }
-            | (params_dict.get("split_vehicle_traj_group") or {}),
-            method="call",
-        ),
-        "split_motor_traj_group": Node(
-            async_task=split_groups.validate()
-            .handle_errors(task_instance_id="split_motor_traj_group")
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("rename_motor_trajs"),
-                "groupers": DependsOn("groupers"),
-            }
-            | (params_dict.get("split_motor_traj_group") or {}),
-            method="call",
-        ),
         "foot_patrol_metrics": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="foot_patrol_metrics")
@@ -2010,7 +1972,7 @@ def main(params: Params):
             .handle_errors(task_instance_id="view_vehicle_patrols")
             .set_executor("lithops"),
             partial={
-                "gdf": DependsOn("split_vehicle_traj_group"),
+                "gdf": DependsOn("rename_vehicle_trajs"),
                 "name": "vehicle patrol metrics",
             }
             | (params_dict.get("view_vehicle_patrols") or {}),
@@ -2051,7 +2013,7 @@ def main(params: Params):
                     },
                 ],
                 "reset_index": True,
-                "df": DependsOn("split_vehicle_traj_group"),
+                "df": DependsOn("rename_vehicle_trajs"),
             }
             | (params_dict.get("vehicle_patrol_metrics") or {}),
             method="call",
@@ -2077,7 +2039,7 @@ def main(params: Params):
                 "input_column_name": "patrol_type_value",
                 "output_column_name": "colors",
                 "colormap": "plasma",
-                "df": DependsOn("split_vehicle_traj_group"),
+                "df": DependsOn("rename_vehicle_trajs"),
             }
             | (params_dict.get("apply_vehicle_colormap") or {}),
             method="call",
@@ -2204,7 +2166,7 @@ def main(params: Params):
                     },
                 ],
                 "reset_index": True,
-                "df": DependsOn("split_motor_traj_group"),
+                "df": DependsOn("rename_motor_trajs"),
             }
             | (params_dict.get("motor_patrol_metrics") or {}),
             method="call",
@@ -2230,7 +2192,7 @@ def main(params: Params):
                 "input_column_name": "patrol_type_value",
                 "output_column_name": "colors",
                 "colormap": "plasma",
-                "df": DependsOn("split_motor_traj_group"),
+                "df": DependsOn("rename_motor_trajs"),
             }
             | (params_dict.get("apply_motor_colormap") or {}),
             method="call",
@@ -2350,17 +2312,6 @@ def main(params: Params):
             | (params_dict.get("merge_trajs") or {}),
             method="call",
         ),
-        "split_merged_trajs": Node(
-            async_task=split_groups.validate()
-            .handle_errors(task_instance_id="split_merged_trajs")
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("merge_trajs"),
-                "groupers": DependsOn("groupers"),
-            }
-            | (params_dict.get("split_merged_trajs") or {}),
-            method="call",
-        ),
         "ranger_patrol_metrics": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="ranger_patrol_metrics")
@@ -2389,7 +2340,7 @@ def main(params: Params):
                     },
                 ],
                 "reset_index": True,
-                "df": DependsOn("split_merged_trajs"),
+                "df": DependsOn("merge_trajs"),
             }
             | (params_dict.get("ranger_patrol_metrics") or {}),
             method="call",
@@ -2413,7 +2364,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "grid_cell_size": 1000,
-                "trajs": DependsOn("split_merged_trajs"),
+                "trajs": DependsOn("merge_trajs"),
             }
             | (params_dict.get("patrol_grid_visits") or {}),
             method="call",

@@ -1331,27 +1331,6 @@ workflow:
         extra__subject_id: subject_id
       df: ${{ workflow.temporal_motor_traj.return }}
 
-  - name: Split foot trajectories by group
-    id: split_foot_traj_group
-    task: split_groups
-    partial:
-      df: ${{ workflow.rename_foot_trajs.return }}
-      groupers: ${{ workflow.groupers.return }}
-
-  - name: Split vehicle trajectories by group
-    id: split_vehicle_traj_group
-    task: split_groups
-    partial:
-      df: ${{ workflow.rename_vehicle_trajs.return }}
-      groupers: ${{ workflow.groupers.return }}
-
-  - name: Split motor trajectories by group
-    id: split_motor_traj_group
-    task: split_groups
-    partial:
-      df: ${{ workflow.rename_motor_trajs.return }}
-      groupers: ${{ workflow.groupers.return }}
-
   # Foot patrol metrics and persist
   - name: Summarize foot patrol metrics
     id: foot_patrol_metrics
@@ -1476,7 +1455,7 @@ workflow:
     id: view_vehicle_patrols
     task: view_gdf
     partial:
-      gdf: ${{ workflow.split_vehicle_traj_group.return }}
+      gdf: ${{ workflow.rename_vehicle_trajs.return }}
       name: vehicle patrol metrics 
 
   - name: Summarize vehicle patrol metrics
@@ -1504,7 +1483,7 @@ workflow:
           original_unit: s
           new_unit: h
       reset_index: true
-      df: ${{ workflow.split_vehicle_traj_group.return }}
+      df: ${{ workflow.rename_vehicle_trajs.return }}
 
   - name: Persist vehicle patrol metrics
     id: persist_vehicle_df
@@ -1523,7 +1502,7 @@ workflow:
       input_column_name: patrol_type_value
       output_column_name: colors
       colormap: plasma
-      df: ${{ workflow.split_vehicle_traj_group.return }}
+      df: ${{ workflow.rename_vehicle_trajs.return }}
 
   - name: Generate vehiclce patrol layers
     id: generate_vehicle_layers
@@ -1621,7 +1600,7 @@ workflow:
           original_unit: s
           new_unit: h
       reset_index: true
-      df: ${{ workflow.split_motor_traj_group.return }}
+      df: ${{ workflow.rename_motor_trajs.return }}
 
   - name: Persist motorbike patrol metrics
     id: persist_motor_df
@@ -1641,7 +1620,7 @@ workflow:
       input_column_name: patrol_type_value
       output_column_name: colors
       colormap: plasma
-      df: ${{ workflow.split_motor_traj_group.return }}
+      df: ${{ workflow.rename_motor_trajs.return }}
 
   - name: Generate motor patrol layers
     id: generate_motor_layers
@@ -1732,13 +1711,6 @@ workflow:
       ignore_index: true
       sort: false
 
-  - name: Split merged trajectories by group
-    id: split_merged_trajs
-    task: split_groups
-    partial:
-      df: ${{ workflow.merge_trajs.return }}
-      groupers: ${{ workflow.groupers.return }}
-
   - name: Summarize overall ranger patrol metrics
     id: ranger_patrol_metrics
     task: summarize_df
@@ -1760,7 +1732,7 @@ workflow:
           original_unit: s
           new_unit: h
       reset_index: true
-      df: ${{ workflow.split_merged_trajs.return }}
+      df: ${{ workflow.merge_trajs.return }}
 
   - name: Persist total patrol coverage 
     id: persist_total_df
@@ -1776,7 +1748,7 @@ workflow:
     task: create_patrol_coverage_grid
     partial:
       grid_cell_size: 1000
-      trajs: ${{ workflow.split_merged_trajs.return }}
+      trajs: ${{ workflow.merge_trajs.return }}
 
   - name: Apply bin classification on grids
     id: apply_classification_grid
