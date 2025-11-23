@@ -2089,7 +2089,7 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       filename: livestock_preds
-      df: ${{ workflow.include_mb_totals.return }}
+      df: ${{ workflow.normalize_predation_values.return }}
 
   - name: Rename livestock predation columns 
     id: rename_livestock_predation

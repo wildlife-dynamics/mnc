@@ -4221,7 +4221,7 @@ persist_livestock_events = (
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
         filename="livestock_preds",
-        df=include_mb_totals,
+        df=normalize_predation_values,
         **persist_livestock_events_params,
     )
     .call()
