@@ -253,6 +253,7 @@ def main(params: Params):
         "persist_mobile_boma_urls": ["draw_mb_map"],
         "filter_predation": ["exclude_event_type_values"],
         "normalize_predation_values": ["filter_predation"],
+        "persist_livestock_events": ["include_mb_totals"],
         "rename_livestock_predation": ["normalize_mb_values"],
         "replace_predator_nulls": ["rename_livestock_predation"],
         "replace_species_null": ["replace_predator_nulls"],
@@ -2773,6 +2774,19 @@ def main(params: Params):
                 "df": DependsOn("filter_predation"),
             }
             | (params_dict.get("normalize_predation_values") or {}),
+            method="call",
+        ),
+        "persist_livestock_events": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_livestock_events")
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "livestock_preds",
+                "df": DependsOn("include_mb_totals"),
+            }
+            | (params_dict.get("persist_livestock_events") or {}),
             method="call",
         ),
         "rename_livestock_predation": Node(

@@ -2082,6 +2082,15 @@ workflow:
       column: event_details
       df: ${{ workflow.filter_predation.return }}
 
+  - name: Persist livestock predation event details
+    id: persist_livestock_events
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: livestock_preds
+      df: ${{ workflow.include_mb_totals.return }}
+
   - name: Rename livestock predation columns 
     id: rename_livestock_predation
     task: map_columns

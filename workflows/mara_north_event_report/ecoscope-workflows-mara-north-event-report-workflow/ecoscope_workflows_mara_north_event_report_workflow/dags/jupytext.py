@@ -4204,6 +4204,31 @@ normalize_predation_values = (
 
 
 # %% [markdown]
+# ## Persist livestock predation event details
+
+# %%
+# parameters
+
+persist_livestock_events_params = dict()
+
+# %%
+# call the task
+
+
+persist_livestock_events = (
+    persist_df.handle_errors(task_instance_id="persist_livestock_events")
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        filename="livestock_preds",
+        df=include_mb_totals,
+        **persist_livestock_events_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Rename livestock predation columns
 
 # %%

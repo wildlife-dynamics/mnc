@@ -2507,6 +2507,19 @@ def main(params: Params):
         .call()
     )
 
+    persist_livestock_events = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_livestock_events")
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="livestock_preds",
+            df=include_mb_totals,
+            **(params_dict.get("persist_livestock_events") or {}),
+        )
+        .call()
+    )
+
     rename_livestock_predation = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_livestock_predation")
