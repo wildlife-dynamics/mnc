@@ -6,9 +6,7 @@ from pydantic import Field
 from urllib.parse import urlparse
 from ecoscope.io import download_file
 from typing import Annotated, Optional
-
 from ecoscope_workflows_core.decorators import task
-
 
 def normalize_file_url(path: str) -> str:
     """Convert file:// URL to local path, handling malformed Windows URLs."""

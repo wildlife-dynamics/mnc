@@ -10,7 +10,6 @@ from ecoscope_workflows_ext_ecoscope.tasks.io._earthranger import (
     SubPageSizeAnnotation
 )
 
-
 @task
 def get_patrol_observations_from_patrols_dataframe(
     client: EarthRangerClient,

@@ -20,7 +20,6 @@ from ecoscope_workflows_ext_custom.tasks.results._map import (
     _preset_or_custom_json_schema_extra,
 )
 
-
 @task
 def create_polygon_layer_aliased(
     geodataframe: Annotated[
@@ -48,7 +47,6 @@ def create_polygon_layer_aliased(
         layer_style=layer_style,
         legend=legend,
     )
-
 
 @task
 def set_base_maps_aliased(

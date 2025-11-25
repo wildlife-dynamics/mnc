@@ -30,7 +30,7 @@ def add_totals_row(
     return pd.concat([df, pd.DataFrame([total_row])], ignore_index=True)
 
 @task
-def replace_missing_with_label(df:AnyDataFrame, column_name:str, label:str):
+def replace_missing_with_label(df:AnyDataFrame, column_name:str, label:str)->AnyDataFrame:
     # Validate column exists
     if column_name not in df.columns:
         raise ValueError(
@@ -166,7 +166,7 @@ def bin_columns(
 
 
 @task
-def order_bins(df:AnyDataFrame, col:str):
+def order_bins(df:AnyDataFrame, col:str)->AnyDataFrame:
     # 1. Extract left number from each bin like "1–7" → 1
     def extract_left(x):
         return int(re.search(r'^\d+', str(x)).group())
@@ -179,7 +179,7 @@ def order_bins(df:AnyDataFrame, col:str):
     return df
 
 @task
-def remove_brackets_from_column(df:AnyDataFrame, columns:List):
+def remove_brackets_from_column(df:AnyDataFrame, columns:List)->AnyDataFrame:
     if isinstance(columns, str):
         columns = [columns] 
 
@@ -188,7 +188,7 @@ def remove_brackets_from_column(df:AnyDataFrame, columns:List):
     return df
 
 @task
-def round_values(df:AnyDataFrame, column:str, decimals:int):
+def round_values(df:AnyDataFrame, column:str, decimals:int)->AnyDataFrame:
     # validation checks
     if df.empty:
         raise ValueError("Dataframe is empty.")
@@ -200,3 +200,68 @@ def round_values(df:AnyDataFrame, column:str, decimals:int):
     df[column] = df[column].round(decimals)
     return df
 
+@task 
+def categorize_bins(df:AnyDataFrame, col:str)->AnyDataFrame:
+    def extract_left(x):
+        return int(re.search(r'^\d+', str(x)).group())
+    
+    sorted_bins = sorted(df[col].dropna().unique(), key=extract_left)
+    df[col] = pd.Categorical(df[col], categories=sorted_bins, ordered=True)
+    return df
+
+@task 
+def drop_null_values(df: AnyDataFrame, col: str)->AnyDataFrame:
+    if col not in df.columns:
+        raise ValueError(f"Column '{col}' not found in dataframe.")
+    return df.dropna(subset=[col])
+
+@task 
+def remove_substring(df:AnyDataFrame, column:str, value:str)->AnyDataFrame:
+    if df.empty:
+        raise ValueError("DataFrame is empty.")
+    if column not in df.columns:
+        raise ValueError(f"{column} not found in DataFrame.")
+
+    # remove substring (case-insensitive)
+    df[column] = df[column].str.replace(value, " ", case=False, regex=False)
+
+    # remove leftover spaces
+    df[column] = df[column].str.strip()
+
+    return df
+
+@task
+def to_sentence_case(df:AnyDataFrame, column:str)->AnyDataFrame:
+    if df.empty:
+        raise ValueError("DataFrame is empty.")
+    if column not in df.columns:
+        raise ValueError(f"{column} not found in DataFrame.")
+    
+    df[column] = (
+        df[column]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        .str.capitalize()
+    )
+    
+    return df
+
+@task
+def pivot_df(
+    df:AnyDataFrame, 
+    index_col:str, 
+    columns_col=str, 
+    values_col=str,
+    reset_idx=True
+    )->AnyDataFrame:
+    result = df.pivot(
+        index=index_col, 
+        columns=columns_col, 
+        values=values_col
+        )
+    
+    if reset_idx:
+        result = result.reset_index()
+    
+    return result

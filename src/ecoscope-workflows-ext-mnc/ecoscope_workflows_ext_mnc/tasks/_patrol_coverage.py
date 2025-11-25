@@ -96,7 +96,6 @@ def compute_occupancy(
     occupancy_percentages = 100 * (intersection_areas / total_coverage_area)
     results_df = pd.DataFrame({
         'conservancy_name': regions_projected['name'].values,
-        'intersection_area': intersection_areas.values,
         'occupancy_percentage': occupancy_percentages.values
     })
     

@@ -21,7 +21,6 @@ def filter_by_value(
 
     return cast(AnyDataFrame, df_filtered)
 
-
 @task
 def exclude_by_value(
     df: AnyDataFrame,

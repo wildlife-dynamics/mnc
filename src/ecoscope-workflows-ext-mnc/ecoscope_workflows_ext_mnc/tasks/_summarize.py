@@ -1,7 +1,7 @@
 import pandas as pd
 from textwrap import shorten
 from ecoscope_workflows_core.decorators import task
-from typing import Any, Dict, Iterable, List, Optional
+from typing import  Dict, Iterable, List, Optional
 from ecoscope_workflows_core.annotations import AnyDataFrame
 
 
