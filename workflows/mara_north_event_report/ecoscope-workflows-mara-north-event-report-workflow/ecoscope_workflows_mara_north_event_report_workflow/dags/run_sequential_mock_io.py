@@ -15,6 +15,7 @@ from ecoscope_workflows_core.tasks.config import set_workflow_details
 from ecoscope_workflows_core.tasks.filter import set_time_range
 from ecoscope_workflows_core.tasks.groupby import set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection
+from ecoscope_workflows_core.tasks.skip import any_dependency_skipped, any_is_empty_df
 from ecoscope_workflows_core.tasks.transformation import filter_df
 from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
 from ecoscope_workflows_ext_custom.tasks.io import load_df
@@ -32,6 +33,7 @@ get_subjectgroup_observations = create_task_magicmock(  # 🧪
     func_name="get_subjectgroup_observations",  # 🧪
 )  # 🧪
 from ecoscope_workflows_core.tasks.io import persist_text
+from ecoscope_workflows_core.tasks.skip import any_dependency_skipped, any_is_empty_df
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index,
     extract_column_as_type,
@@ -47,6 +49,7 @@ get_events = create_task_magicmock(  # 🧪
     func_name="get_events",  # 🧪
 )  # 🧪
 from ecoscope_workflows_core.tasks.io import persist_text
+from ecoscope_workflows_core.tasks.skip import any_dependency_skipped, any_is_empty_df
 from ecoscope_workflows_core.tasks.transformation import (
     add_temporal_index,
     extract_column_as_type,
@@ -74,6 +77,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     filter_df,
     map_columns,
 )
+from ecoscope_workflows_ext_custom.tasks.io import html_to_png
 from ecoscope_workflows_ext_custom.tasks.results import (
     create_path_layer,
     create_polygon_layer_pydeck,
@@ -85,6 +89,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     process_relocations,
     relocations_to_trajectory,
 )
+from ecoscope_workflows_ext_ecoscope.tasks.results import draw_bar_chart
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     apply_classification,
     apply_color_map,
@@ -92,20 +97,29 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
 )
 from ecoscope_workflows_ext_mnc.tasks import (
     add_totals_row,
+    bin_columns,
+    categorize_bins,
     classify_mnc_patrol,
     compute_occupancy,
     convert_to_int,
     create_patrol_coverage_grid,
     draw_custom_map,
+    drop_null_values,
     exclude_geom_outliers,
+    filter_by_value,
     get_patrol_observations_from_patrols_dataframe_and_combined_params,
     get_patrols_from_combined_parameters,
+    html_snapshot,
+    make_event_summary_df,
     merge_multiple_df,
     merge_static_and_grouped_layers,
+    pivot_df,
+    remove_brackets_from_column,
     remove_invalid_point_geometries,
+    remove_substring,
     replace_missing_with_label,
     round_values,
-    view_gdf,
+    to_sentence_case,
     view_state_deck_gdf,
 )
 
@@ -120,6 +134,13 @@ def main(params: Params):
     workflow_details = (
         set_workflow_details.validate()
         .handle_errors(task_instance_id="workflow_details")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(**(params_dict.get("workflow_details") or {}))
         .call()
     )
@@ -127,6 +148,13 @@ def main(params: Params):
     time_range = (
         set_time_range.validate()
         .handle_errors(task_instance_id="time_range")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             time_format="%d %b %Y %H:%M:%S %Z", **(params_dict.get("time_range") or {})
         )
@@ -136,6 +164,13 @@ def main(params: Params):
     groupers = (
         set_groupers.validate()
         .handle_errors(task_instance_id="groupers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(groupers=[], **(params_dict.get("groupers") or {}))
         .call()
     )
@@ -143,6 +178,13 @@ def main(params: Params):
     er_client_name = (
         set_er_connection.validate()
         .handle_errors(task_instance_id="er_client_name")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(**(params_dict.get("er_client_name") or {}))
         .call()
     )
@@ -150,6 +192,13 @@ def main(params: Params):
     configure_base_maps = (
         set_base_maps_pydeck.validate()
         .handle_errors(task_instance_id="configure_base_maps")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(**(params_dict.get("configure_base_maps") or {}))
         .call()
     )
@@ -157,6 +206,13 @@ def main(params: Params):
     persist_mnc_tpt = (
         download_file_and_persist.validate()
         .handle_errors(task_instance_id="persist_mnc_tpt")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             url="https://www.dropbox.com/scl/fi/wkzd2lm1t5rzidie9wl2j/mara_north_conservancy_report_template_v4.docx?rlkey=os9ffgdk737dc60n568jfrct2&st=zo3i4ovj&dl=0",
             output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -171,6 +227,13 @@ def main(params: Params):
     persist_mnc_gpkg = (
         download_file_and_persist.validate()
         .handle_errors(task_instance_id="persist_mnc_gpkg")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             url="https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=55vxskq6&dl=0",
             output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -185,6 +248,13 @@ def main(params: Params):
     load_local_shapefiles = (
         load_df.validate()
         .handle_errors(task_instance_id="load_local_shapefiles")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             file_path=persist_mnc_gpkg,
             layer=None,
@@ -197,6 +267,13 @@ def main(params: Params):
     split_gdf_by_zone = (
         split_gdf_by_column.validate()
         .handle_errors(task_instance_id="split_gdf_by_zone")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             gdf=load_local_shapefiles,
             column="grazing_zone",
@@ -208,6 +285,13 @@ def main(params: Params):
     create_mnc_styled_layers = (
         create_styled_layers_from_dict.validate()
         .handle_errors(task_instance_id="create_mnc_styled_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             gdf_dict=split_gdf_by_zone,
             style_config={
@@ -268,7 +352,7 @@ def main(params: Params):
                     },
                 },
                 "legend": {
-                    "labels": [
+                    "label": [
                         "Conservancy boundaries",
                         "Conservancy herd zone",
                         "Grazing zone 1",
@@ -294,6 +378,13 @@ def main(params: Params):
     conservancy_gdf = (
         create_gdf_from_dict.validate()
         .handle_errors(task_instance_id="conservancy_gdf")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             gdf_dict=split_gdf_by_zone,
             key="Conservancy",
@@ -305,6 +396,13 @@ def main(params: Params):
     overall_grazing_zones = (
         filter_df.validate()
         .handle_errors(task_instance_id="overall_grazing_zones")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column_name="grazing_zone",
             op="ne",
@@ -318,13 +416,20 @@ def main(params: Params):
     custom_text_layer = (
         make_text_layer.validate()
         .handle_errors(task_instance_id="custom_text_layer")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             txt_gdf=conservancy_gdf,
             label_column="label",
             fallback_columns=["name"],
             use_centroid=True,
             color=[0, 0, 0, 255],
-            size=80,
+            size=78,
             font_family="Arial",
             font_weight="normal",
             background=False,
@@ -344,6 +449,13 @@ def main(params: Params):
     subject_observations = (
         get_subjectgroup_observations.validate()
         .handle_errors(task_instance_id="subject_observations")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             client=er_client_name,
             time_range=time_range,
@@ -358,6 +470,13 @@ def main(params: Params):
     extract_precipitation = (
         extract_value_from_json_column.validate()
         .handle_errors(task_instance_id="extract_precipitation")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=subject_observations,
             column_name="extra__observation_details",
@@ -372,6 +491,13 @@ def main(params: Params):
     extract_temperature = (
         extract_value_from_json_column.validate()
         .handle_errors(task_instance_id="extract_temperature")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_precipitation,
             column_name="extra__observation_details",
@@ -386,6 +512,13 @@ def main(params: Params):
     extract_wind_speed = (
         extract_value_from_json_column.validate()
         .handle_errors(task_instance_id="extract_wind_speed")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_temperature,
             column_name="extra__observation_details",
@@ -400,6 +533,13 @@ def main(params: Params):
     extract_wind_gusts = (
         extract_value_from_json_column.validate()
         .handle_errors(task_instance_id="extract_wind_gusts")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_wind_speed,
             column_name="extra__observation_details",
@@ -414,6 +554,13 @@ def main(params: Params):
     extract_soil_temperature = (
         extract_value_from_json_column.validate()
         .handle_errors(task_instance_id="extract_soil_temperature")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_wind_gusts,
             column_name="extra__observation_details",
@@ -428,6 +575,13 @@ def main(params: Params):
     extract_relative_humidity = (
         extract_value_from_json_column.validate()
         .handle_errors(task_instance_id="extract_relative_humidity")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_soil_temperature,
             column_name="extra__observation_details",
@@ -442,6 +596,13 @@ def main(params: Params):
     extract_pressure = (
         extract_value_from_json_column.validate()
         .handle_errors(task_instance_id="extract_pressure")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_relative_humidity,
             column_name="extra__observation_details",
@@ -456,6 +617,13 @@ def main(params: Params):
     extract_date = (
         extract_column_as_type.validate()
         .handle_errors(task_instance_id="extract_date")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_pressure,
             column_name="fixtime",
@@ -469,6 +637,13 @@ def main(params: Params):
     rename_grouper_columns = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_grouper_columns")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_date,
             drop_columns=[],
@@ -482,6 +657,13 @@ def main(params: Params):
     df_with_temporal_index = (
         add_temporal_index.validate()
         .handle_errors(task_instance_id="df_with_temporal_index")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=rename_grouper_columns,
             time_col="fixtime",
@@ -494,6 +676,13 @@ def main(params: Params):
     daily_weather = (
         summarize_df.validate()
         .handle_errors(task_instance_id="daily_weather")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=df_with_temporal_index,
             groupby_cols=["weather_station", "date"],
@@ -543,6 +732,13 @@ def main(params: Params):
     persist_daily_weather_summary = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_daily_weather_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -556,6 +752,13 @@ def main(params: Params):
     precipitation_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="precipitation_chart")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             dataframe=daily_weather,
             x_column="date",
@@ -591,6 +794,13 @@ def main(params: Params):
     persist_precipitation = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_precipitation")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=precipitation_chart,
@@ -603,6 +813,13 @@ def main(params: Params):
     temperature_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="temperature_chart")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             dataframe=daily_weather,
             x_column="date",
@@ -635,6 +852,13 @@ def main(params: Params):
     persist_temperature = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_temperature")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=temperature_chart,
@@ -647,6 +871,13 @@ def main(params: Params):
     wind_speed_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="wind_speed_chart")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             dataframe=daily_weather,
             x_column="date",
@@ -679,6 +910,13 @@ def main(params: Params):
     persist_wind_speed = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_wind_speed")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=wind_speed_chart,
@@ -691,6 +929,13 @@ def main(params: Params):
     wind_gusts_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="wind_gusts_chart")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             dataframe=daily_weather,
             x_column="date",
@@ -723,6 +968,13 @@ def main(params: Params):
     persist_wind_gusts = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_wind_gusts")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=wind_gusts_chart,
@@ -735,6 +987,13 @@ def main(params: Params):
     soil_temp_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="soil_temp_chart")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             dataframe=daily_weather,
             x_column="date",
@@ -767,6 +1026,13 @@ def main(params: Params):
     persist_soil_temp = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_soil_temp")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=soil_temp_chart,
@@ -779,6 +1045,13 @@ def main(params: Params):
     rel_humidity_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="rel_humidity_chart")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             dataframe=daily_weather,
             x_column="date",
@@ -811,6 +1084,13 @@ def main(params: Params):
     persist_rel_humidity = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_rel_humidity")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=rel_humidity_chart,
@@ -823,6 +1103,13 @@ def main(params: Params):
     pressure_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="pressure_chart")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             dataframe=daily_weather,
             x_column="date",
@@ -855,6 +1142,13 @@ def main(params: Params):
     persist_pressure = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_pressure")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=pressure_chart,
@@ -867,6 +1161,13 @@ def main(params: Params):
     get_events_data = (
         get_events.validate()
         .handle_errors(task_instance_id="get_events_data")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             client=er_client_name,
             time_range=time_range,
@@ -895,6 +1196,13 @@ def main(params: Params):
     extract_event_date = (
         extract_column_as_type.validate()
         .handle_errors(task_instance_id="extract_event_date")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=get_events_data,
             column_name="time",
@@ -908,6 +1216,13 @@ def main(params: Params):
     events_wtemporal = (
         add_temporal_index.validate()
         .handle_errors(task_instance_id="events_wtemporal")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=extract_event_date,
             time_col="date",
@@ -920,6 +1235,13 @@ def main(params: Params):
     exclude_event_type_values = (
         exclude_by_value.validate()
         .handle_errors(task_instance_id="exclude_event_type_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=events_wtemporal,
             column_name="event_type",
@@ -932,6 +1254,13 @@ def main(params: Params):
     total_events_recorded = (
         summarize_df.validate()
         .handle_errors(task_instance_id="total_events_recorded")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["date"],
             summary_params=[
@@ -951,6 +1280,13 @@ def main(params: Params):
     add_total_events_row = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="add_total_events_row")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["date"],
             label="Total",
@@ -963,6 +1299,13 @@ def main(params: Params):
     persist_tevents_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_tevents_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -976,6 +1319,13 @@ def main(params: Params):
     draw_events_chart = (
         draw_line_chart.validate()
         .handle_errors(task_instance_id="draw_events_chart")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             dataframe=total_events_recorded,
             x_column="date",
@@ -1007,6 +1357,13 @@ def main(params: Params):
     persist_total_events = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_total_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_events_chart,
@@ -1019,6 +1376,13 @@ def main(params: Params):
     total_events_type_recorded = (
         summarize_df.validate()
         .handle_errors(task_instance_id="total_events_type_recorded")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["date", "event_type"],
             summary_params=[
@@ -1038,6 +1402,13 @@ def main(params: Params):
     persist_summary_event_type = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_summary_event_type")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -1051,6 +1422,13 @@ def main(params: Params):
     filter_patrol_info_events = (
         filter_df.validate()
         .handle_errors(task_instance_id="filter_patrol_info_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column_name="event_type",
             op="equal",
@@ -1064,6 +1442,13 @@ def main(params: Params):
     normalize_pi_values = (
         normalize_column.validate()
         .handle_errors(task_instance_id="normalize_pi_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column="event_details",
             df=filter_patrol_info_events,
@@ -1075,6 +1460,13 @@ def main(params: Params):
     rename_patrol_info = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_patrol_info")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             drop_columns=[],
             retain_columns=[],
@@ -1092,10 +1484,21 @@ def main(params: Params):
     patrol_info_summary = (
         summarize_df.validate()
         .handle_errors(task_instance_id="patrol_info_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["purpose"],
             summary_params=[
-                {"display_name": "no_of_patrols", "aggregator": "count", "column": "id"}
+                {
+                    "display_name": "no_of_patrols",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
             ],
             reset_index=True,
             df=rename_patrol_info,
@@ -1107,6 +1510,13 @@ def main(params: Params):
     include_pat_totals = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="include_pat_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["purpose"],
             label="Total",
@@ -1119,6 +1529,13 @@ def main(params: Params):
     persist_patrol_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_patrol_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -1132,6 +1549,13 @@ def main(params: Params):
     er_patrol_and_events_params = (
         set_patrols_and_patrol_events_params.validate()
         .handle_errors(task_instance_id="er_patrol_and_events_params")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             client=er_client_name,
             time_range=time_range,
@@ -1194,6 +1618,13 @@ def main(params: Params):
     prefetch_patrols = (
         get_patrols_from_combined_params.validate()
         .handle_errors(task_instance_id="prefetch_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             combined_params=er_patrol_and_events_params,
             **(params_dict.get("prefetch_patrols") or {}),
@@ -1204,6 +1635,13 @@ def main(params: Params):
     get_patrol_events_params = (
         get_patrols_from_combined_parameters.validate()
         .handle_errors(task_instance_id="get_patrol_events_params")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             combined_params={
                 "client": er_client_name,
@@ -1264,6 +1702,13 @@ def main(params: Params):
     patrol_observations = (
         get_patrol_observations_from_patrols_dataframe_and_combined_params.validate()
         .handle_errors(task_instance_id="patrol_observations")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             patrols_df=get_patrol_events_params,
             combined_params={
@@ -1325,6 +1770,13 @@ def main(params: Params):
     map_patrol_types = (
         classify_mnc_patrol.validate()
         .handle_errors(task_instance_id="map_patrol_types")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=patrol_observations,
             patrol_column="patrol_type__value",
@@ -1337,6 +1789,13 @@ def main(params: Params):
     filter_foot_patrols = (
         filter_df.validate()
         .handle_errors(task_instance_id="filter_foot_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column_name="patrol_cat_types",
             op="equal",
@@ -1350,6 +1809,13 @@ def main(params: Params):
     filter_vehicle_patrols = (
         filter_df.validate()
         .handle_errors(task_instance_id="filter_vehicle_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column_name="patrol_cat_types",
             op="equal",
@@ -1363,6 +1829,13 @@ def main(params: Params):
     filter_motor_patrols = (
         filter_df.validate()
         .handle_errors(task_instance_id="filter_motor_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column_name="patrol_cat_types",
             op="equal",
@@ -1376,6 +1849,13 @@ def main(params: Params):
     foot_patrols = (
         process_relocations.validate()
         .handle_errors(task_instance_id="foot_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             observations=filter_foot_patrols,
             relocs_columns=[
@@ -1409,6 +1889,13 @@ def main(params: Params):
     vehicle_patrols = (
         process_relocations.validate()
         .handle_errors(task_instance_id="vehicle_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             observations=filter_vehicle_patrols,
             relocs_columns=[
@@ -1442,6 +1929,13 @@ def main(params: Params):
     motorbike_patrols = (
         process_relocations.validate()
         .handle_errors(task_instance_id="motorbike_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             observations=filter_motor_patrols,
             relocs_columns=[
@@ -1475,6 +1969,13 @@ def main(params: Params):
     foot_trajs = (
         relocations_to_trajectory.validate()
         .handle_errors(task_instance_id="foot_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(relocations=foot_patrols, **(params_dict.get("foot_trajs") or {}))
         .call()
     )
@@ -1482,6 +1983,13 @@ def main(params: Params):
     vehicle_trajs = (
         relocations_to_trajectory.validate()
         .handle_errors(task_instance_id="vehicle_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             relocations=vehicle_patrols, **(params_dict.get("vehicle_trajs") or {})
         )
@@ -1491,6 +1999,13 @@ def main(params: Params):
     motor_trajs = (
         relocations_to_trajectory.validate()
         .handle_errors(task_instance_id="motor_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             relocations=motorbike_patrols, **(params_dict.get("motor_trajs") or {})
         )
@@ -1500,6 +2015,13 @@ def main(params: Params):
     temporal_foot_traj = (
         add_temporal_index.validate()
         .handle_errors(task_instance_id="temporal_foot_traj")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=foot_trajs,
             time_col="segment_start",
@@ -1514,6 +2036,13 @@ def main(params: Params):
     temporal_vehicle_traj = (
         add_temporal_index.validate()
         .handle_errors(task_instance_id="temporal_vehicle_traj")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=vehicle_trajs,
             time_col="segment_start",
@@ -1528,6 +2057,13 @@ def main(params: Params):
     temporal_motor_traj = (
         add_temporal_index.validate()
         .handle_errors(task_instance_id="temporal_motor_traj")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=motor_trajs,
             time_col="segment_start",
@@ -1542,6 +2078,13 @@ def main(params: Params):
     rename_foot_trajs = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_foot_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
@@ -1566,6 +2109,13 @@ def main(params: Params):
     rename_vehicle_trajs = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_vehicle_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
@@ -1590,6 +2140,13 @@ def main(params: Params):
     rename_motor_trajs = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_motor_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
@@ -1614,6 +2171,13 @@ def main(params: Params):
     foot_patrol_metrics = (
         summarize_df.validate()
         .handle_errors(task_instance_id="foot_patrol_metrics")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["patrol_type_value"],
             summary_params=[
@@ -1647,6 +2211,13 @@ def main(params: Params):
     add_fp_metrics_totals = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="add_fp_metrics_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["patrol_type_value"],
             label="Total",
@@ -1659,6 +2230,13 @@ def main(params: Params):
     persist_foot_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_foot_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -1672,6 +2250,13 @@ def main(params: Params):
     apply_footp_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_footp_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="patrol_type_value",
             output_column_name="foot_patrol_colors",
@@ -1720,10 +2305,17 @@ def main(params: Params):
     zoom_foot_patrols = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_foot_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             pitch=0,
             bearing=0,
-            gdf=overall_grazing_zones,
+            gdf=apply_footp_colormap,
             **(params_dict.get("zoom_foot_patrols") or {}),
         )
         .call()
@@ -1732,6 +2324,13 @@ def main(params: Params):
     combine_custom_foot_patrols = (
         merge_static_and_grouped_layers.validate()
         .handle_errors(task_instance_id="combine_custom_foot_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             static_layers=[create_mnc_styled_layers, custom_text_layer],
             grouped_layers=generate_foot_layers,
@@ -1743,12 +2342,19 @@ def main(params: Params):
     draw_foot_patrol_map = (
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_foot_patrol_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             tile_layers=configure_base_maps,
             static=False,
             title=None,
             max_zoom=15,
-            legend_style={"placement": "bottom-right", "title": "Foot patrol types"},
+            legend_style={"placement": "bottom-right", "title": "Foot patrols"},
             geo_layers=combine_custom_foot_patrols,
             view_state=zoom_foot_patrols,
             **(params_dict.get("draw_foot_patrol_map") or {}),
@@ -1759,22 +2365,18 @@ def main(params: Params):
     persist_foot_patrol_urls = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_foot_patrol_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_foot_patrol_map,
             filename="foot_patrols_map.html",
             **(params_dict.get("persist_foot_patrol_urls") or {}),
-        )
-        .call()
-    )
-
-    view_vehicle_patrols = (
-        view_gdf.validate()
-        .handle_errors(task_instance_id="view_vehicle_patrols")
-        .partial(
-            gdf=rename_vehicle_trajs,
-            name="vehicle patrol metrics",
-            **(params_dict.get("view_vehicle_patrols") or {}),
         )
         .call()
     )
@@ -1822,6 +2424,13 @@ def main(params: Params):
     add_vh_metrics_totals = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="add_vh_metrics_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["patrol_type_value"],
             label="Total",
@@ -1834,6 +2443,13 @@ def main(params: Params):
     persist_vehicle_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_vehicle_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -1847,6 +2463,13 @@ def main(params: Params):
     apply_vehicle_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_vehicle_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="patrol_type_value",
             output_column_name="colors",
@@ -1895,10 +2518,17 @@ def main(params: Params):
     zoom_vehicle_patrols = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_vehicle_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             pitch=0,
             bearing=0,
-            gdf=overall_grazing_zones,
+            gdf=apply_vehicle_colormap,
             **(params_dict.get("zoom_vehicle_patrols") or {}),
         )
         .call()
@@ -1907,6 +2537,13 @@ def main(params: Params):
     combine_custom_vehicle_patrols = (
         merge_static_and_grouped_layers.validate()
         .handle_errors(task_instance_id="combine_custom_vehicle_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             static_layers=[create_mnc_styled_layers, custom_text_layer],
             grouped_layers=generate_vehicle_layers,
@@ -1918,12 +2555,19 @@ def main(params: Params):
     draw_vehicle_patrol_map = (
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_vehicle_patrol_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             tile_layers=configure_base_maps,
             static=False,
             title=None,
             max_zoom=15,
-            legend_style={"placement": "bottom-right", "title": "Vehicle patrol types"},
+            legend_style={"placement": "bottom-right", "title": "Vehicle patrols"},
             geo_layers=combine_custom_vehicle_patrols,
             view_state=zoom_vehicle_patrols,
             **(params_dict.get("draw_vehicle_patrol_map") or {}),
@@ -1934,6 +2578,13 @@ def main(params: Params):
     persist_vehicle_patrol_urls = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_vehicle_patrol_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_vehicle_patrol_map,
@@ -1946,6 +2597,13 @@ def main(params: Params):
     motor_patrol_metrics = (
         summarize_df.validate()
         .handle_errors(task_instance_id="motor_patrol_metrics")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["patrol_type_value"],
             summary_params=[
@@ -1979,6 +2637,13 @@ def main(params: Params):
     add_mb_metrics_totals = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="add_mb_metrics_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["patrol_type_value"],
             label="Total",
@@ -1991,6 +2656,13 @@ def main(params: Params):
     persist_motor_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_motor_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -2004,6 +2676,13 @@ def main(params: Params):
     apply_motor_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_motor_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="patrol_type_value",
             output_column_name="colors",
@@ -2052,6 +2731,13 @@ def main(params: Params):
     zoom_motor_patrols = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_motor_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             pitch=0,
             bearing=0,
@@ -2064,6 +2750,13 @@ def main(params: Params):
     combine_custom_motor_patrols = (
         merge_static_and_grouped_layers.validate()
         .handle_errors(task_instance_id="combine_custom_motor_patrols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             static_layers=[create_mnc_styled_layers, custom_text_layer],
             grouped_layers=generate_motor_layers,
@@ -2075,15 +2768,19 @@ def main(params: Params):
     draw_motor_patrol_map = (
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_motor_patrol_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             tile_layers=configure_base_maps,
             static=False,
             title=None,
             max_zoom=15,
-            legend_style={
-                "placement": "bottom-right",
-                "title": "Motorbike patrol types",
-            },
+            legend_style={"placement": "bottom-right", "title": "Motorbike patrols"},
             geo_layers=combine_custom_motor_patrols,
             view_state=zoom_motor_patrols,
             **(params_dict.get("draw_motor_patrol_map") or {}),
@@ -2094,6 +2791,13 @@ def main(params: Params):
     persist_motor_patrol_urls = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_motor_patrol_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_motor_patrol_map,
@@ -2106,6 +2810,13 @@ def main(params: Params):
     merge_trajs = (
         merge_multiple_df.validate()
         .handle_errors(task_instance_id="merge_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             list_df=[foot_trajs, vehicle_trajs, motor_trajs],
             ignore_index=True,
@@ -2118,6 +2829,13 @@ def main(params: Params):
     persist_patrol_trajs = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_patrol_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="geoparquet",
@@ -2131,6 +2849,13 @@ def main(params: Params):
     rename_combined_trajs = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_combined_trajs")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
@@ -2155,6 +2880,13 @@ def main(params: Params):
     ranger_patrol_metrics = (
         summarize_df.validate()
         .handle_errors(task_instance_id="ranger_patrol_metrics")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["patrol_subject_name"],
             summary_params=[
@@ -2188,6 +2920,13 @@ def main(params: Params):
     add_ranger_metrics_totals = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="add_ranger_metrics_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["patrol_subject_name"],
             label="Total",
@@ -2200,6 +2939,13 @@ def main(params: Params):
     persist_total_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_total_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -2213,6 +2959,13 @@ def main(params: Params):
     patrol_grid_visits = (
         create_patrol_coverage_grid.validate()
         .handle_errors(task_instance_id="patrol_grid_visits")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             grid_cell_size=1000,
             trajs=rename_combined_trajs,
@@ -2224,6 +2977,13 @@ def main(params: Params):
     apply_classification_grid = (
         apply_classification.validate()
         .handle_errors(task_instance_id="apply_classification_grid")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="unique_patrol_count",
             output_column_name="density_bins",
@@ -2238,9 +2998,16 @@ def main(params: Params):
     apply_grid_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_grid_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="density_bins",
-            colormap="RdYlGn",
+            colormap="RdYlGn_r",
             output_column_name="density_colors",
             df=apply_classification_grid,
             **(params_dict.get("apply_grid_colormap") or {}),
@@ -2275,6 +3042,13 @@ def main(params: Params):
     zoom_grid_view = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_grid_view")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             pitch=0,
             bearing=0,
@@ -2287,6 +3061,13 @@ def main(params: Params):
     combine_patrol_grid = (
         merge_static_and_grouped_layers.validate()
         .handle_errors(task_instance_id="combine_patrol_grid")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             static_layers=[create_mnc_styled_layers, custom_text_layer],
             grouped_layers=generate_grid_layers,
@@ -2298,12 +3079,19 @@ def main(params: Params):
     draw_grid_map = (
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_grid_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             tile_layers=configure_base_maps,
             static=False,
             title=None,
             max_zoom=15,
-            legend_style={"placement": "bottom-right", "title": "Grid visits"},
+            legend_style={"placement": "bottom-right", "title": "Grid cell visits"},
             geo_layers=combine_patrol_grid,
             view_state=zoom_grid_view,
             **(params_dict.get("draw_grid_map") or {}),
@@ -2314,6 +3102,13 @@ def main(params: Params):
     persist_grid_map_urls = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_grid_map_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_grid_map,
@@ -2326,6 +3121,13 @@ def main(params: Params):
     compute_patrol_occupancy = (
         compute_occupancy.validate()
         .handle_errors(task_instance_id="compute_patrol_occupancy")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             coverage_grid_gdf=patrol_grid_visits,
             regions_gdf=conservancy_gdf,
@@ -2338,6 +3140,13 @@ def main(params: Params):
     round_off_patrol = (
         round_values.validate()
         .handle_errors(task_instance_id="round_off_patrol")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=compute_patrol_occupancy,
             column="occupancy_percentage",
@@ -2350,6 +3159,13 @@ def main(params: Params):
     persist_occupancy_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_occupancy_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -2363,6 +3179,13 @@ def main(params: Params):
     filter_mobile_boma = (
         filter_df.validate()
         .handle_errors(task_instance_id="filter_mobile_boma")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column_name="event_type",
             op="equal",
@@ -2376,6 +3199,13 @@ def main(params: Params):
     normalize_mb_values = (
         normalize_column.validate()
         .handle_errors(task_instance_id="normalize_mb_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column="event_details",
             df=filter_mobile_boma,
@@ -2387,6 +3217,13 @@ def main(params: Params):
     rename_mobile_boma = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_mobile_boma")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             drop_columns=[],
             retain_columns=[],
@@ -2400,10 +3237,17 @@ def main(params: Params):
     mobile_boma_summary = (
         summarize_df.validate()
         .handle_errors(task_instance_id="mobile_boma_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["boma"],
             summary_params=[
-                {"display_name": "total_count", "aggregator": "count", "column": "id"}
+                {"display_name": "total_count", "aggregator": "nunique", "column": "id"}
             ],
             reset_index=True,
             df=rename_mobile_boma,
@@ -2415,6 +3259,13 @@ def main(params: Params):
     include_mb_totals = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="include_mb_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["boma"],
             label="Total",
@@ -2427,6 +3278,13 @@ def main(params: Params):
     persist_mobile_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_mobile_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -2440,6 +3298,13 @@ def main(params: Params):
     apply_mb_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_mb_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="event_type",
             output_column_name="event_type_colors",
@@ -2463,9 +3328,9 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "event_type_colors",
-                "get_radius": 4,
-                "opacity": 0.55,
-                "stroked": True,
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": False,
             },
             legend={
                 "label_column": "event_type",
@@ -2481,6 +3346,13 @@ def main(params: Params):
     zoom_mobile_boma = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_mobile_boma")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             pitch=0,
             bearing=0,
@@ -2493,6 +3365,13 @@ def main(params: Params):
     combine_custom_mobile_boma = (
         merge_static_and_grouped_layers.validate()
         .handle_errors(task_instance_id="combine_custom_mobile_boma")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             static_layers=[create_mnc_styled_layers, custom_text_layer],
             grouped_layers=generate_mb_layers,
@@ -2504,12 +3383,19 @@ def main(params: Params):
     draw_mb_map = (
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_mb_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             tile_layers=configure_base_maps,
             static=False,
             title=None,
             max_zoom=15,
-            legend_style={"placement": "bottom-right", "title": "Mobile Boma"},
+            legend_style={"placement": "bottom-right", "title": "Boma Movements"},
             geo_layers=combine_custom_mobile_boma,
             view_state=zoom_mobile_boma,
             **(params_dict.get("draw_mb_map") or {}),
@@ -2520,6 +3406,13 @@ def main(params: Params):
     persist_mobile_boma_urls = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_mobile_boma_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_mb_map,
@@ -2532,6 +3425,13 @@ def main(params: Params):
     filter_predation = (
         filter_df.validate()
         .handle_errors(task_instance_id="filter_predation")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column_name="event_type",
             op="equal",
@@ -2545,6 +3445,13 @@ def main(params: Params):
     normalize_predation_values = (
         normalize_column.validate()
         .handle_errors(task_instance_id="normalize_predation_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             column="event_details",
             df=filter_predation,
@@ -2556,6 +3463,13 @@ def main(params: Params):
     persist_livestock_events = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_livestock_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -2569,6 +3483,13 @@ def main(params: Params):
     rename_livestock_predation = (
         map_columns.validate()
         .handle_errors(task_instance_id="rename_livestock_predation")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             drop_columns=[],
             retain_columns=[],
@@ -2594,7 +3515,7 @@ def main(params: Params):
                 "event_details__livestockpredation_bomaheight": "boma_height",
                 "event_details__livestockpredation_bomavisibility": "boma_visibility",
             },
-            df=normalize_mb_values,
+            df=normalize_predation_values,
             **(params_dict.get("rename_livestock_predation") or {}),
         )
         .call()
@@ -2603,6 +3524,13 @@ def main(params: Params):
     replace_predator_nulls = (
         replace_missing_with_label.validate()
         .handle_errors(task_instance_id="replace_predator_nulls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=rename_livestock_predation,
             column_name="suspected_predator",
@@ -2615,9 +3543,16 @@ def main(params: Params):
     replace_species_null = (
         replace_missing_with_label.validate()
         .handle_errors(task_instance_id="replace_species_null")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=replace_predator_nulls,
-            column="livestock_species",
+            column_name="livestock_species",
             label="unknown",
             **(params_dict.get("replace_species_null") or {}),
         )
@@ -2627,6 +3562,13 @@ def main(params: Params):
     convert_livestock_int = (
         convert_to_int.validate()
         .handle_errors(task_instance_id="convert_livestock_int")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=replace_species_null,
             columns=["livestock_affected"],
@@ -2641,6 +3583,13 @@ def main(params: Params):
     livestock_predation_summary = (
         summarize_df.validate()
         .handle_errors(task_instance_id="livestock_predation_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["date", "suspected_predator", "livestock_species"],
             summary_params=[
@@ -2660,11 +3609,18 @@ def main(params: Params):
     persist_livestock_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="persist_livestock_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
             filename="livestock_predation_events",
-            df=include_mb_totals,
+            df=livestock_predation_summary,
             **(params_dict.get("persist_livestock_df") or {}),
         )
         .call()
@@ -2673,6 +3629,13 @@ def main(params: Params):
     livestock_events_recorded = (
         summarize_df.validate()
         .handle_errors(task_instance_id="livestock_events_recorded")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["date"],
             summary_params=[
@@ -2692,6 +3655,13 @@ def main(params: Params):
     add_total_livestock = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="add_total_livestock")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["date"],
             label="Total",
@@ -2704,6 +3674,13 @@ def main(params: Params):
     livestock_events_df = (
         persist_df.validate()
         .handle_errors(task_instance_id="livestock_events_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -2717,6 +3694,13 @@ def main(params: Params):
     exclude_livestock_outliers = (
         exclude_geom_outliers.validate()
         .handle_errors(task_instance_id="exclude_livestock_outliers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=convert_livestock_int,
             z_threshold=3,
@@ -2728,6 +3712,13 @@ def main(params: Params):
     remove_invalid_geoms = (
         remove_invalid_point_geometries.validate()
         .handle_errors(task_instance_id="remove_invalid_geoms")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             gdf=exclude_livestock_outliers,
             **(params_dict.get("remove_invalid_geoms") or {}),
@@ -2738,6 +3729,13 @@ def main(params: Params):
     apply_livestock_colormap = (
         apply_color_map.validate()
         .handle_errors(task_instance_id="apply_livestock_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="livestock_species",
             output_column_name="colors",
@@ -2761,16 +3759,16 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.55,
-                "stroked": True,
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": False,
             },
             legend={
                 "label_column": "livestock_species",
                 "color_column": "colors",
                 "sort": "ascending",
             },
-            geodataframe=apply_mb_colormap,
+            geodataframe=apply_livestock_colormap,
             **(params_dict.get("generate_livestock_layers") or {}),
         )
         .call()
@@ -2779,10 +3777,17 @@ def main(params: Params):
     zoom_livestock_events = (
         view_state_deck_gdf.validate()
         .handle_errors(task_instance_id="zoom_livestock_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             pitch=0,
             bearing=0,
-            gdf=overall_grazing_zones,
+            gdf=apply_livestock_colormap,
             **(params_dict.get("zoom_livestock_events") or {}),
         )
         .call()
@@ -2791,6 +3796,13 @@ def main(params: Params):
     combine_custom_livestock = (
         merge_static_and_grouped_layers.validate()
         .handle_errors(task_instance_id="combine_custom_livestock")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             static_layers=[create_mnc_styled_layers, custom_text_layer],
             grouped_layers=generate_livestock_layers,
@@ -2802,6 +3814,13 @@ def main(params: Params):
     draw_livestock_map = (
         draw_custom_map.validate()
         .handle_errors(task_instance_id="draw_livestock_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             tile_layers=configure_base_maps,
             static=False,
@@ -2818,11 +3837,3488 @@ def main(params: Params):
     persist_livestock_urls = (
         persist_text.validate()
         .handle_errors(task_instance_id="persist_livestock_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_mb_map,
+            text=draw_livestock_map,
             filename="livestock_predation_events.html",
             **(params_dict.get("persist_livestock_urls") or {}),
+        )
+        .call()
+    )
+
+    filter_wildlife_events = (
+        filter_by_value.validate()
+        .handle_errors(task_instance_id="filter_wildlife_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=exclude_event_type_values,
+            column_name="event_type",
+            value=[
+                "snare_rep",
+                "fire_rep",
+                "wildlife_injury_rep",
+                "wildlife_treatment_rep",
+                "wildlife_carcass_rep",
+            ],
+            **(params_dict.get("filter_wildlife_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_wildlife_events = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_wildlife_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=filter_wildlife_events,
+            **(params_dict.get("normalize_wildlife_events") or {}),
+        )
+        .call()
+    )
+
+    rename_wildlife_cols = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_wildlife_cols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__wildlifecarcass_species": "wildlife_carcass_species",
+                "event_details__wildlifecarcass_suspectedcause": "wildlife_carcass_suspected_cause",
+                "event_details__wildlifecarcass_visibleinjury": "wildlife_carcass_visible_injury",
+                "event_details__wildlifetreatment_species": "wildlife_treatment_species",
+                "event_details__wildlifetreatment_comments": "wildlife_treatment_comments",
+                "event_details__wildlifetreatment_vetattending": "wildlife_treatment_vet_attending",
+                "event_details__wildlifetreatment_vetprognosis": "wildlife_treatment_vet_prognosis",
+                "event_details__wildlifecarcass_comments": "wildlife_carcass_comments",
+            },
+            df=normalize_wildlife_events,
+            **(params_dict.get("rename_wildlife_cols") or {}),
+        )
+        .call()
+    )
+
+    generate_wild_summary = (
+        make_event_summary_df.validate()
+        .handle_errors(task_instance_id="generate_wild_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_wildlife_cols,
+            value_map={
+                "fire_rep": "Fire",
+                "snare_rep": "Snare",
+                "wildlife_carcass_rep": "Wildlife carcass",
+                "wildlife_injury_rep": "Injured wildlife",
+                "wildlife_treatment_rep": "Veterinary treatment",
+            },
+            max_unique=6,
+            shorten_width=300,
+            order=None,
+            **(params_dict.get("generate_wild_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_wildlife_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_wildlife_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename="wildlife_incidents_summary",
+            filetype="csv",
+            df=generate_wild_summary,
+            **(params_dict.get("persist_wildlife_df") or {}),
+        )
+        .call()
+    )
+
+    wildlife_events_recorded = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="wildlife_events_recorded")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=rename_wildlife_cols,
+            **(params_dict.get("wildlife_events_recorded") or {}),
+        )
+        .call()
+    )
+
+    add_total_wildlife = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="add_total_wildlife")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=wildlife_events_recorded,
+            **(params_dict.get("add_total_wildlife") or {}),
+        )
+        .call()
+    )
+
+    wildlife_events_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="wildlife_events_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=add_total_wildlife,
+            filename="wildlife_incidents_recorded",
+            **(params_dict.get("wildlife_events_df") or {}),
+        )
+        .call()
+    )
+
+    exclude_wildlife_outliers = (
+        exclude_geom_outliers.validate()
+        .handle_errors(task_instance_id="exclude_wildlife_outliers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_wildlife_cols,
+            z_threshold=3,
+            **(params_dict.get("exclude_wildlife_outliers") or {}),
+        )
+        .call()
+    )
+
+    remove_invalid_wild_geoms = (
+        remove_invalid_point_geometries.validate()
+        .handle_errors(task_instance_id="remove_invalid_wild_geoms")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            gdf=exclude_wildlife_outliers,
+            **(params_dict.get("remove_invalid_wild_geoms") or {}),
+        )
+        .call()
+    )
+
+    apply_wildlife_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_wildlife_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="event_type",
+            output_column_name="colors",
+            colormap="plasma",
+            df=remove_invalid_wild_geoms,
+            **(params_dict.get("apply_wildlife_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_wildlife_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_wildlife_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": False,
+            },
+            legend={
+                "label_column": "event_type",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_wildlife_colormap,
+            **(params_dict.get("generate_wildlife_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_wildlife_events = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_wildlife_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=overall_grazing_zones,
+            **(params_dict.get("zoom_wildlife_events") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_wildlife = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_wildlife")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_wildlife_layers,
+            **(params_dict.get("combine_custom_wildlife") or {}),
+        )
+        .call()
+    )
+
+    draw_wildlife_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_wildlife_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Event types"},
+            geo_layers=combine_custom_wildlife,
+            view_state=zoom_wildlife_events,
+            **(params_dict.get("draw_wildlife_map") or {}),
+        )
+        .call()
+    )
+
+    persist_wildlife_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_wildlife_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_wildlife_map,
+            filename="wildlife_incidents_map.html",
+            **(params_dict.get("persist_wildlife_urls") or {}),
+        )
+        .call()
+    )
+
+    retrieve_elephant_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="retrieve_elephant_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="elephant_sighting_rep",
+            df=exclude_event_type_values,
+            **(params_dict.get("retrieve_elephant_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_elephant_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_elephant_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=retrieve_elephant_events,
+            **(params_dict.get("normalize_elephant_values") or {}),
+        )
+        .call()
+    )
+
+    rename_elephant_cols = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_elephant_cols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__elephantsight_male": "elephant_sight_male",
+                "event_details__elephantsight_female": "elephant_sight_female",
+                "event_details__elephantsight_comments": "elephant_sight_comments",
+                "event_details__elephantsight_herdsize": "elephant_sight_herd_size",
+                "event_details__elephantsight_subadult": "elephant_sight_sub_adult",
+                "event_details__elephantsight_herdcomposition": "elephant_sight_herd_composition",
+                "event_details__elephantsight_underayear": "elephant_sight_under_a_year",
+            },
+            df=normalize_elephant_values,
+            **(params_dict.get("rename_elephant_cols") or {}),
+        )
+        .call()
+    )
+
+    elephant_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="elephant_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["event_type"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=rename_elephant_cols,
+            **(params_dict.get("elephant_summary") or {}),
+        )
+        .call()
+    )
+
+    include_elephant_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_elephant_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["event_type"],
+            label="Total",
+            df=elephant_summary,
+            **(params_dict.get("include_elephant_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_ele_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_ele_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="elephant_events_recorded",
+            df=include_elephant_totals,
+            **(params_dict.get("persist_ele_df") or {}),
+        )
+        .call()
+    )
+
+    replace_ele_nulls = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_ele_nulls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_elephant_cols,
+            column_name="elephant_sight_herd_composition",
+            label="unspecified",
+            **(params_dict.get("replace_ele_nulls") or {}),
+        )
+        .call()
+    )
+
+    exclude_ele_outliers = (
+        exclude_geom_outliers.validate()
+        .handle_errors(task_instance_id="exclude_ele_outliers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_ele_nulls,
+            z_threshold=3,
+            **(params_dict.get("exclude_ele_outliers") or {}),
+        )
+        .call()
+    )
+
+    remove_ele_invalid_geoms = (
+        remove_invalid_point_geometries.validate()
+        .handle_errors(task_instance_id="remove_ele_invalid_geoms")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            gdf=exclude_ele_outliers,
+            **(params_dict.get("remove_ele_invalid_geoms") or {}),
+        )
+        .call()
+    )
+
+    apply_ele_events_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_ele_events_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="elephant_sight_herd_composition",
+            output_column_name="colors",
+            colormap="plasma",
+            df=remove_ele_invalid_geoms,
+            **(params_dict.get("apply_ele_events_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_elephant_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_elephant_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": False,
+            },
+            legend={
+                "label_column": "elephant_sight_herd_composition",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_ele_events_colormap,
+            **(params_dict.get("generate_elephant_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_elephant_events = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_elephant_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_ele_events_colormap,
+            **(params_dict.get("zoom_elephant_events") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_ele = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_ele")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_elephant_layers,
+            **(params_dict.get("combine_custom_ele") or {}),
+        )
+        .call()
+    )
+
+    draw_elephant_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_elephant_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Herd Types"},
+            geo_layers=combine_custom_ele,
+            view_state=zoom_elephant_events,
+            **(params_dict.get("draw_elephant_map") or {}),
+        )
+        .call()
+    )
+
+    persist_elephant_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_elephant_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_elephant_map,
+            filename="elephant_sightings_events.html",
+            **(params_dict.get("persist_elephant_urls") or {}),
+        )
+        .call()
+    )
+
+    elephant_herd_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="elephant_herd_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["elephant_sight_herd_composition"],
+            summary_params=[
+                {
+                    "display_name": "herd_distribution",
+                    "aggregator": "sum",
+                    "column": "elephant_sight_herd_size",
+                }
+            ],
+            reset_index=True,
+            df=rename_elephant_cols,
+            **(params_dict.get("elephant_herd_summary") or {}),
+        )
+        .call()
+    )
+
+    total_ele_composition = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="total_ele_composition")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["elephant_sight_herd_composition"],
+            label="Total",
+            df=elephant_herd_summary,
+            **(params_dict.get("total_ele_composition") or {}),
+        )
+        .call()
+    )
+
+    persist_ele_summary = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_ele_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="elephant_herd_distribution",
+            df=total_ele_composition,
+            **(params_dict.get("persist_ele_summary") or {}),
+        )
+        .call()
+    )
+
+    bin_elephant_herd_col = (
+        bin_columns.validate()
+        .handle_errors(task_instance_id="bin_elephant_herd_col")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            columns=["elephant_sight_herd_size"],
+            bins=5,
+            suffix="bins",
+            inplace=False,
+            df=rename_elephant_cols,
+            **(params_dict.get("bin_elephant_herd_col") or {}),
+        )
+        .call()
+    )
+
+    cat_elephant_bins = (
+        categorize_bins.validate()
+        .handle_errors(task_instance_id="cat_elephant_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=bin_elephant_herd_col,
+            col="elephant_sight_herd_sizebins",
+            **(params_dict.get("cat_elephant_bins") or {}),
+        )
+        .call()
+    )
+
+    draw_elephant_herd_bar = (
+        draw_bar_chart.validate()
+        .handle_errors(task_instance_id="draw_elephant_herd_bar")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            dataframe=cat_elephant_bins,
+            category="elephant_sight_herd_sizebins",
+            layout_kwargs={
+                "font_size": 13,
+                "font_color": "#222222",
+                "plot_bgcolor": "#f5f5f5",
+                "title_x": 0.5,
+                "xaxis": {"title": "Group size"},
+                "yaxis": {"title": "Number of records"},
+                "showlegend": False,
+                "bargap": 0.1,
+            },
+            bar_chart_configs=[
+                {
+                    "column": "id",
+                    "agg_func": "count",
+                    "label": "",
+                    "style": {"marker_color": "lightsteelblue"},
+                }
+            ],
+            **(params_dict.get("draw_elephant_herd_bar") or {}),
+        )
+        .call()
+    )
+
+    persist_elephant_bar = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_elephant_bar")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_elephant_herd_bar,
+            filename="elephant_herd_size_bar_chart.html",
+            **(params_dict.get("persist_elephant_bar") or {}),
+        )
+        .call()
+    )
+
+    drop_null_ele_bins = (
+        drop_null_values.validate()
+        .handle_errors(task_instance_id="drop_null_ele_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=cat_elephant_bins,
+            col="elephant_sight_herd_sizebins",
+            **(params_dict.get("drop_null_ele_bins") or {}),
+        )
+        .call()
+    )
+
+    apply_ele_color_bins = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_ele_color_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="elephant_sight_herd_sizebins",
+            output_column_name="colors",
+            colormap="Blues",
+            df=drop_null_ele_bins,
+            **(params_dict.get("apply_ele_color_bins") or {}),
+        )
+        .call()
+    )
+
+    generate_ele_herd_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_ele_herd_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": "elephant_sight_herd_size",
+                "line_width_min_pixels": 1,
+                "radius_units": "pixels",
+                "radius_scale": 0.43,
+                "opacity": 0.75,
+                "stroked": False,
+            },
+            legend={
+                "label_column": "elephant_sight_herd_sizebins",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_ele_color_bins,
+            **(params_dict.get("generate_ele_herd_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_ele_bins = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_ele_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_ele_color_bins,
+            **(params_dict.get("zoom_ele_bins") or {}),
+        )
+        .call()
+    )
+
+    combine_ele_bins = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_ele_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_ele_herd_layers,
+            **(params_dict.get("combine_ele_bins") or {}),
+        )
+        .call()
+    )
+
+    draw_ele_herd_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_ele_herd_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Group size"},
+            geo_layers=combine_ele_bins,
+            view_state=zoom_ele_bins,
+            **(params_dict.get("draw_ele_herd_map") or {}),
+        )
+        .call()
+    )
+
+    persist_ele_herd_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_ele_herd_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_ele_herd_map,
+            filename="elephant_herd_types_map.html",
+            **(params_dict.get("persist_ele_herd_urls") or {}),
+        )
+        .call()
+    )
+
+    retrieve_buffalo_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="retrieve_buffalo_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="buffalo_sighting_rep",
+            df=exclude_event_type_values,
+            **(params_dict.get("retrieve_buffalo_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_buffalo_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_buffalo_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=retrieve_buffalo_events,
+            **(params_dict.get("normalize_buffalo_values") or {}),
+        )
+        .call()
+    )
+
+    rename_buffalo_cols = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_buffalo_cols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__buffalosightingrep_herdsize": "buffalo_herd_size",
+                "event_details__buffalosightingrep_herd": "buffalo_herd",
+            },
+            df=normalize_buffalo_values,
+            **(params_dict.get("rename_buffalo_cols") or {}),
+        )
+        .call()
+    )
+
+    buffalo_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="buffalo_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["event_type"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=rename_buffalo_cols,
+            **(params_dict.get("buffalo_summary") or {}),
+        )
+        .call()
+    )
+
+    include_buffalo_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_buffalo_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["event_type"],
+            label="Total",
+            df=buffalo_summary,
+            **(params_dict.get("include_buffalo_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_buffalo_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_buffalo_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="buffalo_events_recorded",
+            df=include_buffalo_totals,
+            **(params_dict.get("persist_buffalo_df") or {}),
+        )
+        .call()
+    )
+
+    replace_buffalo_nulls = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_buffalo_nulls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_buffalo_cols,
+            column_name="buffalo_herd",
+            label="unspecified",
+            **(params_dict.get("replace_buffalo_nulls") or {}),
+        )
+        .call()
+    )
+
+    exclude_buffalo_outliers = (
+        exclude_geom_outliers.validate()
+        .handle_errors(task_instance_id="exclude_buffalo_outliers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_buffalo_nulls,
+            z_threshold=3,
+            **(params_dict.get("exclude_buffalo_outliers") or {}),
+        )
+        .call()
+    )
+
+    remove_buffalo_invalid_geoms = (
+        remove_invalid_point_geometries.validate()
+        .handle_errors(task_instance_id="remove_buffalo_invalid_geoms")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            gdf=exclude_buffalo_outliers,
+            **(params_dict.get("remove_buffalo_invalid_geoms") or {}),
+        )
+        .call()
+    )
+
+    apply_buffalo_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_buffalo_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="buffalo_herd",
+            output_column_name="colors",
+            colormap="plasma",
+            df=remove_buffalo_invalid_geoms,
+            **(params_dict.get("apply_buffalo_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_buffalo_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_buffalo_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": False,
+            },
+            legend={
+                "label_column": "buffalo_herd",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_buffalo_colormap,
+            **(params_dict.get("generate_buffalo_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_buffalo_events = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_buffalo_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_buffalo_colormap,
+            **(params_dict.get("zoom_buffalo_events") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_buffalo = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_buffalo")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_buffalo_layers,
+            **(params_dict.get("combine_custom_buffalo") or {}),
+        )
+        .call()
+    )
+
+    draw_buffalo_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_buffalo_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Herd Types"},
+            geo_layers=combine_custom_buffalo,
+            view_state=zoom_buffalo_events,
+            **(params_dict.get("draw_buffalo_map") or {}),
+        )
+        .call()
+    )
+
+    persist_buffalo_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_buffalo_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_buffalo_map,
+            filename="buffalo_herd_map.html",
+            **(params_dict.get("persist_buffalo_urls") or {}),
+        )
+        .call()
+    )
+
+    bin_buffalo_herd_col = (
+        bin_columns.validate()
+        .handle_errors(task_instance_id="bin_buffalo_herd_col")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            columns=["buffalo_herd_size"],
+            bins=5,
+            suffix="bins",
+            inplace=False,
+            df=rename_buffalo_cols,
+            **(params_dict.get("bin_buffalo_herd_col") or {}),
+        )
+        .call()
+    )
+
+    cat_buffalo_bins = (
+        categorize_bins.validate()
+        .handle_errors(task_instance_id="cat_buffalo_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=bin_buffalo_herd_col,
+            col="buffalo_herd_sizebins",
+            **(params_dict.get("cat_buffalo_bins") or {}),
+        )
+        .call()
+    )
+
+    draw_buffalo_herd_bar = (
+        draw_bar_chart.validate()
+        .handle_errors(task_instance_id="draw_buffalo_herd_bar")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            dataframe=cat_buffalo_bins,
+            category="buffalo_herd_sizebins",
+            layout_kwargs={
+                "font_size": 13,
+                "font_color": "#222222",
+                "plot_bgcolor": "#f5f5f5",
+                "title_x": 0.5,
+                "xaxis": {"title": "Group size"},
+                "yaxis": {"title": "Number of records"},
+                "showlegend": False,
+                "bargap": 0.1,
+            },
+            bar_chart_configs=[
+                {
+                    "column": "id",
+                    "agg_func": "count",
+                    "label": "",
+                    "style": {"marker_color": "lightsteelblue"},
+                }
+            ],
+            **(params_dict.get("draw_buffalo_herd_bar") or {}),
+        )
+        .call()
+    )
+
+    persist_buffalo_bar = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_buffalo_bar")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_buffalo_herd_bar,
+            filename="buffalo_herd_size_bar_chart.html",
+            **(params_dict.get("persist_buffalo_bar") or {}),
+        )
+        .call()
+    )
+
+    drop_null_buffalo_bins = (
+        drop_null_values.validate()
+        .handle_errors(task_instance_id="drop_null_buffalo_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=cat_buffalo_bins,
+            col="buffalo_herd_sizebins",
+            **(params_dict.get("drop_null_buffalo_bins") or {}),
+        )
+        .call()
+    )
+
+    apply_buffalo_color_bins = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_buffalo_color_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="buffalo_herd_sizebins",
+            output_column_name="colors",
+            colormap="Blues",
+            df=drop_null_buffalo_bins,
+            **(params_dict.get("apply_buffalo_color_bins") or {}),
+        )
+        .call()
+    )
+
+    generate_buffalo_herd_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_buffalo_herd_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": "buffalo_herd_size",
+                "line_width_min_pixels": 1,
+                "radius_units": "pixels",
+                "radius_scale": 0.025,
+                "opacity": 0.75,
+                "stroked": False,
+            },
+            legend={
+                "label_column": "buffalo_herd_sizebins",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_buffalo_color_bins,
+            **(params_dict.get("generate_buffalo_herd_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_buffalo_bins = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_buffalo_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_buffalo_color_bins,
+            **(params_dict.get("zoom_buffalo_bins") or {}),
+        )
+        .call()
+    )
+
+    combine_buffalo_bins = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_buffalo_bins")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_buffalo_herd_layers,
+            **(params_dict.get("combine_buffalo_bins") or {}),
+        )
+        .call()
+    )
+
+    draw_buffalo_herd_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_buffalo_herd_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Herd Size"},
+            geo_layers=combine_buffalo_bins,
+            view_state=zoom_buffalo_bins,
+            **(params_dict.get("draw_buffalo_herd_map") or {}),
+        )
+        .call()
+    )
+
+    persist_buffalo_herd_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_buffalo_herd_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_buffalo_herd_map,
+            filename="buffalo_herd_types_map.html",
+            **(params_dict.get("persist_buffalo_herd_urls") or {}),
+        )
+        .call()
+    )
+
+    retrieve_rhino_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="retrieve_rhino_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="rhino_sighting_rep",
+            df=exclude_event_type_values,
+            **(params_dict.get("retrieve_rhino_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_rhino_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_rhino_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=retrieve_rhino_events,
+            **(params_dict.get("normalize_rhino_values") or {}),
+        )
+        .call()
+    )
+
+    rhino_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="rhino_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["event_type"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=normalize_rhino_values,
+            **(params_dict.get("rhino_summary") or {}),
+        )
+        .call()
+    )
+
+    include_rhino_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_rhino_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["event_type"],
+            label="Total",
+            df=rhino_summary,
+            **(params_dict.get("include_rhino_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_rhino_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_rhino_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="rhino_events_recorded",
+            df=include_rhino_totals,
+            **(params_dict.get("persist_rhino_df") or {}),
+        )
+        .call()
+    )
+
+    exclude_rhino_outliers = (
+        exclude_geom_outliers.validate()
+        .handle_errors(task_instance_id="exclude_rhino_outliers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_rhino_values,
+            z_threshold=3,
+            **(params_dict.get("exclude_rhino_outliers") or {}),
+        )
+        .call()
+    )
+
+    remove_rhino_invalid_geoms = (
+        remove_invalid_point_geometries.validate()
+        .handle_errors(task_instance_id="remove_rhino_invalid_geoms")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            gdf=exclude_rhino_outliers,
+            **(params_dict.get("remove_rhino_invalid_geoms") or {}),
+        )
+        .call()
+    )
+
+    apply_rhino_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_rhino_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="event_type",
+            output_column_name="colors",
+            colormap="plasma",
+            df=remove_rhino_invalid_geoms,
+            **(params_dict.get("apply_rhino_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_rhino_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_rhino_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": "falseß",
+            },
+            legend={
+                "label_column": "event_type",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_rhino_colormap,
+            **(params_dict.get("generate_rhino_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_rhino_events = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_rhino_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=overall_grazing_zones,
+            **(params_dict.get("zoom_rhino_events") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_rhino = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_rhino")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_rhino_layers,
+            **(params_dict.get("combine_custom_rhino") or {}),
+        )
+        .call()
+    )
+
+    draw_rhino_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_rhino_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Legend"},
+            geo_layers=combine_custom_rhino,
+            view_state=zoom_rhino_events,
+            **(params_dict.get("draw_rhino_map") or {}),
+        )
+        .call()
+    )
+
+    persist_rhino_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_rhino_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_rhino_map,
+            filename="rhino_sighting_map.html",
+            **(params_dict.get("persist_rhino_urls") or {}),
+        )
+        .call()
+    )
+
+    retrieve_lion_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="retrieve_lion_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="lion_sighting_rep",
+            df=exclude_event_type_values,
+            **(params_dict.get("retrieve_lion_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_lion_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_lion_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=retrieve_lion_events,
+            **(params_dict.get("normalize_lion_values") or {}),
+        )
+        .call()
+    )
+
+    rename_lion_cols = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_lion_cols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__lionsightingrep_male": "lion_sight_male",
+                "event_details__lionsightingrep_pride": "lion_pride",
+                "event_details__lionsightingrep_young": "lion_sight_young",
+                "event_details__lionsightingrep_female": "lion_sight_female",
+                "event_details__lionsightingrep_behavior": "lion_behavior",
+                "event_details__lionsightingrep_groupsize": "lion_group_size",
+                "event_details__lionsightingrep_individual_present": "individual_present",
+            },
+            df=normalize_lion_values,
+            **(params_dict.get("rename_lion_cols") or {}),
+        )
+        .call()
+    )
+
+    lion_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="lion_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["event_type"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=rename_lion_cols,
+            **(params_dict.get("lion_summary") or {}),
+        )
+        .call()
+    )
+
+    include_lion_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_lion_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["event_type"],
+            label="Total",
+            df=lion_summary,
+            **(params_dict.get("include_lion_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_lion_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_lion_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="lion_events_recorded",
+            df=include_lion_totals,
+            **(params_dict.get("persist_lion_df") or {}),
+        )
+        .call()
+    )
+
+    remove_pride_str = (
+        remove_substring.validate()
+        .handle_errors(task_instance_id="remove_pride_str")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_lion_cols,
+            column="lion_pride",
+            value="pride",
+            **(params_dict.get("remove_pride_str") or {}),
+        )
+        .call()
+    )
+
+    lion_pride_scase = (
+        to_sentence_case.validate()
+        .handle_errors(task_instance_id="lion_pride_scase")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=remove_pride_str,
+            column="lion_pride",
+            **(params_dict.get("lion_pride_scase") or {}),
+        )
+        .call()
+    )
+
+    unique_lions_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="unique_lions_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["lion_pride"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=lion_pride_scase,
+            **(params_dict.get("unique_lions_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_unique_lions_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_unique_lions_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="unique_lion_prides",
+            df=unique_lions_summary,
+            **(params_dict.get("persist_unique_lions_df") or {}),
+        )
+        .call()
+    )
+
+    replace_ip_lion_nulls = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_ip_lion_nulls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=lion_pride_scase,
+            column_name="individual_present",
+            label="unspecified",
+            **(params_dict.get("replace_ip_lion_nulls") or {}),
+        )
+        .call()
+    )
+
+    replace_lp_lion_nulls = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_lp_lion_nulls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_ip_lion_nulls,
+            column_name="lion_pride",
+            label="unknown",
+            **(params_dict.get("replace_lp_lion_nulls") or {}),
+        )
+        .call()
+    )
+
+    exclude_lion_outliers = (
+        exclude_geom_outliers.validate()
+        .handle_errors(task_instance_id="exclude_lion_outliers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_lp_lion_nulls,
+            z_threshold=3,
+            **(params_dict.get("exclude_lion_outliers") or {}),
+        )
+        .call()
+    )
+
+    remove_lion_invalid_geoms = (
+        remove_invalid_point_geometries.validate()
+        .handle_errors(task_instance_id="remove_lion_invalid_geoms")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            gdf=exclude_lion_outliers,
+            **(params_dict.get("remove_lion_invalid_geoms") or {}),
+        )
+        .call()
+    )
+
+    apply_lion_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_lion_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="lion_pride",
+            output_column_name="colors",
+            colormap="Spectral",
+            df=remove_lion_invalid_geoms,
+            **(params_dict.get("apply_lion_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_lion_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_lion_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": False,
+            },
+            legend={
+                "label_column": "lion_pride",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_lion_colormap,
+            **(params_dict.get("generate_lion_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_lion_events = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_lion_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_lion_colormap,
+            **(params_dict.get("zoom_lion_events") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_lion = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_lion")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_lion_layers,
+            **(params_dict.get("combine_custom_lion") or {}),
+        )
+        .call()
+    )
+
+    draw_lion_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_lion_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Prides"},
+            geo_layers=combine_custom_lion,
+            view_state=zoom_lion_events,
+            **(params_dict.get("draw_lion_map") or {}),
+        )
+        .call()
+    )
+
+    persist_lion_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_lion_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_lion_map,
+            filename="lion_sightings_map.html",
+            **(params_dict.get("persist_lion_urls") or {}),
+        )
+        .call()
+    )
+
+    retrieve_leopard_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="retrieve_leopard_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="leopardsightingrep",
+            df=exclude_event_type_values,
+            **(params_dict.get("retrieve_leopard_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_leopard_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_leopard_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=retrieve_leopard_events,
+            **(params_dict.get("normalize_leopard_values") or {}),
+        )
+        .call()
+    )
+
+    rename_leopard_cols = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_leopard_cols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__leopardsightingrep_male": "leopard_sight_male",
+                "event_details__leopardsightingrep_young": "leopard_sight_young",
+                "event_details__leopardsightingrep_female": "leopard_sight_female",
+                "event_details__leopardsightingrep_behavior": "leopard_behavior",
+                "event_details__leopardsightingrep_groupsize": "leopard_group_size",
+                "event_details__leopardsightingrep_individual_present": "individual_present",
+            },
+            df=normalize_leopard_values,
+            **(params_dict.get("rename_leopard_cols") or {}),
+        )
+        .call()
+    )
+
+    replace_leopard_nulls = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_leopard_nulls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_leopard_cols,
+            column_name="individual_present",
+            label="unknown",
+            **(params_dict.get("replace_leopard_nulls") or {}),
+        )
+        .call()
+    )
+
+    remove_leopard_str = (
+        remove_substring.validate()
+        .handle_errors(task_instance_id="remove_leopard_str")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_leopard_nulls,
+            column="individual_present",
+            value="_",
+            **(params_dict.get("remove_leopard_str") or {}),
+        )
+        .call()
+    )
+
+    leopard_ip_scase = (
+        to_sentence_case.validate()
+        .handle_errors(task_instance_id="leopard_ip_scase")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=remove_leopard_str,
+            column="individual_present",
+            **(params_dict.get("leopard_ip_scase") or {}),
+        )
+        .call()
+    )
+
+    leopard_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="leopard_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["event_type"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=leopard_ip_scase,
+            **(params_dict.get("leopard_summary") or {}),
+        )
+        .call()
+    )
+
+    include_leopard_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_leopard_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["event_type"],
+            label="Total",
+            df=leopard_summary,
+            **(params_dict.get("include_leopard_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_leopard_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_leopard_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="leopard_events_recorded",
+            df=include_leopard_totals,
+            **(params_dict.get("persist_leopard_df") or {}),
+        )
+        .call()
+    )
+
+    unique_leopards_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="unique_leopards_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["individual_present"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=leopard_ip_scase,
+            **(params_dict.get("unique_leopards_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_leopards_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_leopards_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="individual_leopard_summary",
+            df=unique_leopards_summary,
+            **(params_dict.get("persist_leopards_df") or {}),
+        )
+        .call()
+    )
+
+    exclude_leopard_outliers = (
+        exclude_geom_outliers.validate()
+        .handle_errors(task_instance_id="exclude_leopard_outliers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=leopard_ip_scase,
+            z_threshold=3,
+            **(params_dict.get("exclude_leopard_outliers") or {}),
+        )
+        .call()
+    )
+
+    remove_leopard_invalid_geoms = (
+        remove_invalid_point_geometries.validate()
+        .handle_errors(task_instance_id="remove_leopard_invalid_geoms")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            gdf=exclude_leopard_outliers,
+            **(params_dict.get("remove_leopard_invalid_geoms") or {}),
+        )
+        .call()
+    )
+
+    apply_leopard_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_leopard_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="individual_present",
+            output_column_name="colors",
+            colormap="Spectral",
+            df=remove_leopard_invalid_geoms,
+            **(params_dict.get("apply_leopard_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_leopard_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_leopard_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": False,
+            },
+            legend={
+                "label_column": "individual_present",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_leopard_colormap,
+            **(params_dict.get("generate_leopard_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_leopard_events = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_leopard_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_leopard_colormap,
+            **(params_dict.get("zoom_leopard_events") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_leopard = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_leopard")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_leopard_layers,
+            **(params_dict.get("combine_custom_leopard") or {}),
+        )
+        .call()
+    )
+
+    draw_leopard_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_leopard_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Individual"},
+            geo_layers=combine_custom_leopard,
+            view_state=zoom_leopard_events,
+            **(params_dict.get("draw_leopard_map") or {}),
+        )
+        .call()
+    )
+
+    persist_leopard_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_leopard_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_leopard_map,
+            filename="leopard_sightings_map.html",
+            **(params_dict.get("persist_leopard_urls") or {}),
+        )
+        .call()
+    )
+
+    retrieve_cheetah_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="retrieve_cheetah_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="cheetah_sighting_rep",
+            df=exclude_event_type_values,
+            **(params_dict.get("retrieve_cheetah_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_cheetah_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_cheetah_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=retrieve_cheetah_events,
+            **(params_dict.get("normalize_cheetah_values") or {}),
+        )
+        .call()
+    )
+
+    rename_cheetah_cols = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_cheetah_cols")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__cheetahsightingrep_male": "cheetah_sight_male",
+                "event_details__cheetahsightingrep_female": "cheetah_sight_female",
+                "event_details__cheetahsightingrep_young": "cheetah_sight_young",
+                "event_details__cheetahsightingrep_behavior": "cheetah_behavior",
+                "event_details__cheetahsightingrep_groupsize": "cheetah_group_size",
+                "event_details__cheetahsightingrep_individual_present": "individual_present",
+            },
+            df=normalize_cheetah_values,
+            **(params_dict.get("rename_cheetah_cols") or {}),
+        )
+        .call()
+    )
+
+    replace_cheetah_nulls = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_cheetah_nulls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_cheetah_cols,
+            column_name="individual_present",
+            label="other",
+            **(params_dict.get("replace_cheetah_nulls") or {}),
+        )
+        .call()
+    )
+
+    cheetah_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="cheetah_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["event_type"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=replace_cheetah_nulls,
+            **(params_dict.get("cheetah_summary") or {}),
+        )
+        .call()
+    )
+
+    include_cheetah_totals = (
+        add_totals_row.validate()
+        .handle_errors(task_instance_id="include_cheetah_totals")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["event_type"],
+            label="Total",
+            df=cheetah_summary,
+            **(params_dict.get("include_cheetah_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_cheetah_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_cheetah_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="cheetah_events_recorded",
+            df=include_cheetah_totals,
+            **(params_dict.get("persist_cheetah_df") or {}),
+        )
+        .call()
+    )
+
+    unique_cheetah_summary = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="unique_cheetah_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["individual_present"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=replace_cheetah_nulls,
+            **(params_dict.get("unique_cheetah_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_cheetah_summary = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_cheetah_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="individual_cheetah_summary",
+            df=unique_cheetah_summary,
+            **(params_dict.get("persist_cheetah_summary") or {}),
+        )
+        .call()
+    )
+
+    exclude_cheetah_outliers = (
+        exclude_geom_outliers.validate()
+        .handle_errors(task_instance_id="exclude_cheetah_outliers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_cheetah_nulls,
+            z_threshold=3,
+            **(params_dict.get("exclude_cheetah_outliers") or {}),
+        )
+        .call()
+    )
+
+    remove_cheetah_invalid_geoms = (
+        remove_invalid_point_geometries.validate()
+        .handle_errors(task_instance_id="remove_cheetah_invalid_geoms")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            gdf=exclude_cheetah_outliers,
+            **(params_dict.get("remove_cheetah_invalid_geoms") or {}),
+        )
+        .call()
+    )
+
+    apply_cheetah_colormap = (
+        apply_color_map.validate()
+        .handle_errors(task_instance_id="apply_cheetah_colormap")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="individual_present",
+            output_column_name="colors",
+            colormap="Spectral",
+            df=remove_cheetah_invalid_geoms,
+            **(params_dict.get("apply_cheetah_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_cheetah_layers = (
+        create_scatterplot_layer.validate()
+        .handle_errors(task_instance_id="generate_cheetah_layers")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_radius": 5,
+                "opacity": 0.75,
+                "stroked": False,
+            },
+            legend={
+                "label_column": "individual_present",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=apply_cheetah_colormap,
+            **(params_dict.get("generate_cheetah_layers") or {}),
+        )
+        .call()
+    )
+
+    zoom_cheetah_events = (
+        view_state_deck_gdf.validate()
+        .handle_errors(task_instance_id="zoom_cheetah_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=apply_cheetah_colormap,
+            **(params_dict.get("zoom_cheetah_events") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_cheetah = (
+        merge_static_and_grouped_layers.validate()
+        .handle_errors(task_instance_id="combine_custom_cheetah")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, custom_text_layer],
+            grouped_layers=generate_cheetah_layers,
+            **(params_dict.get("combine_custom_cheetah") or {}),
+        )
+        .call()
+    )
+
+    draw_cheetah_map = (
+        draw_custom_map.validate()
+        .handle_errors(task_instance_id="draw_cheetah_map")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right", "title": "Individuals"},
+            geo_layers=combine_custom_cheetah,
+            view_state=zoom_cheetah_events,
+            **(params_dict.get("draw_cheetah_map") or {}),
+        )
+        .call()
+    )
+
+    persist_cheetah_urls = (
+        persist_text.validate()
+        .handle_errors(task_instance_id="persist_cheetah_urls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_cheetah_map,
+            filename="cheetah_sightings_map.html",
+            **(params_dict.get("persist_cheetah_urls") or {}),
+        )
+        .call()
+    )
+
+    filter_balloon_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="filter_balloon_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="balloon_sighting_rep",
+            df=exclude_event_type_values,
+            **(params_dict.get("filter_balloon_events") or {}),
+        )
+        .call()
+    )
+
+    filter_airstrip_events = (
+        filter_df.validate()
+        .handle_errors(task_instance_id="filter_airstrip_events")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="airstrip_operations",
+            df=exclude_event_type_values,
+            **(params_dict.get("filter_airstrip_events") or {}),
+        )
+        .call()
+    )
+
+    normalize_airstrip_values = (
+        normalize_column.validate()
+        .handle_errors(task_instance_id="normalize_airstrip_values")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=filter_airstrip_events,
+            **(params_dict.get("normalize_airstrip_values") or {}),
+        )
+        .call()
+    )
+
+    rename_airstrip = (
+        map_columns.validate()
+        .handle_errors(task_instance_id="rename_airstrip")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__guide": "guide",
+                "event_details__airline": "airline",
+                "event_details__attendant": "attendant",
+                "event_details__camplodge": "camp_lodge",
+                "event_details__flight_number": "flight_number",
+                "event_details__number_of_clients": "number_of_clients",
+                "event_details__arrival_or_departure": "arrival_or_departure",
+            },
+            df=normalize_airstrip_values,
+            **(params_dict.get("rename_airstrip") or {}),
+        )
+        .call()
+    )
+
+    remove_air_brackets = (
+        remove_brackets_from_column.validate()
+        .handle_errors(task_instance_id="remove_air_brackets")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_airstrip,
+            columns=["airline", "attendant", "camp_lodge", "arrival_or_departure"],
+            **(params_dict.get("remove_air_brackets") or {}),
+        )
+        .call()
+    )
+
+    replace_camp_lodge_nulls = (
+        replace_missing_with_label.validate()
+        .handle_errors(task_instance_id="replace_camp_lodge_nulls")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=remove_air_brackets,
+            column_name="camp_lodge",
+            label="other",
+            **(params_dict.get("replace_camp_lodge_nulls") or {}),
+        )
+        .call()
+    )
+
+    convert_clients_int = (
+        convert_to_int.validate()
+        .handle_errors(task_instance_id="convert_clients_int")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_camp_lodge_nulls,
+            columns=["number_of_clients"],
+            errors="coerce",
+            fill_value=0,
+            inplace=False,
+            **(params_dict.get("convert_clients_int") or {}),
+        )
+        .call()
+    )
+
+    airstrip_summary_table = (
+        summarize_df.validate()
+        .handle_errors(task_instance_id="airstrip_summary_table")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_clients_int,
+            groupby_cols=["camp_lodge", "arrival_or_departure"],
+            summary_params=[
+                {
+                    "display_name": "no_of_passengers",
+                    "aggregator": "sum",
+                    "column": "number_of_clients",
+                }
+            ],
+            reset_index=True,
+            **(params_dict.get("airstrip_summary_table") or {}),
+        )
+        .call()
+    )
+
+    pivot_airstrip_table = (
+        pivot_df.validate()
+        .handle_errors(task_instance_id="pivot_airstrip_table")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=airstrip_summary_table,
+            index_col="camp_lodge",
+            columns_col="arrival_or_departure",
+            values_col="no_of_passengers",
+            reset_idx=True,
+            **(params_dict.get("pivot_airstrip_table") or {}),
+        )
+        .call()
+    )
+
+    persist_airstrip_summary = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_airstrip_summary")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=pivot_airstrip_table,
+            filename="airstrip_arrivals_and_departure",
+            **(params_dict.get("persist_airstrip_summary") or {}),
+        )
+        .call()
+    )
+
+    conv_chart_png = (
+        html_snapshot.validate()
+        .handle_errors(task_instance_id="conv_chart_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=[
+                persist_precipitation,
+                persist_temperature,
+                persist_wind_speed,
+                persist_wind_gusts,
+                persist_soil_temp,
+                persist_rel_humidity,
+                persist_pressure,
+                persist_total_events,
+                persist_elephant_bar,
+                persist_buffalo_bar,
+            ],
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 200},
+            **(params_dict.get("conv_chart_png") or {}),
+        )
+        .call()
+    )
+
+    convert_foot_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_foot_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_foot_patrol_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_foot_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_vehicle_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_vehicle_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_vehicle_patrol_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_vehicle_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_motor_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_motor_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_motor_patrol_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_motor_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_grid_map_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_grid_map_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_grid_map_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_grid_map_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_mobile_boma_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_mobile_boma_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_mobile_boma_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_mobile_boma_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_livestock_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_livestock_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_livestock_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_livestock_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_wildlife_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_wildlife_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_wildlife_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_wildlife_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_elephant_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_elephant_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_elephant_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_elephant_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_ele_herd_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_ele_herd_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_ele_herd_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_ele_herd_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_buffalo_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_buffalo_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_buffalo_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_buffalo_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_buffalo_herd_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_buffalo_herd_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_buffalo_herd_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_buffalo_herd_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_rhino_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_rhino_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_rhino_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_rhino_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_lion_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_lion_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_lion_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_lion_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_leopard_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_leopard_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_leopard_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_leopard_html_png") or {}),
+        )
+        .call()
+    )
+
+    convert_cheetah_html_png = (
+        html_to_png.validate()
+        .handle_errors(task_instance_id="convert_cheetah_html_png")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_cheetah_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={"wait_for_timeout": 20000},
+            **(params_dict.get("convert_cheetah_html_png") or {}),
         )
         .call()
     )
@@ -2830,6 +7326,13 @@ def main(params: Params):
     mnc_events_dashboard = (
         gather_dashboard.validate()
         .handle_errors(task_instance_id="mnc_events_dashboard")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             details=workflow_details,
             widgets=[],

@@ -16,7 +16,7 @@ from ecoscope_workflows_core.tasks.transformation import (
     filter_df,
     map_columns,
 )
-from ecoscope_workflows_ext_custom.tasks.io import load_df
+from ecoscope_workflows_ext_custom.tasks.io import html_to_png, load_df
 from ecoscope_workflows_ext_custom.tasks.results import (
     create_path_layer,
     create_polygon_layer_pydeck,
@@ -35,7 +35,10 @@ from ecoscope_workflows_ext_ecoscope.tasks.preprocessing import (
     process_relocations,
     relocations_to_trajectory,
 )
-from ecoscope_workflows_ext_ecoscope.tasks.results import draw_line_chart
+from ecoscope_workflows_ext_ecoscope.tasks.results import (
+    draw_bar_chart,
+    draw_line_chart,
+)
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     apply_classification,
     apply_color_map,
@@ -43,6 +46,8 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
 )
 from ecoscope_workflows_ext_mnc.tasks import (
     add_totals_row,
+    bin_columns,
+    categorize_bins,
     classify_mnc_patrol,
     compute_occupancy,
     convert_to_int,
@@ -51,18 +56,25 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_styled_layers_from_dict,
     download_file_and_persist,
     draw_custom_map,
+    drop_null_values,
     exclude_by_value,
     exclude_geom_outliers,
+    filter_by_value,
     get_patrol_observations_from_patrols_dataframe_and_combined_params,
     get_patrols_from_combined_parameters,
+    html_snapshot,
+    make_event_summary_df,
     make_text_layer,
     merge_multiple_df,
     merge_static_and_grouped_layers,
+    pivot_df,
+    remove_brackets_from_column,
     remove_invalid_point_geometries,
+    remove_substring,
     replace_missing_with_label,
     round_values,
     split_gdf_by_column,
-    view_gdf,
+    to_sentence_case,
     view_state_deck_gdf,
 )
 
@@ -159,7 +171,7 @@ def main(params: Params):
         "persist_foot_df": ["add_fp_metrics_totals"],
         "apply_footp_colormap": ["rename_foot_trajs"],
         "generate_foot_layers": ["apply_footp_colormap"],
-        "zoom_foot_patrols": ["overall_grazing_zones"],
+        "zoom_foot_patrols": ["apply_footp_colormap"],
         "combine_custom_foot_patrols": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -171,13 +183,12 @@ def main(params: Params):
             "zoom_foot_patrols",
         ],
         "persist_foot_patrol_urls": ["draw_foot_patrol_map"],
-        "view_vehicle_patrols": ["rename_vehicle_trajs"],
         "vehicle_patrol_metrics": ["rename_vehicle_trajs"],
         "add_vh_metrics_totals": ["vehicle_patrol_metrics"],
         "persist_vehicle_df": ["add_vh_metrics_totals"],
         "apply_vehicle_colormap": ["rename_vehicle_trajs"],
         "generate_vehicle_layers": ["apply_vehicle_colormap"],
-        "zoom_vehicle_patrols": ["overall_grazing_zones"],
+        "zoom_vehicle_patrols": ["apply_vehicle_colormap"],
         "combine_custom_vehicle_patrols": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -254,20 +265,20 @@ def main(params: Params):
         "filter_predation": ["exclude_event_type_values"],
         "normalize_predation_values": ["filter_predation"],
         "persist_livestock_events": ["normalize_predation_values"],
-        "rename_livestock_predation": ["normalize_mb_values"],
+        "rename_livestock_predation": ["normalize_predation_values"],
         "replace_predator_nulls": ["rename_livestock_predation"],
         "replace_species_null": ["replace_predator_nulls"],
         "convert_livestock_int": ["replace_species_null"],
         "livestock_predation_summary": ["convert_livestock_int"],
-        "persist_livestock_df": ["include_mb_totals"],
+        "persist_livestock_df": ["livestock_predation_summary"],
         "livestock_events_recorded": ["convert_livestock_int"],
         "add_total_livestock": ["livestock_events_recorded"],
         "livestock_events_df": ["add_total_livestock"],
         "exclude_livestock_outliers": ["convert_livestock_int"],
         "remove_invalid_geoms": ["exclude_livestock_outliers"],
         "apply_livestock_colormap": ["remove_invalid_geoms"],
-        "generate_livestock_layers": ["apply_mb_colormap"],
-        "zoom_livestock_events": ["overall_grazing_zones"],
+        "generate_livestock_layers": ["apply_livestock_colormap"],
+        "zoom_livestock_events": ["apply_livestock_colormap"],
         "combine_custom_livestock": [
             "create_mnc_styled_layers",
             "custom_text_layer",
@@ -278,7 +289,256 @@ def main(params: Params):
             "combine_custom_livestock",
             "zoom_livestock_events",
         ],
-        "persist_livestock_urls": ["draw_mb_map"],
+        "persist_livestock_urls": ["draw_livestock_map"],
+        "filter_wildlife_events": ["exclude_event_type_values"],
+        "normalize_wildlife_events": ["filter_wildlife_events"],
+        "rename_wildlife_cols": ["normalize_wildlife_events"],
+        "generate_wild_summary": ["rename_wildlife_cols"],
+        "persist_wildlife_df": ["generate_wild_summary"],
+        "wildlife_events_recorded": ["rename_wildlife_cols"],
+        "add_total_wildlife": ["wildlife_events_recorded"],
+        "wildlife_events_df": ["add_total_wildlife"],
+        "exclude_wildlife_outliers": ["rename_wildlife_cols"],
+        "remove_invalid_wild_geoms": ["exclude_wildlife_outliers"],
+        "apply_wildlife_colormap": ["remove_invalid_wild_geoms"],
+        "generate_wildlife_layers": ["apply_wildlife_colormap"],
+        "zoom_wildlife_events": ["overall_grazing_zones"],
+        "combine_custom_wildlife": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_wildlife_layers",
+        ],
+        "draw_wildlife_map": [
+            "configure_base_maps",
+            "combine_custom_wildlife",
+            "zoom_wildlife_events",
+        ],
+        "persist_wildlife_urls": ["draw_wildlife_map"],
+        "retrieve_elephant_events": ["exclude_event_type_values"],
+        "normalize_elephant_values": ["retrieve_elephant_events"],
+        "rename_elephant_cols": ["normalize_elephant_values"],
+        "elephant_summary": ["rename_elephant_cols"],
+        "include_elephant_totals": ["elephant_summary"],
+        "persist_ele_df": ["include_elephant_totals"],
+        "replace_ele_nulls": ["rename_elephant_cols"],
+        "exclude_ele_outliers": ["replace_ele_nulls"],
+        "remove_ele_invalid_geoms": ["exclude_ele_outliers"],
+        "apply_ele_events_colormap": ["remove_ele_invalid_geoms"],
+        "generate_elephant_layers": ["apply_ele_events_colormap"],
+        "zoom_elephant_events": ["apply_ele_events_colormap"],
+        "combine_custom_ele": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_elephant_layers",
+        ],
+        "draw_elephant_map": [
+            "configure_base_maps",
+            "combine_custom_ele",
+            "zoom_elephant_events",
+        ],
+        "persist_elephant_urls": ["draw_elephant_map"],
+        "elephant_herd_summary": ["rename_elephant_cols"],
+        "total_ele_composition": ["elephant_herd_summary"],
+        "persist_ele_summary": ["total_ele_composition"],
+        "bin_elephant_herd_col": ["rename_elephant_cols"],
+        "cat_elephant_bins": ["bin_elephant_herd_col"],
+        "draw_elephant_herd_bar": ["cat_elephant_bins"],
+        "persist_elephant_bar": ["draw_elephant_herd_bar"],
+        "drop_null_ele_bins": ["cat_elephant_bins"],
+        "apply_ele_color_bins": ["drop_null_ele_bins"],
+        "generate_ele_herd_layers": ["apply_ele_color_bins"],
+        "zoom_ele_bins": ["apply_ele_color_bins"],
+        "combine_ele_bins": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_ele_herd_layers",
+        ],
+        "draw_ele_herd_map": [
+            "configure_base_maps",
+            "combine_ele_bins",
+            "zoom_ele_bins",
+        ],
+        "persist_ele_herd_urls": ["draw_ele_herd_map"],
+        "retrieve_buffalo_events": ["exclude_event_type_values"],
+        "normalize_buffalo_values": ["retrieve_buffalo_events"],
+        "rename_buffalo_cols": ["normalize_buffalo_values"],
+        "buffalo_summary": ["rename_buffalo_cols"],
+        "include_buffalo_totals": ["buffalo_summary"],
+        "persist_buffalo_df": ["include_buffalo_totals"],
+        "replace_buffalo_nulls": ["rename_buffalo_cols"],
+        "exclude_buffalo_outliers": ["replace_buffalo_nulls"],
+        "remove_buffalo_invalid_geoms": ["exclude_buffalo_outliers"],
+        "apply_buffalo_colormap": ["remove_buffalo_invalid_geoms"],
+        "generate_buffalo_layers": ["apply_buffalo_colormap"],
+        "zoom_buffalo_events": ["apply_buffalo_colormap"],
+        "combine_custom_buffalo": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_buffalo_layers",
+        ],
+        "draw_buffalo_map": [
+            "configure_base_maps",
+            "combine_custom_buffalo",
+            "zoom_buffalo_events",
+        ],
+        "persist_buffalo_urls": ["draw_buffalo_map"],
+        "bin_buffalo_herd_col": ["rename_buffalo_cols"],
+        "cat_buffalo_bins": ["bin_buffalo_herd_col"],
+        "draw_buffalo_herd_bar": ["cat_buffalo_bins"],
+        "persist_buffalo_bar": ["draw_buffalo_herd_bar"],
+        "drop_null_buffalo_bins": ["cat_buffalo_bins"],
+        "apply_buffalo_color_bins": ["drop_null_buffalo_bins"],
+        "generate_buffalo_herd_layers": ["apply_buffalo_color_bins"],
+        "zoom_buffalo_bins": ["apply_buffalo_color_bins"],
+        "combine_buffalo_bins": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_buffalo_herd_layers",
+        ],
+        "draw_buffalo_herd_map": [
+            "configure_base_maps",
+            "combine_buffalo_bins",
+            "zoom_buffalo_bins",
+        ],
+        "persist_buffalo_herd_urls": ["draw_buffalo_herd_map"],
+        "retrieve_rhino_events": ["exclude_event_type_values"],
+        "normalize_rhino_values": ["retrieve_rhino_events"],
+        "rhino_summary": ["normalize_rhino_values"],
+        "include_rhino_totals": ["rhino_summary"],
+        "persist_rhino_df": ["include_rhino_totals"],
+        "exclude_rhino_outliers": ["normalize_rhino_values"],
+        "remove_rhino_invalid_geoms": ["exclude_rhino_outliers"],
+        "apply_rhino_colormap": ["remove_rhino_invalid_geoms"],
+        "generate_rhino_layers": ["apply_rhino_colormap"],
+        "zoom_rhino_events": ["overall_grazing_zones"],
+        "combine_custom_rhino": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_rhino_layers",
+        ],
+        "draw_rhino_map": [
+            "configure_base_maps",
+            "combine_custom_rhino",
+            "zoom_rhino_events",
+        ],
+        "persist_rhino_urls": ["draw_rhino_map"],
+        "retrieve_lion_events": ["exclude_event_type_values"],
+        "normalize_lion_values": ["retrieve_lion_events"],
+        "rename_lion_cols": ["normalize_lion_values"],
+        "lion_summary": ["rename_lion_cols"],
+        "include_lion_totals": ["lion_summary"],
+        "persist_lion_df": ["include_lion_totals"],
+        "remove_pride_str": ["rename_lion_cols"],
+        "lion_pride_scase": ["remove_pride_str"],
+        "unique_lions_summary": ["lion_pride_scase"],
+        "persist_unique_lions_df": ["unique_lions_summary"],
+        "replace_ip_lion_nulls": ["lion_pride_scase"],
+        "replace_lp_lion_nulls": ["replace_ip_lion_nulls"],
+        "exclude_lion_outliers": ["replace_lp_lion_nulls"],
+        "remove_lion_invalid_geoms": ["exclude_lion_outliers"],
+        "apply_lion_colormap": ["remove_lion_invalid_geoms"],
+        "generate_lion_layers": ["apply_lion_colormap"],
+        "zoom_lion_events": ["apply_lion_colormap"],
+        "combine_custom_lion": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_lion_layers",
+        ],
+        "draw_lion_map": [
+            "configure_base_maps",
+            "combine_custom_lion",
+            "zoom_lion_events",
+        ],
+        "persist_lion_urls": ["draw_lion_map"],
+        "retrieve_leopard_events": ["exclude_event_type_values"],
+        "normalize_leopard_values": ["retrieve_leopard_events"],
+        "rename_leopard_cols": ["normalize_leopard_values"],
+        "replace_leopard_nulls": ["rename_leopard_cols"],
+        "remove_leopard_str": ["replace_leopard_nulls"],
+        "leopard_ip_scase": ["remove_leopard_str"],
+        "leopard_summary": ["leopard_ip_scase"],
+        "include_leopard_totals": ["leopard_summary"],
+        "persist_leopard_df": ["include_leopard_totals"],
+        "unique_leopards_summary": ["leopard_ip_scase"],
+        "persist_leopards_df": ["unique_leopards_summary"],
+        "exclude_leopard_outliers": ["leopard_ip_scase"],
+        "remove_leopard_invalid_geoms": ["exclude_leopard_outliers"],
+        "apply_leopard_colormap": ["remove_leopard_invalid_geoms"],
+        "generate_leopard_layers": ["apply_leopard_colormap"],
+        "zoom_leopard_events": ["apply_leopard_colormap"],
+        "combine_custom_leopard": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_leopard_layers",
+        ],
+        "draw_leopard_map": [
+            "configure_base_maps",
+            "combine_custom_leopard",
+            "zoom_leopard_events",
+        ],
+        "persist_leopard_urls": ["draw_leopard_map"],
+        "retrieve_cheetah_events": ["exclude_event_type_values"],
+        "normalize_cheetah_values": ["retrieve_cheetah_events"],
+        "rename_cheetah_cols": ["normalize_cheetah_values"],
+        "replace_cheetah_nulls": ["rename_cheetah_cols"],
+        "cheetah_summary": ["replace_cheetah_nulls"],
+        "include_cheetah_totals": ["cheetah_summary"],
+        "persist_cheetah_df": ["include_cheetah_totals"],
+        "unique_cheetah_summary": ["replace_cheetah_nulls"],
+        "persist_cheetah_summary": ["unique_cheetah_summary"],
+        "exclude_cheetah_outliers": ["replace_cheetah_nulls"],
+        "remove_cheetah_invalid_geoms": ["exclude_cheetah_outliers"],
+        "apply_cheetah_colormap": ["remove_cheetah_invalid_geoms"],
+        "generate_cheetah_layers": ["apply_cheetah_colormap"],
+        "zoom_cheetah_events": ["apply_cheetah_colormap"],
+        "combine_custom_cheetah": [
+            "create_mnc_styled_layers",
+            "custom_text_layer",
+            "generate_cheetah_layers",
+        ],
+        "draw_cheetah_map": [
+            "configure_base_maps",
+            "combine_custom_cheetah",
+            "zoom_cheetah_events",
+        ],
+        "persist_cheetah_urls": ["draw_cheetah_map"],
+        "filter_balloon_events": ["exclude_event_type_values"],
+        "filter_airstrip_events": ["exclude_event_type_values"],
+        "normalize_airstrip_values": ["filter_airstrip_events"],
+        "rename_airstrip": ["normalize_airstrip_values"],
+        "remove_air_brackets": ["rename_airstrip"],
+        "replace_camp_lodge_nulls": ["remove_air_brackets"],
+        "convert_clients_int": ["replace_camp_lodge_nulls"],
+        "airstrip_summary_table": ["convert_clients_int"],
+        "pivot_airstrip_table": ["airstrip_summary_table"],
+        "persist_airstrip_summary": ["pivot_airstrip_table"],
+        "conv_chart_png": [
+            "persist_precipitation",
+            "persist_temperature",
+            "persist_wind_speed",
+            "persist_wind_gusts",
+            "persist_soil_temp",
+            "persist_rel_humidity",
+            "persist_pressure",
+            "persist_total_events",
+            "persist_elephant_bar",
+            "persist_buffalo_bar",
+        ],
+        "convert_foot_html_png": ["persist_foot_patrol_urls"],
+        "convert_vehicle_html_png": ["persist_vehicle_patrol_urls"],
+        "convert_motor_html_png": ["persist_motor_patrol_urls"],
+        "convert_grid_map_html_png": ["persist_grid_map_urls"],
+        "convert_mobile_boma_html_png": ["persist_mobile_boma_urls"],
+        "convert_livestock_html_png": ["persist_livestock_urls"],
+        "convert_wildlife_html_png": ["persist_wildlife_urls"],
+        "convert_elephant_html_png": ["persist_elephant_urls"],
+        "convert_ele_herd_html_png": ["persist_ele_herd_urls"],
+        "convert_buffalo_html_png": ["persist_buffalo_urls"],
+        "convert_buffalo_herd_html_png": ["persist_buffalo_herd_urls"],
+        "convert_rhino_html_png": ["persist_rhino_urls"],
+        "convert_lion_html_png": ["persist_lion_urls"],
+        "convert_leopard_html_png": ["persist_leopard_urls"],
+        "convert_cheetah_html_png": ["persist_cheetah_urls"],
         "mnc_events_dashboard": ["workflow_details", "time_range", "groupers"],
     }
 
@@ -286,6 +546,13 @@ def main(params: Params):
         "workflow_details": Node(
             async_task=set_workflow_details.validate()
             .handle_errors(task_instance_id="workflow_details")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial=(params_dict.get("workflow_details") or {}),
             method="call",
@@ -293,6 +560,13 @@ def main(params: Params):
         "time_range": Node(
             async_task=set_time_range.validate()
             .handle_errors(task_instance_id="time_range")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "time_format": "%d %b %Y %H:%M:%S %Z",
@@ -303,6 +577,13 @@ def main(params: Params):
         "groupers": Node(
             async_task=set_groupers.validate()
             .handle_errors(task_instance_id="groupers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupers": [],
@@ -313,6 +594,13 @@ def main(params: Params):
         "er_client_name": Node(
             async_task=set_er_connection.validate()
             .handle_errors(task_instance_id="er_client_name")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial=(params_dict.get("er_client_name") or {}),
             method="call",
@@ -320,6 +608,13 @@ def main(params: Params):
         "configure_base_maps": Node(
             async_task=set_base_maps_pydeck.validate()
             .handle_errors(task_instance_id="configure_base_maps")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial=(params_dict.get("configure_base_maps") or {}),
             method="call",
@@ -327,6 +622,13 @@ def main(params: Params):
         "persist_mnc_tpt": Node(
             async_task=download_file_and_persist.validate()
             .handle_errors(task_instance_id="persist_mnc_tpt")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "url": "https://www.dropbox.com/scl/fi/wkzd2lm1t5rzidie9wl2j/mara_north_conservancy_report_template_v4.docx?rlkey=os9ffgdk737dc60n568jfrct2&st=zo3i4ovj&dl=0",
@@ -341,6 +643,13 @@ def main(params: Params):
         "persist_mnc_gpkg": Node(
             async_task=download_file_and_persist.validate()
             .handle_errors(task_instance_id="persist_mnc_gpkg")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "url": "https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=55vxskq6&dl=0",
@@ -355,6 +664,13 @@ def main(params: Params):
         "load_local_shapefiles": Node(
             async_task=load_df.validate()
             .handle_errors(task_instance_id="load_local_shapefiles")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "file_path": DependsOn("persist_mnc_gpkg"),
@@ -367,6 +683,13 @@ def main(params: Params):
         "split_gdf_by_zone": Node(
             async_task=split_gdf_by_column.validate()
             .handle_errors(task_instance_id="split_gdf_by_zone")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "gdf": DependsOn("load_local_shapefiles"),
@@ -378,6 +701,13 @@ def main(params: Params):
         "create_mnc_styled_layers": Node(
             async_task=create_styled_layers_from_dict.validate()
             .handle_errors(task_instance_id="create_mnc_styled_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "gdf_dict": DependsOn("split_gdf_by_zone"),
@@ -439,7 +769,7 @@ def main(params: Params):
                         },
                     },
                     "legend": {
-                        "labels": [
+                        "label": [
                             "Conservancy boundaries",
                             "Conservancy herd zone",
                             "Grazing zone 1",
@@ -464,6 +794,13 @@ def main(params: Params):
         "conservancy_gdf": Node(
             async_task=create_gdf_from_dict.validate()
             .handle_errors(task_instance_id="conservancy_gdf")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "gdf_dict": DependsOn("split_gdf_by_zone"),
@@ -475,6 +812,13 @@ def main(params: Params):
         "overall_grazing_zones": Node(
             async_task=filter_df.validate()
             .handle_errors(task_instance_id="overall_grazing_zones")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column_name": "grazing_zone",
@@ -488,6 +832,13 @@ def main(params: Params):
         "custom_text_layer": Node(
             async_task=make_text_layer.validate()
             .handle_errors(task_instance_id="custom_text_layer")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "txt_gdf": DependsOn("conservancy_gdf"),
@@ -495,7 +846,7 @@ def main(params: Params):
                 "fallback_columns": ["name"],
                 "use_centroid": True,
                 "color": [0, 0, 0, 255],
-                "size": 80,
+                "size": 78,
                 "font_family": "Arial",
                 "font_weight": "normal",
                 "background": False,
@@ -514,6 +865,13 @@ def main(params: Params):
         "subject_observations": Node(
             async_task=get_subjectgroup_observations.validate()
             .handle_errors(task_instance_id="subject_observations")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "client": DependsOn("er_client_name"),
@@ -528,6 +886,13 @@ def main(params: Params):
         "extract_precipitation": Node(
             async_task=extract_value_from_json_column.validate()
             .handle_errors(task_instance_id="extract_precipitation")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("subject_observations"),
@@ -542,6 +907,13 @@ def main(params: Params):
         "extract_temperature": Node(
             async_task=extract_value_from_json_column.validate()
             .handle_errors(task_instance_id="extract_temperature")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_precipitation"),
@@ -556,6 +928,13 @@ def main(params: Params):
         "extract_wind_speed": Node(
             async_task=extract_value_from_json_column.validate()
             .handle_errors(task_instance_id="extract_wind_speed")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_temperature"),
@@ -570,6 +949,13 @@ def main(params: Params):
         "extract_wind_gusts": Node(
             async_task=extract_value_from_json_column.validate()
             .handle_errors(task_instance_id="extract_wind_gusts")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_wind_speed"),
@@ -584,6 +970,13 @@ def main(params: Params):
         "extract_soil_temperature": Node(
             async_task=extract_value_from_json_column.validate()
             .handle_errors(task_instance_id="extract_soil_temperature")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_wind_gusts"),
@@ -598,6 +991,13 @@ def main(params: Params):
         "extract_relative_humidity": Node(
             async_task=extract_value_from_json_column.validate()
             .handle_errors(task_instance_id="extract_relative_humidity")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_soil_temperature"),
@@ -612,6 +1012,13 @@ def main(params: Params):
         "extract_pressure": Node(
             async_task=extract_value_from_json_column.validate()
             .handle_errors(task_instance_id="extract_pressure")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_relative_humidity"),
@@ -626,6 +1033,13 @@ def main(params: Params):
         "extract_date": Node(
             async_task=extract_column_as_type.validate()
             .handle_errors(task_instance_id="extract_date")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_pressure"),
@@ -639,6 +1053,13 @@ def main(params: Params):
         "rename_grouper_columns": Node(
             async_task=map_columns.validate()
             .handle_errors(task_instance_id="rename_grouper_columns")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_date"),
@@ -652,6 +1073,13 @@ def main(params: Params):
         "df_with_temporal_index": Node(
             async_task=add_temporal_index.validate()
             .handle_errors(task_instance_id="df_with_temporal_index")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("rename_grouper_columns"),
@@ -664,6 +1092,13 @@ def main(params: Params):
         "daily_weather": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="daily_weather")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("df_with_temporal_index"),
@@ -713,6 +1148,13 @@ def main(params: Params):
         "persist_daily_weather_summary": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_daily_weather_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -726,6 +1168,13 @@ def main(params: Params):
         "precipitation_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="precipitation_chart")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "dataframe": DependsOn("daily_weather"),
@@ -761,6 +1210,13 @@ def main(params: Params):
         "persist_precipitation": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_precipitation")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -773,6 +1229,13 @@ def main(params: Params):
         "temperature_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="temperature_chart")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "dataframe": DependsOn("daily_weather"),
@@ -805,6 +1268,13 @@ def main(params: Params):
         "persist_temperature": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_temperature")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -817,6 +1287,13 @@ def main(params: Params):
         "wind_speed_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="wind_speed_chart")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "dataframe": DependsOn("daily_weather"),
@@ -849,6 +1326,13 @@ def main(params: Params):
         "persist_wind_speed": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_wind_speed")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -861,6 +1345,13 @@ def main(params: Params):
         "wind_gusts_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="wind_gusts_chart")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "dataframe": DependsOn("daily_weather"),
@@ -893,6 +1384,13 @@ def main(params: Params):
         "persist_wind_gusts": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_wind_gusts")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -905,6 +1403,13 @@ def main(params: Params):
         "soil_temp_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="soil_temp_chart")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "dataframe": DependsOn("daily_weather"),
@@ -937,6 +1442,13 @@ def main(params: Params):
         "persist_soil_temp": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_soil_temp")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -949,6 +1461,13 @@ def main(params: Params):
         "rel_humidity_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="rel_humidity_chart")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "dataframe": DependsOn("daily_weather"),
@@ -981,6 +1500,13 @@ def main(params: Params):
         "persist_rel_humidity": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_rel_humidity")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -993,6 +1519,13 @@ def main(params: Params):
         "pressure_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="pressure_chart")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "dataframe": DependsOn("daily_weather"),
@@ -1025,6 +1558,13 @@ def main(params: Params):
         "persist_pressure": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_pressure")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1037,6 +1577,13 @@ def main(params: Params):
         "get_events_data": Node(
             async_task=get_events.validate()
             .handle_errors(task_instance_id="get_events_data")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "client": DependsOn("er_client_name"),
@@ -1065,6 +1612,13 @@ def main(params: Params):
         "extract_event_date": Node(
             async_task=extract_column_as_type.validate()
             .handle_errors(task_instance_id="extract_event_date")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("get_events_data"),
@@ -1078,6 +1632,13 @@ def main(params: Params):
         "events_wtemporal": Node(
             async_task=add_temporal_index.validate()
             .handle_errors(task_instance_id="events_wtemporal")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("extract_event_date"),
@@ -1090,6 +1651,13 @@ def main(params: Params):
         "exclude_event_type_values": Node(
             async_task=exclude_by_value.validate()
             .handle_errors(task_instance_id="exclude_event_type_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("events_wtemporal"),
@@ -1102,6 +1670,13 @@ def main(params: Params):
         "total_events_recorded": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="total_events_recorded")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["date"],
@@ -1121,6 +1696,13 @@ def main(params: Params):
         "add_total_events_row": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="add_total_events_row")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": ["date"],
@@ -1133,6 +1715,13 @@ def main(params: Params):
         "persist_tevents_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_tevents_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1146,6 +1735,13 @@ def main(params: Params):
         "draw_events_chart": Node(
             async_task=draw_line_chart.validate()
             .handle_errors(task_instance_id="draw_events_chart")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "dataframe": DependsOn("total_events_recorded"),
@@ -1177,6 +1773,13 @@ def main(params: Params):
         "persist_total_events": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_total_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1189,6 +1792,13 @@ def main(params: Params):
         "total_events_type_recorded": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="total_events_type_recorded")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["date", "event_type"],
@@ -1208,6 +1818,13 @@ def main(params: Params):
         "persist_summary_event_type": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_summary_event_type")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1221,6 +1838,13 @@ def main(params: Params):
         "filter_patrol_info_events": Node(
             async_task=filter_df.validate()
             .handle_errors(task_instance_id="filter_patrol_info_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column_name": "event_type",
@@ -1234,6 +1858,13 @@ def main(params: Params):
         "normalize_pi_values": Node(
             async_task=normalize_column.validate()
             .handle_errors(task_instance_id="normalize_pi_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column": "event_details",
@@ -1245,6 +1876,13 @@ def main(params: Params):
         "rename_patrol_info": Node(
             async_task=map_columns.validate()
             .handle_errors(task_instance_id="rename_patrol_info")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "drop_columns": [],
@@ -1262,13 +1900,20 @@ def main(params: Params):
         "patrol_info_summary": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="patrol_info_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["purpose"],
                 "summary_params": [
                     {
                         "display_name": "no_of_patrols",
-                        "aggregator": "count",
+                        "aggregator": "nunique",
                         "column": "id",
                     }
                 ],
@@ -1281,6 +1926,13 @@ def main(params: Params):
         "include_pat_totals": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="include_pat_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": ["purpose"],
@@ -1293,6 +1945,13 @@ def main(params: Params):
         "persist_patrol_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_patrol_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1306,6 +1965,13 @@ def main(params: Params):
         "er_patrol_and_events_params": Node(
             async_task=set_patrols_and_patrol_events_params.validate()
             .handle_errors(task_instance_id="er_patrol_and_events_params")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "client": DependsOn("er_client_name"),
@@ -1368,6 +2034,13 @@ def main(params: Params):
         "prefetch_patrols": Node(
             async_task=get_patrols_from_combined_params.validate()
             .handle_errors(task_instance_id="prefetch_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "combined_params": DependsOn("er_patrol_and_events_params"),
@@ -1378,6 +2051,13 @@ def main(params: Params):
         "get_patrol_events_params": Node(
             async_task=get_patrols_from_combined_parameters.validate()
             .handle_errors(task_instance_id="get_patrol_events_params")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "combined_params": {
@@ -1438,6 +2118,13 @@ def main(params: Params):
         "patrol_observations": Node(
             async_task=get_patrol_observations_from_patrols_dataframe_and_combined_params.validate()
             .handle_errors(task_instance_id="patrol_observations")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "patrols_df": DependsOn("get_patrol_events_params"),
@@ -1499,6 +2186,13 @@ def main(params: Params):
         "map_patrol_types": Node(
             async_task=classify_mnc_patrol.validate()
             .handle_errors(task_instance_id="map_patrol_types")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("patrol_observations"),
@@ -1511,6 +2205,13 @@ def main(params: Params):
         "filter_foot_patrols": Node(
             async_task=filter_df.validate()
             .handle_errors(task_instance_id="filter_foot_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column_name": "patrol_cat_types",
@@ -1524,6 +2225,13 @@ def main(params: Params):
         "filter_vehicle_patrols": Node(
             async_task=filter_df.validate()
             .handle_errors(task_instance_id="filter_vehicle_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column_name": "patrol_cat_types",
@@ -1537,6 +2245,13 @@ def main(params: Params):
         "filter_motor_patrols": Node(
             async_task=filter_df.validate()
             .handle_errors(task_instance_id="filter_motor_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column_name": "patrol_cat_types",
@@ -1550,6 +2265,13 @@ def main(params: Params):
         "foot_patrols": Node(
             async_task=process_relocations.validate()
             .handle_errors(task_instance_id="foot_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "observations": DependsOn("filter_foot_patrols"),
@@ -1583,6 +2305,13 @@ def main(params: Params):
         "vehicle_patrols": Node(
             async_task=process_relocations.validate()
             .handle_errors(task_instance_id="vehicle_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "observations": DependsOn("filter_vehicle_patrols"),
@@ -1616,6 +2345,13 @@ def main(params: Params):
         "motorbike_patrols": Node(
             async_task=process_relocations.validate()
             .handle_errors(task_instance_id="motorbike_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "observations": DependsOn("filter_motor_patrols"),
@@ -1649,6 +2385,13 @@ def main(params: Params):
         "foot_trajs": Node(
             async_task=relocations_to_trajectory.validate()
             .handle_errors(task_instance_id="foot_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "relocations": DependsOn("foot_patrols"),
@@ -1659,6 +2402,13 @@ def main(params: Params):
         "vehicle_trajs": Node(
             async_task=relocations_to_trajectory.validate()
             .handle_errors(task_instance_id="vehicle_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "relocations": DependsOn("vehicle_patrols"),
@@ -1669,6 +2419,13 @@ def main(params: Params):
         "motor_trajs": Node(
             async_task=relocations_to_trajectory.validate()
             .handle_errors(task_instance_id="motor_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "relocations": DependsOn("motorbike_patrols"),
@@ -1679,6 +2436,13 @@ def main(params: Params):
         "temporal_foot_traj": Node(
             async_task=add_temporal_index.validate()
             .handle_errors(task_instance_id="temporal_foot_traj")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("foot_trajs"),
@@ -1693,6 +2457,13 @@ def main(params: Params):
         "temporal_vehicle_traj": Node(
             async_task=add_temporal_index.validate()
             .handle_errors(task_instance_id="temporal_vehicle_traj")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("vehicle_trajs"),
@@ -1707,6 +2478,13 @@ def main(params: Params):
         "temporal_motor_traj": Node(
             async_task=add_temporal_index.validate()
             .handle_errors(task_instance_id="temporal_motor_traj")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("motor_trajs"),
@@ -1721,6 +2499,13 @@ def main(params: Params):
         "rename_foot_trajs": Node(
             async_task=map_columns.validate()
             .handle_errors(task_instance_id="rename_foot_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "drop_columns": ["heading", "extra__created_at", "extra__id"],
@@ -1745,6 +2530,13 @@ def main(params: Params):
         "rename_vehicle_trajs": Node(
             async_task=map_columns.validate()
             .handle_errors(task_instance_id="rename_vehicle_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "drop_columns": ["heading", "extra__created_at", "extra__id"],
@@ -1769,6 +2561,13 @@ def main(params: Params):
         "rename_motor_trajs": Node(
             async_task=map_columns.validate()
             .handle_errors(task_instance_id="rename_motor_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "drop_columns": ["heading", "extra__created_at", "extra__id"],
@@ -1793,6 +2592,13 @@ def main(params: Params):
         "foot_patrol_metrics": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="foot_patrol_metrics")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["patrol_type_value"],
@@ -1826,6 +2632,13 @@ def main(params: Params):
         "add_fp_metrics_totals": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="add_fp_metrics_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": ["patrol_type_value"],
@@ -1838,6 +2651,13 @@ def main(params: Params):
         "persist_foot_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_foot_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1851,6 +2671,13 @@ def main(params: Params):
         "apply_footp_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_footp_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "patrol_type_value",
@@ -1899,11 +2726,18 @@ def main(params: Params):
         "zoom_foot_patrols": Node(
             async_task=view_state_deck_gdf.validate()
             .handle_errors(task_instance_id="zoom_foot_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("overall_grazing_zones"),
+                "gdf": DependsOn("apply_footp_colormap"),
             }
             | (params_dict.get("zoom_foot_patrols") or {}),
             method="call",
@@ -1911,6 +2745,13 @@ def main(params: Params):
         "combine_custom_foot_patrols": Node(
             async_task=merge_static_and_grouped_layers.validate()
             .handle_errors(task_instance_id="combine_custom_foot_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "static_layers": DependsOnSequence(
@@ -1927,16 +2768,20 @@ def main(params: Params):
         "draw_foot_patrol_map": Node(
             async_task=draw_custom_map.validate()
             .handle_errors(task_instance_id="draw_foot_patrol_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
                 "max_zoom": 15,
-                "legend_style": {
-                    "placement": "bottom-right",
-                    "title": "Foot patrol types",
-                },
+                "legend_style": {"placement": "bottom-right", "title": "Foot patrols"},
                 "geo_layers": DependsOn("combine_custom_foot_patrols"),
                 "view_state": DependsOn("zoom_foot_patrols"),
             }
@@ -1946,6 +2791,13 @@ def main(params: Params):
         "persist_foot_patrol_urls": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_foot_patrol_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -1953,17 +2805,6 @@ def main(params: Params):
                 "filename": "foot_patrols_map.html",
             }
             | (params_dict.get("persist_foot_patrol_urls") or {}),
-            method="call",
-        ),
-        "view_vehicle_patrols": Node(
-            async_task=view_gdf.validate()
-            .handle_errors(task_instance_id="view_vehicle_patrols")
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("rename_vehicle_trajs"),
-                "name": "vehicle patrol metrics",
-            }
-            | (params_dict.get("view_vehicle_patrols") or {}),
             method="call",
         ),
         "vehicle_patrol_metrics": Node(
@@ -2009,6 +2850,13 @@ def main(params: Params):
         "add_vh_metrics_totals": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="add_vh_metrics_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": ["patrol_type_value"],
@@ -2021,6 +2869,13 @@ def main(params: Params):
         "persist_vehicle_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_vehicle_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2034,6 +2889,13 @@ def main(params: Params):
         "apply_vehicle_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_vehicle_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "patrol_type_value",
@@ -2082,11 +2944,18 @@ def main(params: Params):
         "zoom_vehicle_patrols": Node(
             async_task=view_state_deck_gdf.validate()
             .handle_errors(task_instance_id="zoom_vehicle_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("overall_grazing_zones"),
+                "gdf": DependsOn("apply_vehicle_colormap"),
             }
             | (params_dict.get("zoom_vehicle_patrols") or {}),
             method="call",
@@ -2094,6 +2963,13 @@ def main(params: Params):
         "combine_custom_vehicle_patrols": Node(
             async_task=merge_static_and_grouped_layers.validate()
             .handle_errors(task_instance_id="combine_custom_vehicle_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "static_layers": DependsOnSequence(
@@ -2110,6 +2986,13 @@ def main(params: Params):
         "draw_vehicle_patrol_map": Node(
             async_task=draw_custom_map.validate()
             .handle_errors(task_instance_id="draw_vehicle_patrol_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
@@ -2118,7 +3001,7 @@ def main(params: Params):
                 "max_zoom": 15,
                 "legend_style": {
                     "placement": "bottom-right",
-                    "title": "Vehicle patrol types",
+                    "title": "Vehicle patrols",
                 },
                 "geo_layers": DependsOn("combine_custom_vehicle_patrols"),
                 "view_state": DependsOn("zoom_vehicle_patrols"),
@@ -2129,6 +3012,13 @@ def main(params: Params):
         "persist_vehicle_patrol_urls": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_vehicle_patrol_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2141,6 +3031,13 @@ def main(params: Params):
         "motor_patrol_metrics": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="motor_patrol_metrics")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["patrol_type_value"],
@@ -2174,6 +3071,13 @@ def main(params: Params):
         "add_mb_metrics_totals": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="add_mb_metrics_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": ["patrol_type_value"],
@@ -2186,6 +3090,13 @@ def main(params: Params):
         "persist_motor_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_motor_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2199,6 +3110,13 @@ def main(params: Params):
         "apply_motor_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_motor_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "patrol_type_value",
@@ -2247,6 +3165,13 @@ def main(params: Params):
         "zoom_motor_patrols": Node(
             async_task=view_state_deck_gdf.validate()
             .handle_errors(task_instance_id="zoom_motor_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "pitch": 0,
@@ -2259,6 +3184,13 @@ def main(params: Params):
         "combine_custom_motor_patrols": Node(
             async_task=merge_static_and_grouped_layers.validate()
             .handle_errors(task_instance_id="combine_custom_motor_patrols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "static_layers": DependsOnSequence(
@@ -2275,6 +3207,13 @@ def main(params: Params):
         "draw_motor_patrol_map": Node(
             async_task=draw_custom_map.validate()
             .handle_errors(task_instance_id="draw_motor_patrol_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
@@ -2283,7 +3222,7 @@ def main(params: Params):
                 "max_zoom": 15,
                 "legend_style": {
                     "placement": "bottom-right",
-                    "title": "Motorbike patrol types",
+                    "title": "Motorbike patrols",
                 },
                 "geo_layers": DependsOn("combine_custom_motor_patrols"),
                 "view_state": DependsOn("zoom_motor_patrols"),
@@ -2294,6 +3233,13 @@ def main(params: Params):
         "persist_motor_patrol_urls": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_motor_patrol_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2306,6 +3252,13 @@ def main(params: Params):
         "merge_trajs": Node(
             async_task=merge_multiple_df.validate()
             .handle_errors(task_instance_id="merge_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "list_df": DependsOnSequence(
@@ -2324,6 +3277,13 @@ def main(params: Params):
         "persist_patrol_trajs": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_patrol_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2337,6 +3297,13 @@ def main(params: Params):
         "rename_combined_trajs": Node(
             async_task=map_columns.validate()
             .handle_errors(task_instance_id="rename_combined_trajs")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "drop_columns": ["heading", "extra__created_at", "extra__id"],
@@ -2361,6 +3328,13 @@ def main(params: Params):
         "ranger_patrol_metrics": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="ranger_patrol_metrics")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["patrol_subject_name"],
@@ -2394,6 +3368,13 @@ def main(params: Params):
         "add_ranger_metrics_totals": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="add_ranger_metrics_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": ["patrol_subject_name"],
@@ -2406,6 +3387,13 @@ def main(params: Params):
         "persist_total_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_total_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2419,6 +3407,13 @@ def main(params: Params):
         "patrol_grid_visits": Node(
             async_task=create_patrol_coverage_grid.validate()
             .handle_errors(task_instance_id="patrol_grid_visits")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "grid_cell_size": 1000,
@@ -2430,6 +3425,13 @@ def main(params: Params):
         "apply_classification_grid": Node(
             async_task=apply_classification.validate()
             .handle_errors(task_instance_id="apply_classification_grid")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "unique_patrol_count",
@@ -2444,10 +3446,17 @@ def main(params: Params):
         "apply_grid_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_grid_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "density_bins",
-                "colormap": "RdYlGn",
+                "colormap": "RdYlGn_r",
                 "output_column_name": "density_colors",
                 "df": DependsOn("apply_classification_grid"),
             }
@@ -2484,6 +3493,13 @@ def main(params: Params):
         "zoom_grid_view": Node(
             async_task=view_state_deck_gdf.validate()
             .handle_errors(task_instance_id="zoom_grid_view")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "pitch": 0,
@@ -2496,6 +3512,13 @@ def main(params: Params):
         "combine_patrol_grid": Node(
             async_task=merge_static_and_grouped_layers.validate()
             .handle_errors(task_instance_id="combine_patrol_grid")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "static_layers": DependsOnSequence(
@@ -2512,13 +3535,23 @@ def main(params: Params):
         "draw_grid_map": Node(
             async_task=draw_custom_map.validate()
             .handle_errors(task_instance_id="draw_grid_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
                 "max_zoom": 15,
-                "legend_style": {"placement": "bottom-right", "title": "Grid visits"},
+                "legend_style": {
+                    "placement": "bottom-right",
+                    "title": "Grid cell visits",
+                },
                 "geo_layers": DependsOn("combine_patrol_grid"),
                 "view_state": DependsOn("zoom_grid_view"),
             }
@@ -2528,6 +3561,13 @@ def main(params: Params):
         "persist_grid_map_urls": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_grid_map_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2540,6 +3580,13 @@ def main(params: Params):
         "compute_patrol_occupancy": Node(
             async_task=compute_occupancy.validate()
             .handle_errors(task_instance_id="compute_patrol_occupancy")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "coverage_grid_gdf": DependsOn("patrol_grid_visits"),
@@ -2552,6 +3599,13 @@ def main(params: Params):
         "round_off_patrol": Node(
             async_task=round_values.validate()
             .handle_errors(task_instance_id="round_off_patrol")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("compute_patrol_occupancy"),
@@ -2564,6 +3618,13 @@ def main(params: Params):
         "persist_occupancy_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_occupancy_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2577,6 +3638,13 @@ def main(params: Params):
         "filter_mobile_boma": Node(
             async_task=filter_df.validate()
             .handle_errors(task_instance_id="filter_mobile_boma")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column_name": "event_type",
@@ -2590,6 +3658,13 @@ def main(params: Params):
         "normalize_mb_values": Node(
             async_task=normalize_column.validate()
             .handle_errors(task_instance_id="normalize_mb_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column": "event_details",
@@ -2601,6 +3676,13 @@ def main(params: Params):
         "rename_mobile_boma": Node(
             async_task=map_columns.validate()
             .handle_errors(task_instance_id="rename_mobile_boma")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "drop_columns": [],
@@ -2614,13 +3696,20 @@ def main(params: Params):
         "mobile_boma_summary": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="mobile_boma_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["boma"],
                 "summary_params": [
                     {
                         "display_name": "total_count",
-                        "aggregator": "count",
+                        "aggregator": "nunique",
                         "column": "id",
                     }
                 ],
@@ -2633,6 +3722,13 @@ def main(params: Params):
         "include_mb_totals": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="include_mb_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": ["boma"],
@@ -2645,6 +3741,13 @@ def main(params: Params):
         "persist_mobile_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_mobile_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2658,6 +3761,13 @@ def main(params: Params):
         "apply_mb_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_mb_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "event_type",
@@ -2682,9 +3792,9 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "event_type_colors",
-                    "get_radius": 4,
-                    "opacity": 0.55,
-                    "stroked": True,
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
                 },
                 "legend": {
                     "label_column": "event_type",
@@ -2699,6 +3809,13 @@ def main(params: Params):
         "zoom_mobile_boma": Node(
             async_task=view_state_deck_gdf.validate()
             .handle_errors(task_instance_id="zoom_mobile_boma")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "pitch": 0,
@@ -2711,6 +3828,13 @@ def main(params: Params):
         "combine_custom_mobile_boma": Node(
             async_task=merge_static_and_grouped_layers.validate()
             .handle_errors(task_instance_id="combine_custom_mobile_boma")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "static_layers": DependsOnSequence(
@@ -2727,13 +3851,23 @@ def main(params: Params):
         "draw_mb_map": Node(
             async_task=draw_custom_map.validate()
             .handle_errors(task_instance_id="draw_mb_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
                 "max_zoom": 15,
-                "legend_style": {"placement": "bottom-right", "title": "Mobile Boma"},
+                "legend_style": {
+                    "placement": "bottom-right",
+                    "title": "Boma Movements",
+                },
                 "geo_layers": DependsOn("combine_custom_mobile_boma"),
                 "view_state": DependsOn("zoom_mobile_boma"),
             }
@@ -2743,6 +3877,13 @@ def main(params: Params):
         "persist_mobile_boma_urls": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_mobile_boma_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2755,6 +3896,13 @@ def main(params: Params):
         "filter_predation": Node(
             async_task=filter_df.validate()
             .handle_errors(task_instance_id="filter_predation")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column_name": "event_type",
@@ -2768,6 +3916,13 @@ def main(params: Params):
         "normalize_predation_values": Node(
             async_task=normalize_column.validate()
             .handle_errors(task_instance_id="normalize_predation_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "column": "event_details",
@@ -2779,6 +3934,13 @@ def main(params: Params):
         "persist_livestock_events": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_livestock_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2792,6 +3954,13 @@ def main(params: Params):
         "rename_livestock_predation": Node(
             async_task=map_columns.validate()
             .handle_errors(task_instance_id="rename_livestock_predation")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "drop_columns": [],
@@ -2818,7 +3987,7 @@ def main(params: Params):
                     "event_details__livestockpredation_bomaheight": "boma_height",
                     "event_details__livestockpredation_bomavisibility": "boma_visibility",
                 },
-                "df": DependsOn("normalize_mb_values"),
+                "df": DependsOn("normalize_predation_values"),
             }
             | (params_dict.get("rename_livestock_predation") or {}),
             method="call",
@@ -2826,6 +3995,13 @@ def main(params: Params):
         "replace_predator_nulls": Node(
             async_task=replace_missing_with_label.validate()
             .handle_errors(task_instance_id="replace_predator_nulls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("rename_livestock_predation"),
@@ -2838,10 +4014,17 @@ def main(params: Params):
         "replace_species_null": Node(
             async_task=replace_missing_with_label.validate()
             .handle_errors(task_instance_id="replace_species_null")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("replace_predator_nulls"),
-                "column": "livestock_species",
+                "column_name": "livestock_species",
                 "label": "unknown",
             }
             | (params_dict.get("replace_species_null") or {}),
@@ -2850,6 +4033,13 @@ def main(params: Params):
         "convert_livestock_int": Node(
             async_task=convert_to_int.validate()
             .handle_errors(task_instance_id="convert_livestock_int")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("replace_species_null"),
@@ -2864,6 +4054,13 @@ def main(params: Params):
         "livestock_predation_summary": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="livestock_predation_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["date", "suspected_predator", "livestock_species"],
@@ -2883,12 +4080,19 @@ def main(params: Params):
         "persist_livestock_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="persist_livestock_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
                 "filename": "livestock_predation_events",
-                "df": DependsOn("include_mb_totals"),
+                "df": DependsOn("livestock_predation_summary"),
             }
             | (params_dict.get("persist_livestock_df") or {}),
             method="call",
@@ -2896,6 +4100,13 @@ def main(params: Params):
         "livestock_events_recorded": Node(
             async_task=summarize_df.validate()
             .handle_errors(task_instance_id="livestock_events_recorded")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": ["date"],
@@ -2915,6 +4126,13 @@ def main(params: Params):
         "add_total_livestock": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="add_total_livestock")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": ["date"],
@@ -2927,6 +4145,13 @@ def main(params: Params):
         "livestock_events_df": Node(
             async_task=persist_df.validate()
             .handle_errors(task_instance_id="livestock_events_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -2940,6 +4165,13 @@ def main(params: Params):
         "exclude_livestock_outliers": Node(
             async_task=exclude_geom_outliers.validate()
             .handle_errors(task_instance_id="exclude_livestock_outliers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_livestock_int"),
@@ -2951,6 +4183,13 @@ def main(params: Params):
         "remove_invalid_geoms": Node(
             async_task=remove_invalid_point_geometries.validate()
             .handle_errors(task_instance_id="remove_invalid_geoms")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "gdf": DependsOn("exclude_livestock_outliers"),
@@ -2961,6 +4200,13 @@ def main(params: Params):
         "apply_livestock_colormap": Node(
             async_task=apply_color_map.validate()
             .handle_errors(task_instance_id="apply_livestock_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "livestock_species",
@@ -2985,16 +4231,16 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.55,
-                    "stroked": True,
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
                 },
                 "legend": {
                     "label_column": "livestock_species",
                     "color_column": "colors",
                     "sort": "ascending",
                 },
-                "geodataframe": DependsOn("apply_mb_colormap"),
+                "geodataframe": DependsOn("apply_livestock_colormap"),
             }
             | (params_dict.get("generate_livestock_layers") or {}),
             method="call",
@@ -3002,11 +4248,18 @@ def main(params: Params):
         "zoom_livestock_events": Node(
             async_task=view_state_deck_gdf.validate()
             .handle_errors(task_instance_id="zoom_livestock_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("overall_grazing_zones"),
+                "gdf": DependsOn("apply_livestock_colormap"),
             }
             | (params_dict.get("zoom_livestock_events") or {}),
             method="call",
@@ -3014,6 +4267,13 @@ def main(params: Params):
         "combine_custom_livestock": Node(
             async_task=merge_static_and_grouped_layers.validate()
             .handle_errors(task_instance_id="combine_custom_livestock")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "static_layers": DependsOnSequence(
@@ -3030,6 +4290,13 @@ def main(params: Params):
         "draw_livestock_map": Node(
             async_task=draw_custom_map.validate()
             .handle_errors(task_instance_id="draw_livestock_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
@@ -3049,18 +4316,3554 @@ def main(params: Params):
         "persist_livestock_urls": Node(
             async_task=persist_text.validate()
             .handle_errors(task_instance_id="persist_livestock_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "text": DependsOn("draw_mb_map"),
+                "text": DependsOn("draw_livestock_map"),
                 "filename": "livestock_predation_events.html",
             }
             | (params_dict.get("persist_livestock_urls") or {}),
             method="call",
         ),
+        "filter_wildlife_events": Node(
+            async_task=filter_by_value.validate()
+            .handle_errors(task_instance_id="filter_wildlife_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("exclude_event_type_values"),
+                "column_name": "event_type",
+                "value": [
+                    "snare_rep",
+                    "fire_rep",
+                    "wildlife_injury_rep",
+                    "wildlife_treatment_rep",
+                    "wildlife_carcass_rep",
+                ],
+            }
+            | (params_dict.get("filter_wildlife_events") or {}),
+            method="call",
+        ),
+        "normalize_wildlife_events": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_wildlife_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("filter_wildlife_events"),
+            }
+            | (params_dict.get("normalize_wildlife_events") or {}),
+            method="call",
+        ),
+        "rename_wildlife_cols": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_wildlife_cols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__wildlifecarcass_species": "wildlife_carcass_species",
+                    "event_details__wildlifecarcass_suspectedcause": "wildlife_carcass_suspected_cause",
+                    "event_details__wildlifecarcass_visibleinjury": "wildlife_carcass_visible_injury",
+                    "event_details__wildlifetreatment_species": "wildlife_treatment_species",
+                    "event_details__wildlifetreatment_comments": "wildlife_treatment_comments",
+                    "event_details__wildlifetreatment_vetattending": "wildlife_treatment_vet_attending",
+                    "event_details__wildlifetreatment_vetprognosis": "wildlife_treatment_vet_prognosis",
+                    "event_details__wildlifecarcass_comments": "wildlife_carcass_comments",
+                },
+                "df": DependsOn("normalize_wildlife_events"),
+            }
+            | (params_dict.get("rename_wildlife_cols") or {}),
+            method="call",
+        ),
+        "generate_wild_summary": Node(
+            async_task=make_event_summary_df.validate()
+            .handle_errors(task_instance_id="generate_wild_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_wildlife_cols"),
+                "value_map": {
+                    "fire_rep": "Fire",
+                    "snare_rep": "Snare",
+                    "wildlife_carcass_rep": "Wildlife carcass",
+                    "wildlife_injury_rep": "Injured wildlife",
+                    "wildlife_treatment_rep": "Veterinary treatment",
+                },
+                "max_unique": 6,
+                "shorten_width": 300,
+                "order": None,
+            }
+            | (params_dict.get("generate_wild_summary") or {}),
+            method="call",
+        ),
+        "persist_wildlife_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_wildlife_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filename": "wildlife_incidents_summary",
+                "filetype": "csv",
+                "df": DependsOn("generate_wild_summary"),
+            }
+            | (params_dict.get("persist_wildlife_df") or {}),
+            method="call",
+        ),
+        "wildlife_events_recorded": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="wildlife_events_recorded")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["date"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("rename_wildlife_cols"),
+            }
+            | (params_dict.get("wildlife_events_recorded") or {}),
+            method="call",
+        ),
+        "add_total_wildlife": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="add_total_wildlife")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["date"],
+                "label": "Total",
+                "df": DependsOn("wildlife_events_recorded"),
+            }
+            | (params_dict.get("add_total_wildlife") or {}),
+            method="call",
+        ),
+        "wildlife_events_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="wildlife_events_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("add_total_wildlife"),
+                "filename": "wildlife_incidents_recorded",
+            }
+            | (params_dict.get("wildlife_events_df") or {}),
+            method="call",
+        ),
+        "exclude_wildlife_outliers": Node(
+            async_task=exclude_geom_outliers.validate()
+            .handle_errors(task_instance_id="exclude_wildlife_outliers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_wildlife_cols"),
+                "z_threshold": 3,
+            }
+            | (params_dict.get("exclude_wildlife_outliers") or {}),
+            method="call",
+        ),
+        "remove_invalid_wild_geoms": Node(
+            async_task=remove_invalid_point_geometries.validate()
+            .handle_errors(task_instance_id="remove_invalid_wild_geoms")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_wildlife_outliers"),
+            }
+            | (params_dict.get("remove_invalid_wild_geoms") or {}),
+            method="call",
+        ),
+        "apply_wildlife_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_wildlife_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "event_type",
+                "output_column_name": "colors",
+                "colormap": "plasma",
+                "df": DependsOn("remove_invalid_wild_geoms"),
+            }
+            | (params_dict.get("apply_wildlife_colormap") or {}),
+            method="call",
+        ),
+        "generate_wildlife_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_wildlife_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "label_column": "event_type",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_wildlife_colormap"),
+            }
+            | (params_dict.get("generate_wildlife_layers") or {}),
+            method="call",
+        ),
+        "zoom_wildlife_events": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_wildlife_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("overall_grazing_zones"),
+            }
+            | (params_dict.get("zoom_wildlife_events") or {}),
+            method="call",
+        ),
+        "combine_custom_wildlife": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_wildlife")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_wildlife_layers"),
+            }
+            | (params_dict.get("combine_custom_wildlife") or {}),
+            method="call",
+        ),
+        "draw_wildlife_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_wildlife_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Event types"},
+                "geo_layers": DependsOn("combine_custom_wildlife"),
+                "view_state": DependsOn("zoom_wildlife_events"),
+            }
+            | (params_dict.get("draw_wildlife_map") or {}),
+            method="call",
+        ),
+        "persist_wildlife_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_wildlife_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_wildlife_map"),
+                "filename": "wildlife_incidents_map.html",
+            }
+            | (params_dict.get("persist_wildlife_urls") or {}),
+            method="call",
+        ),
+        "retrieve_elephant_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="retrieve_elephant_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "elephant_sighting_rep",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("retrieve_elephant_events") or {}),
+            method="call",
+        ),
+        "normalize_elephant_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_elephant_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("retrieve_elephant_events"),
+            }
+            | (params_dict.get("normalize_elephant_values") or {}),
+            method="call",
+        ),
+        "rename_elephant_cols": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_elephant_cols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__elephantsight_male": "elephant_sight_male",
+                    "event_details__elephantsight_female": "elephant_sight_female",
+                    "event_details__elephantsight_comments": "elephant_sight_comments",
+                    "event_details__elephantsight_herdsize": "elephant_sight_herd_size",
+                    "event_details__elephantsight_subadult": "elephant_sight_sub_adult",
+                    "event_details__elephantsight_herdcomposition": "elephant_sight_herd_composition",
+                    "event_details__elephantsight_underayear": "elephant_sight_under_a_year",
+                },
+                "df": DependsOn("normalize_elephant_values"),
+            }
+            | (params_dict.get("rename_elephant_cols") or {}),
+            method="call",
+        ),
+        "elephant_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="elephant_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["event_type"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("rename_elephant_cols"),
+            }
+            | (params_dict.get("elephant_summary") or {}),
+            method="call",
+        ),
+        "include_elephant_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_elephant_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["event_type"],
+                "label": "Total",
+                "df": DependsOn("elephant_summary"),
+            }
+            | (params_dict.get("include_elephant_totals") or {}),
+            method="call",
+        ),
+        "persist_ele_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_ele_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "elephant_events_recorded",
+                "df": DependsOn("include_elephant_totals"),
+            }
+            | (params_dict.get("persist_ele_df") or {}),
+            method="call",
+        ),
+        "replace_ele_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .handle_errors(task_instance_id="replace_ele_nulls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_elephant_cols"),
+                "column_name": "elephant_sight_herd_composition",
+                "label": "unspecified",
+            }
+            | (params_dict.get("replace_ele_nulls") or {}),
+            method="call",
+        ),
+        "exclude_ele_outliers": Node(
+            async_task=exclude_geom_outliers.validate()
+            .handle_errors(task_instance_id="exclude_ele_outliers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("replace_ele_nulls"),
+                "z_threshold": 3,
+            }
+            | (params_dict.get("exclude_ele_outliers") or {}),
+            method="call",
+        ),
+        "remove_ele_invalid_geoms": Node(
+            async_task=remove_invalid_point_geometries.validate()
+            .handle_errors(task_instance_id="remove_ele_invalid_geoms")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_ele_outliers"),
+            }
+            | (params_dict.get("remove_ele_invalid_geoms") or {}),
+            method="call",
+        ),
+        "apply_ele_events_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_ele_events_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "elephant_sight_herd_composition",
+                "output_column_name": "colors",
+                "colormap": "plasma",
+                "df": DependsOn("remove_ele_invalid_geoms"),
+            }
+            | (params_dict.get("apply_ele_events_colormap") or {}),
+            method="call",
+        ),
+        "generate_elephant_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_elephant_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "label_column": "elephant_sight_herd_composition",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_ele_events_colormap"),
+            }
+            | (params_dict.get("generate_elephant_layers") or {}),
+            method="call",
+        ),
+        "zoom_elephant_events": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_elephant_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("apply_ele_events_colormap"),
+            }
+            | (params_dict.get("zoom_elephant_events") or {}),
+            method="call",
+        ),
+        "combine_custom_ele": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_ele")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_elephant_layers"),
+            }
+            | (params_dict.get("combine_custom_ele") or {}),
+            method="call",
+        ),
+        "draw_elephant_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_elephant_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Herd Types"},
+                "geo_layers": DependsOn("combine_custom_ele"),
+                "view_state": DependsOn("zoom_elephant_events"),
+            }
+            | (params_dict.get("draw_elephant_map") or {}),
+            method="call",
+        ),
+        "persist_elephant_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_elephant_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_elephant_map"),
+                "filename": "elephant_sightings_events.html",
+            }
+            | (params_dict.get("persist_elephant_urls") or {}),
+            method="call",
+        ),
+        "elephant_herd_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="elephant_herd_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["elephant_sight_herd_composition"],
+                "summary_params": [
+                    {
+                        "display_name": "herd_distribution",
+                        "aggregator": "sum",
+                        "column": "elephant_sight_herd_size",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("rename_elephant_cols"),
+            }
+            | (params_dict.get("elephant_herd_summary") or {}),
+            method="call",
+        ),
+        "total_ele_composition": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="total_ele_composition")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["elephant_sight_herd_composition"],
+                "label": "Total",
+                "df": DependsOn("elephant_herd_summary"),
+            }
+            | (params_dict.get("total_ele_composition") or {}),
+            method="call",
+        ),
+        "persist_ele_summary": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_ele_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "elephant_herd_distribution",
+                "df": DependsOn("total_ele_composition"),
+            }
+            | (params_dict.get("persist_ele_summary") or {}),
+            method="call",
+        ),
+        "bin_elephant_herd_col": Node(
+            async_task=bin_columns.validate()
+            .handle_errors(task_instance_id="bin_elephant_herd_col")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "columns": ["elephant_sight_herd_size"],
+                "bins": 5,
+                "suffix": "bins",
+                "inplace": False,
+                "df": DependsOn("rename_elephant_cols"),
+            }
+            | (params_dict.get("bin_elephant_herd_col") or {}),
+            method="call",
+        ),
+        "cat_elephant_bins": Node(
+            async_task=categorize_bins.validate()
+            .handle_errors(task_instance_id="cat_elephant_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("bin_elephant_herd_col"),
+                "col": "elephant_sight_herd_sizebins",
+            }
+            | (params_dict.get("cat_elephant_bins") or {}),
+            method="call",
+        ),
+        "draw_elephant_herd_bar": Node(
+            async_task=draw_bar_chart.validate()
+            .handle_errors(task_instance_id="draw_elephant_herd_bar")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "dataframe": DependsOn("cat_elephant_bins"),
+                "category": "elephant_sight_herd_sizebins",
+                "layout_kwargs": {
+                    "font_size": 13,
+                    "font_color": "#222222",
+                    "plot_bgcolor": "#f5f5f5",
+                    "title_x": 0.5,
+                    "xaxis": {"title": "Group size"},
+                    "yaxis": {"title": "Number of records"},
+                    "showlegend": False,
+                    "bargap": 0.1,
+                },
+                "bar_chart_configs": [
+                    {
+                        "column": "id",
+                        "agg_func": "count",
+                        "label": "",
+                        "style": {"marker_color": "lightsteelblue"},
+                    }
+                ],
+            }
+            | (params_dict.get("draw_elephant_herd_bar") or {}),
+            method="call",
+        ),
+        "persist_elephant_bar": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_elephant_bar")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_elephant_herd_bar"),
+                "filename": "elephant_herd_size_bar_chart.html",
+            }
+            | (params_dict.get("persist_elephant_bar") or {}),
+            method="call",
+        ),
+        "drop_null_ele_bins": Node(
+            async_task=drop_null_values.validate()
+            .handle_errors(task_instance_id="drop_null_ele_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("cat_elephant_bins"),
+                "col": "elephant_sight_herd_sizebins",
+            }
+            | (params_dict.get("drop_null_ele_bins") or {}),
+            method="call",
+        ),
+        "apply_ele_color_bins": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_ele_color_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "elephant_sight_herd_sizebins",
+                "output_column_name": "colors",
+                "colormap": "Blues",
+                "df": DependsOn("drop_null_ele_bins"),
+            }
+            | (params_dict.get("apply_ele_color_bins") or {}),
+            method="call",
+        ),
+        "generate_ele_herd_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_ele_herd_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": "elephant_sight_herd_size",
+                    "line_width_min_pixels": 1,
+                    "radius_units": "pixels",
+                    "radius_scale": 0.43,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "label_column": "elephant_sight_herd_sizebins",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_ele_color_bins"),
+            }
+            | (params_dict.get("generate_ele_herd_layers") or {}),
+            method="call",
+        ),
+        "zoom_ele_bins": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_ele_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("apply_ele_color_bins"),
+            }
+            | (params_dict.get("zoom_ele_bins") or {}),
+            method="call",
+        ),
+        "combine_ele_bins": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_ele_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_ele_herd_layers"),
+            }
+            | (params_dict.get("combine_ele_bins") or {}),
+            method="call",
+        ),
+        "draw_ele_herd_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_ele_herd_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Group size"},
+                "geo_layers": DependsOn("combine_ele_bins"),
+                "view_state": DependsOn("zoom_ele_bins"),
+            }
+            | (params_dict.get("draw_ele_herd_map") or {}),
+            method="call",
+        ),
+        "persist_ele_herd_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_ele_herd_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_ele_herd_map"),
+                "filename": "elephant_herd_types_map.html",
+            }
+            | (params_dict.get("persist_ele_herd_urls") or {}),
+            method="call",
+        ),
+        "retrieve_buffalo_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="retrieve_buffalo_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "buffalo_sighting_rep",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("retrieve_buffalo_events") or {}),
+            method="call",
+        ),
+        "normalize_buffalo_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_buffalo_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("retrieve_buffalo_events"),
+            }
+            | (params_dict.get("normalize_buffalo_values") or {}),
+            method="call",
+        ),
+        "rename_buffalo_cols": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_buffalo_cols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__buffalosightingrep_herdsize": "buffalo_herd_size",
+                    "event_details__buffalosightingrep_herd": "buffalo_herd",
+                },
+                "df": DependsOn("normalize_buffalo_values"),
+            }
+            | (params_dict.get("rename_buffalo_cols") or {}),
+            method="call",
+        ),
+        "buffalo_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="buffalo_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["event_type"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("rename_buffalo_cols"),
+            }
+            | (params_dict.get("buffalo_summary") or {}),
+            method="call",
+        ),
+        "include_buffalo_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_buffalo_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["event_type"],
+                "label": "Total",
+                "df": DependsOn("buffalo_summary"),
+            }
+            | (params_dict.get("include_buffalo_totals") or {}),
+            method="call",
+        ),
+        "persist_buffalo_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_buffalo_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "buffalo_events_recorded",
+                "df": DependsOn("include_buffalo_totals"),
+            }
+            | (params_dict.get("persist_buffalo_df") or {}),
+            method="call",
+        ),
+        "replace_buffalo_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .handle_errors(task_instance_id="replace_buffalo_nulls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_buffalo_cols"),
+                "column_name": "buffalo_herd",
+                "label": "unspecified",
+            }
+            | (params_dict.get("replace_buffalo_nulls") or {}),
+            method="call",
+        ),
+        "exclude_buffalo_outliers": Node(
+            async_task=exclude_geom_outliers.validate()
+            .handle_errors(task_instance_id="exclude_buffalo_outliers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("replace_buffalo_nulls"),
+                "z_threshold": 3,
+            }
+            | (params_dict.get("exclude_buffalo_outliers") or {}),
+            method="call",
+        ),
+        "remove_buffalo_invalid_geoms": Node(
+            async_task=remove_invalid_point_geometries.validate()
+            .handle_errors(task_instance_id="remove_buffalo_invalid_geoms")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_buffalo_outliers"),
+            }
+            | (params_dict.get("remove_buffalo_invalid_geoms") or {}),
+            method="call",
+        ),
+        "apply_buffalo_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_buffalo_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "buffalo_herd",
+                "output_column_name": "colors",
+                "colormap": "plasma",
+                "df": DependsOn("remove_buffalo_invalid_geoms"),
+            }
+            | (params_dict.get("apply_buffalo_colormap") or {}),
+            method="call",
+        ),
+        "generate_buffalo_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_buffalo_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "label_column": "buffalo_herd",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_buffalo_colormap"),
+            }
+            | (params_dict.get("generate_buffalo_layers") or {}),
+            method="call",
+        ),
+        "zoom_buffalo_events": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_buffalo_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("apply_buffalo_colormap"),
+            }
+            | (params_dict.get("zoom_buffalo_events") or {}),
+            method="call",
+        ),
+        "combine_custom_buffalo": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_buffalo")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_buffalo_layers"),
+            }
+            | (params_dict.get("combine_custom_buffalo") or {}),
+            method="call",
+        ),
+        "draw_buffalo_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_buffalo_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Herd Types"},
+                "geo_layers": DependsOn("combine_custom_buffalo"),
+                "view_state": DependsOn("zoom_buffalo_events"),
+            }
+            | (params_dict.get("draw_buffalo_map") or {}),
+            method="call",
+        ),
+        "persist_buffalo_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_buffalo_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_buffalo_map"),
+                "filename": "buffalo_herd_map.html",
+            }
+            | (params_dict.get("persist_buffalo_urls") or {}),
+            method="call",
+        ),
+        "bin_buffalo_herd_col": Node(
+            async_task=bin_columns.validate()
+            .handle_errors(task_instance_id="bin_buffalo_herd_col")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "columns": ["buffalo_herd_size"],
+                "bins": 5,
+                "suffix": "bins",
+                "inplace": False,
+                "df": DependsOn("rename_buffalo_cols"),
+            }
+            | (params_dict.get("bin_buffalo_herd_col") or {}),
+            method="call",
+        ),
+        "cat_buffalo_bins": Node(
+            async_task=categorize_bins.validate()
+            .handle_errors(task_instance_id="cat_buffalo_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("bin_buffalo_herd_col"),
+                "col": "buffalo_herd_sizebins",
+            }
+            | (params_dict.get("cat_buffalo_bins") or {}),
+            method="call",
+        ),
+        "draw_buffalo_herd_bar": Node(
+            async_task=draw_bar_chart.validate()
+            .handle_errors(task_instance_id="draw_buffalo_herd_bar")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "dataframe": DependsOn("cat_buffalo_bins"),
+                "category": "buffalo_herd_sizebins",
+                "layout_kwargs": {
+                    "font_size": 13,
+                    "font_color": "#222222",
+                    "plot_bgcolor": "#f5f5f5",
+                    "title_x": 0.5,
+                    "xaxis": {"title": "Group size"},
+                    "yaxis": {"title": "Number of records"},
+                    "showlegend": False,
+                    "bargap": 0.1,
+                },
+                "bar_chart_configs": [
+                    {
+                        "column": "id",
+                        "agg_func": "count",
+                        "label": "",
+                        "style": {"marker_color": "lightsteelblue"},
+                    }
+                ],
+            }
+            | (params_dict.get("draw_buffalo_herd_bar") or {}),
+            method="call",
+        ),
+        "persist_buffalo_bar": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_buffalo_bar")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_buffalo_herd_bar"),
+                "filename": "buffalo_herd_size_bar_chart.html",
+            }
+            | (params_dict.get("persist_buffalo_bar") or {}),
+            method="call",
+        ),
+        "drop_null_buffalo_bins": Node(
+            async_task=drop_null_values.validate()
+            .handle_errors(task_instance_id="drop_null_buffalo_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("cat_buffalo_bins"),
+                "col": "buffalo_herd_sizebins",
+            }
+            | (params_dict.get("drop_null_buffalo_bins") or {}),
+            method="call",
+        ),
+        "apply_buffalo_color_bins": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_buffalo_color_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "buffalo_herd_sizebins",
+                "output_column_name": "colors",
+                "colormap": "Blues",
+                "df": DependsOn("drop_null_buffalo_bins"),
+            }
+            | (params_dict.get("apply_buffalo_color_bins") or {}),
+            method="call",
+        ),
+        "generate_buffalo_herd_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_buffalo_herd_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": "buffalo_herd_size",
+                    "line_width_min_pixels": 1,
+                    "radius_units": "pixels",
+                    "radius_scale": 0.025,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "label_column": "buffalo_herd_sizebins",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_buffalo_color_bins"),
+            }
+            | (params_dict.get("generate_buffalo_herd_layers") or {}),
+            method="call",
+        ),
+        "zoom_buffalo_bins": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_buffalo_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("apply_buffalo_color_bins"),
+            }
+            | (params_dict.get("zoom_buffalo_bins") or {}),
+            method="call",
+        ),
+        "combine_buffalo_bins": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_buffalo_bins")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_buffalo_herd_layers"),
+            }
+            | (params_dict.get("combine_buffalo_bins") or {}),
+            method="call",
+        ),
+        "draw_buffalo_herd_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_buffalo_herd_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Herd Size"},
+                "geo_layers": DependsOn("combine_buffalo_bins"),
+                "view_state": DependsOn("zoom_buffalo_bins"),
+            }
+            | (params_dict.get("draw_buffalo_herd_map") or {}),
+            method="call",
+        ),
+        "persist_buffalo_herd_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_buffalo_herd_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_buffalo_herd_map"),
+                "filename": "buffalo_herd_types_map.html",
+            }
+            | (params_dict.get("persist_buffalo_herd_urls") or {}),
+            method="call",
+        ),
+        "retrieve_rhino_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="retrieve_rhino_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "rhino_sighting_rep",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("retrieve_rhino_events") or {}),
+            method="call",
+        ),
+        "normalize_rhino_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_rhino_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("retrieve_rhino_events"),
+            }
+            | (params_dict.get("normalize_rhino_values") or {}),
+            method="call",
+        ),
+        "rhino_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="rhino_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["event_type"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("normalize_rhino_values"),
+            }
+            | (params_dict.get("rhino_summary") or {}),
+            method="call",
+        ),
+        "include_rhino_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_rhino_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["event_type"],
+                "label": "Total",
+                "df": DependsOn("rhino_summary"),
+            }
+            | (params_dict.get("include_rhino_totals") or {}),
+            method="call",
+        ),
+        "persist_rhino_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_rhino_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "rhino_events_recorded",
+                "df": DependsOn("include_rhino_totals"),
+            }
+            | (params_dict.get("persist_rhino_df") or {}),
+            method="call",
+        ),
+        "exclude_rhino_outliers": Node(
+            async_task=exclude_geom_outliers.validate()
+            .handle_errors(task_instance_id="exclude_rhino_outliers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("normalize_rhino_values"),
+                "z_threshold": 3,
+            }
+            | (params_dict.get("exclude_rhino_outliers") or {}),
+            method="call",
+        ),
+        "remove_rhino_invalid_geoms": Node(
+            async_task=remove_invalid_point_geometries.validate()
+            .handle_errors(task_instance_id="remove_rhino_invalid_geoms")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_rhino_outliers"),
+            }
+            | (params_dict.get("remove_rhino_invalid_geoms") or {}),
+            method="call",
+        ),
+        "apply_rhino_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_rhino_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "event_type",
+                "output_column_name": "colors",
+                "colormap": "plasma",
+                "df": DependsOn("remove_rhino_invalid_geoms"),
+            }
+            | (params_dict.get("apply_rhino_colormap") or {}),
+            method="call",
+        ),
+        "generate_rhino_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_rhino_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": "falseß",
+                },
+                "legend": {
+                    "label_column": "event_type",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_rhino_colormap"),
+            }
+            | (params_dict.get("generate_rhino_layers") or {}),
+            method="call",
+        ),
+        "zoom_rhino_events": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_rhino_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("overall_grazing_zones"),
+            }
+            | (params_dict.get("zoom_rhino_events") or {}),
+            method="call",
+        ),
+        "combine_custom_rhino": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_rhino")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_rhino_layers"),
+            }
+            | (params_dict.get("combine_custom_rhino") or {}),
+            method="call",
+        ),
+        "draw_rhino_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_rhino_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Legend"},
+                "geo_layers": DependsOn("combine_custom_rhino"),
+                "view_state": DependsOn("zoom_rhino_events"),
+            }
+            | (params_dict.get("draw_rhino_map") or {}),
+            method="call",
+        ),
+        "persist_rhino_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_rhino_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_rhino_map"),
+                "filename": "rhino_sighting_map.html",
+            }
+            | (params_dict.get("persist_rhino_urls") or {}),
+            method="call",
+        ),
+        "retrieve_lion_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="retrieve_lion_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "lion_sighting_rep",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("retrieve_lion_events") or {}),
+            method="call",
+        ),
+        "normalize_lion_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_lion_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("retrieve_lion_events"),
+            }
+            | (params_dict.get("normalize_lion_values") or {}),
+            method="call",
+        ),
+        "rename_lion_cols": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_lion_cols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__lionsightingrep_male": "lion_sight_male",
+                    "event_details__lionsightingrep_pride": "lion_pride",
+                    "event_details__lionsightingrep_young": "lion_sight_young",
+                    "event_details__lionsightingrep_female": "lion_sight_female",
+                    "event_details__lionsightingrep_behavior": "lion_behavior",
+                    "event_details__lionsightingrep_groupsize": "lion_group_size",
+                    "event_details__lionsightingrep_individual_present": "individual_present",
+                },
+                "df": DependsOn("normalize_lion_values"),
+            }
+            | (params_dict.get("rename_lion_cols") or {}),
+            method="call",
+        ),
+        "lion_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="lion_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["event_type"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("rename_lion_cols"),
+            }
+            | (params_dict.get("lion_summary") or {}),
+            method="call",
+        ),
+        "include_lion_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_lion_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["event_type"],
+                "label": "Total",
+                "df": DependsOn("lion_summary"),
+            }
+            | (params_dict.get("include_lion_totals") or {}),
+            method="call",
+        ),
+        "persist_lion_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_lion_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "lion_events_recorded",
+                "df": DependsOn("include_lion_totals"),
+            }
+            | (params_dict.get("persist_lion_df") or {}),
+            method="call",
+        ),
+        "remove_pride_str": Node(
+            async_task=remove_substring.validate()
+            .handle_errors(task_instance_id="remove_pride_str")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_lion_cols"),
+                "column": "lion_pride",
+                "value": "pride",
+            }
+            | (params_dict.get("remove_pride_str") or {}),
+            method="call",
+        ),
+        "lion_pride_scase": Node(
+            async_task=to_sentence_case.validate()
+            .handle_errors(task_instance_id="lion_pride_scase")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("remove_pride_str"),
+                "column": "lion_pride",
+            }
+            | (params_dict.get("lion_pride_scase") or {}),
+            method="call",
+        ),
+        "unique_lions_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="unique_lions_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["lion_pride"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("lion_pride_scase"),
+            }
+            | (params_dict.get("unique_lions_summary") or {}),
+            method="call",
+        ),
+        "persist_unique_lions_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_unique_lions_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "unique_lion_prides",
+                "df": DependsOn("unique_lions_summary"),
+            }
+            | (params_dict.get("persist_unique_lions_df") or {}),
+            method="call",
+        ),
+        "replace_ip_lion_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .handle_errors(task_instance_id="replace_ip_lion_nulls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("lion_pride_scase"),
+                "column_name": "individual_present",
+                "label": "unspecified",
+            }
+            | (params_dict.get("replace_ip_lion_nulls") or {}),
+            method="call",
+        ),
+        "replace_lp_lion_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .handle_errors(task_instance_id="replace_lp_lion_nulls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("replace_ip_lion_nulls"),
+                "column_name": "lion_pride",
+                "label": "unknown",
+            }
+            | (params_dict.get("replace_lp_lion_nulls") or {}),
+            method="call",
+        ),
+        "exclude_lion_outliers": Node(
+            async_task=exclude_geom_outliers.validate()
+            .handle_errors(task_instance_id="exclude_lion_outliers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("replace_lp_lion_nulls"),
+                "z_threshold": 3,
+            }
+            | (params_dict.get("exclude_lion_outliers") or {}),
+            method="call",
+        ),
+        "remove_lion_invalid_geoms": Node(
+            async_task=remove_invalid_point_geometries.validate()
+            .handle_errors(task_instance_id="remove_lion_invalid_geoms")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_lion_outliers"),
+            }
+            | (params_dict.get("remove_lion_invalid_geoms") or {}),
+            method="call",
+        ),
+        "apply_lion_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_lion_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "lion_pride",
+                "output_column_name": "colors",
+                "colormap": "Spectral",
+                "df": DependsOn("remove_lion_invalid_geoms"),
+            }
+            | (params_dict.get("apply_lion_colormap") or {}),
+            method="call",
+        ),
+        "generate_lion_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_lion_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "label_column": "lion_pride",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_lion_colormap"),
+            }
+            | (params_dict.get("generate_lion_layers") or {}),
+            method="call",
+        ),
+        "zoom_lion_events": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_lion_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("apply_lion_colormap"),
+            }
+            | (params_dict.get("zoom_lion_events") or {}),
+            method="call",
+        ),
+        "combine_custom_lion": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_lion")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_lion_layers"),
+            }
+            | (params_dict.get("combine_custom_lion") or {}),
+            method="call",
+        ),
+        "draw_lion_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_lion_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Prides"},
+                "geo_layers": DependsOn("combine_custom_lion"),
+                "view_state": DependsOn("zoom_lion_events"),
+            }
+            | (params_dict.get("draw_lion_map") or {}),
+            method="call",
+        ),
+        "persist_lion_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_lion_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_lion_map"),
+                "filename": "lion_sightings_map.html",
+            }
+            | (params_dict.get("persist_lion_urls") or {}),
+            method="call",
+        ),
+        "retrieve_leopard_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="retrieve_leopard_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "leopardsightingrep",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("retrieve_leopard_events") or {}),
+            method="call",
+        ),
+        "normalize_leopard_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_leopard_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("retrieve_leopard_events"),
+            }
+            | (params_dict.get("normalize_leopard_values") or {}),
+            method="call",
+        ),
+        "rename_leopard_cols": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_leopard_cols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__leopardsightingrep_male": "leopard_sight_male",
+                    "event_details__leopardsightingrep_young": "leopard_sight_young",
+                    "event_details__leopardsightingrep_female": "leopard_sight_female",
+                    "event_details__leopardsightingrep_behavior": "leopard_behavior",
+                    "event_details__leopardsightingrep_groupsize": "leopard_group_size",
+                    "event_details__leopardsightingrep_individual_present": "individual_present",
+                },
+                "df": DependsOn("normalize_leopard_values"),
+            }
+            | (params_dict.get("rename_leopard_cols") or {}),
+            method="call",
+        ),
+        "replace_leopard_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .handle_errors(task_instance_id="replace_leopard_nulls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_leopard_cols"),
+                "column_name": "individual_present",
+                "label": "unknown",
+            }
+            | (params_dict.get("replace_leopard_nulls") or {}),
+            method="call",
+        ),
+        "remove_leopard_str": Node(
+            async_task=remove_substring.validate()
+            .handle_errors(task_instance_id="remove_leopard_str")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("replace_leopard_nulls"),
+                "column": "individual_present",
+                "value": "_",
+            }
+            | (params_dict.get("remove_leopard_str") or {}),
+            method="call",
+        ),
+        "leopard_ip_scase": Node(
+            async_task=to_sentence_case.validate()
+            .handle_errors(task_instance_id="leopard_ip_scase")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("remove_leopard_str"),
+                "column": "individual_present",
+            }
+            | (params_dict.get("leopard_ip_scase") or {}),
+            method="call",
+        ),
+        "leopard_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="leopard_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["event_type"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("leopard_ip_scase"),
+            }
+            | (params_dict.get("leopard_summary") or {}),
+            method="call",
+        ),
+        "include_leopard_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_leopard_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["event_type"],
+                "label": "Total",
+                "df": DependsOn("leopard_summary"),
+            }
+            | (params_dict.get("include_leopard_totals") or {}),
+            method="call",
+        ),
+        "persist_leopard_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_leopard_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "leopard_events_recorded",
+                "df": DependsOn("include_leopard_totals"),
+            }
+            | (params_dict.get("persist_leopard_df") or {}),
+            method="call",
+        ),
+        "unique_leopards_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="unique_leopards_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["individual_present"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("leopard_ip_scase"),
+            }
+            | (params_dict.get("unique_leopards_summary") or {}),
+            method="call",
+        ),
+        "persist_leopards_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_leopards_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "individual_leopard_summary",
+                "df": DependsOn("unique_leopards_summary"),
+            }
+            | (params_dict.get("persist_leopards_df") or {}),
+            method="call",
+        ),
+        "exclude_leopard_outliers": Node(
+            async_task=exclude_geom_outliers.validate()
+            .handle_errors(task_instance_id="exclude_leopard_outliers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("leopard_ip_scase"),
+                "z_threshold": 3,
+            }
+            | (params_dict.get("exclude_leopard_outliers") or {}),
+            method="call",
+        ),
+        "remove_leopard_invalid_geoms": Node(
+            async_task=remove_invalid_point_geometries.validate()
+            .handle_errors(task_instance_id="remove_leopard_invalid_geoms")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_leopard_outliers"),
+            }
+            | (params_dict.get("remove_leopard_invalid_geoms") or {}),
+            method="call",
+        ),
+        "apply_leopard_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_leopard_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "individual_present",
+                "output_column_name": "colors",
+                "colormap": "Spectral",
+                "df": DependsOn("remove_leopard_invalid_geoms"),
+            }
+            | (params_dict.get("apply_leopard_colormap") or {}),
+            method="call",
+        ),
+        "generate_leopard_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_leopard_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "label_column": "individual_present",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_leopard_colormap"),
+            }
+            | (params_dict.get("generate_leopard_layers") or {}),
+            method="call",
+        ),
+        "zoom_leopard_events": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_leopard_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("apply_leopard_colormap"),
+            }
+            | (params_dict.get("zoom_leopard_events") or {}),
+            method="call",
+        ),
+        "combine_custom_leopard": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_leopard")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_leopard_layers"),
+            }
+            | (params_dict.get("combine_custom_leopard") or {}),
+            method="call",
+        ),
+        "draw_leopard_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_leopard_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Individual"},
+                "geo_layers": DependsOn("combine_custom_leopard"),
+                "view_state": DependsOn("zoom_leopard_events"),
+            }
+            | (params_dict.get("draw_leopard_map") or {}),
+            method="call",
+        ),
+        "persist_leopard_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_leopard_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_leopard_map"),
+                "filename": "leopard_sightings_map.html",
+            }
+            | (params_dict.get("persist_leopard_urls") or {}),
+            method="call",
+        ),
+        "retrieve_cheetah_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="retrieve_cheetah_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "cheetah_sighting_rep",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("retrieve_cheetah_events") or {}),
+            method="call",
+        ),
+        "normalize_cheetah_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_cheetah_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("retrieve_cheetah_events"),
+            }
+            | (params_dict.get("normalize_cheetah_values") or {}),
+            method="call",
+        ),
+        "rename_cheetah_cols": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_cheetah_cols")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__cheetahsightingrep_male": "cheetah_sight_male",
+                    "event_details__cheetahsightingrep_female": "cheetah_sight_female",
+                    "event_details__cheetahsightingrep_young": "cheetah_sight_young",
+                    "event_details__cheetahsightingrep_behavior": "cheetah_behavior",
+                    "event_details__cheetahsightingrep_groupsize": "cheetah_group_size",
+                    "event_details__cheetahsightingrep_individual_present": "individual_present",
+                },
+                "df": DependsOn("normalize_cheetah_values"),
+            }
+            | (params_dict.get("rename_cheetah_cols") or {}),
+            method="call",
+        ),
+        "replace_cheetah_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .handle_errors(task_instance_id="replace_cheetah_nulls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_cheetah_cols"),
+                "column_name": "individual_present",
+                "label": "other",
+            }
+            | (params_dict.get("replace_cheetah_nulls") or {}),
+            method="call",
+        ),
+        "cheetah_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="cheetah_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["event_type"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("replace_cheetah_nulls"),
+            }
+            | (params_dict.get("cheetah_summary") or {}),
+            method="call",
+        ),
+        "include_cheetah_totals": Node(
+            async_task=add_totals_row.validate()
+            .handle_errors(task_instance_id="include_cheetah_totals")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": ["event_type"],
+                "label": "Total",
+                "df": DependsOn("cheetah_summary"),
+            }
+            | (params_dict.get("include_cheetah_totals") or {}),
+            method="call",
+        ),
+        "persist_cheetah_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_cheetah_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "cheetah_events_recorded",
+                "df": DependsOn("include_cheetah_totals"),
+            }
+            | (params_dict.get("persist_cheetah_df") or {}),
+            method="call",
+        ),
+        "unique_cheetah_summary": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="unique_cheetah_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": ["individual_present"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_events",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    }
+                ],
+                "reset_index": True,
+                "df": DependsOn("replace_cheetah_nulls"),
+            }
+            | (params_dict.get("unique_cheetah_summary") or {}),
+            method="call",
+        ),
+        "persist_cheetah_summary": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_cheetah_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "filename": "individual_cheetah_summary",
+                "df": DependsOn("unique_cheetah_summary"),
+            }
+            | (params_dict.get("persist_cheetah_summary") or {}),
+            method="call",
+        ),
+        "exclude_cheetah_outliers": Node(
+            async_task=exclude_geom_outliers.validate()
+            .handle_errors(task_instance_id="exclude_cheetah_outliers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("replace_cheetah_nulls"),
+                "z_threshold": 3,
+            }
+            | (params_dict.get("exclude_cheetah_outliers") or {}),
+            method="call",
+        ),
+        "remove_cheetah_invalid_geoms": Node(
+            async_task=remove_invalid_point_geometries.validate()
+            .handle_errors(task_instance_id="remove_cheetah_invalid_geoms")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_cheetah_outliers"),
+            }
+            | (params_dict.get("remove_cheetah_invalid_geoms") or {}),
+            method="call",
+        ),
+        "apply_cheetah_colormap": Node(
+            async_task=apply_color_map.validate()
+            .handle_errors(task_instance_id="apply_cheetah_colormap")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "individual_present",
+                "output_column_name": "colors",
+                "colormap": "Spectral",
+                "df": DependsOn("remove_cheetah_invalid_geoms"),
+            }
+            | (params_dict.get("apply_cheetah_colormap") or {}),
+            method="call",
+        ),
+        "generate_cheetah_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .handle_errors(task_instance_id="generate_cheetah_layers")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "label_column": "individual_present",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_cheetah_colormap"),
+            }
+            | (params_dict.get("generate_cheetah_layers") or {}),
+            method="call",
+        ),
+        "zoom_cheetah_events": Node(
+            async_task=view_state_deck_gdf.validate()
+            .handle_errors(task_instance_id="zoom_cheetah_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "pitch": 0,
+                "bearing": 0,
+                "gdf": DependsOn("apply_cheetah_colormap"),
+            }
+            | (params_dict.get("zoom_cheetah_events") or {}),
+            method="call",
+        ),
+        "combine_custom_cheetah": Node(
+            async_task=merge_static_and_grouped_layers.validate()
+            .handle_errors(task_instance_id="combine_custom_cheetah")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": DependsOnSequence(
+                    [
+                        DependsOn("create_mnc_styled_layers"),
+                        DependsOn("custom_text_layer"),
+                    ],
+                ),
+                "grouped_layers": DependsOn("generate_cheetah_layers"),
+            }
+            | (params_dict.get("combine_custom_cheetah") or {}),
+            method="call",
+        ),
+        "draw_cheetah_map": Node(
+            async_task=draw_custom_map.validate()
+            .handle_errors(task_instance_id="draw_cheetah_map")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {"placement": "bottom-right", "title": "Individuals"},
+                "geo_layers": DependsOn("combine_custom_cheetah"),
+                "view_state": DependsOn("zoom_cheetah_events"),
+            }
+            | (params_dict.get("draw_cheetah_map") or {}),
+            method="call",
+        ),
+        "persist_cheetah_urls": Node(
+            async_task=persist_text.validate()
+            .handle_errors(task_instance_id="persist_cheetah_urls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_cheetah_map"),
+                "filename": "cheetah_sightings_map.html",
+            }
+            | (params_dict.get("persist_cheetah_urls") or {}),
+            method="call",
+        ),
+        "filter_balloon_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="filter_balloon_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "balloon_sighting_rep",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("filter_balloon_events") or {}),
+            method="call",
+        ),
+        "filter_airstrip_events": Node(
+            async_task=filter_df.validate()
+            .handle_errors(task_instance_id="filter_airstrip_events")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "airstrip_operations",
+                "df": DependsOn("exclude_event_type_values"),
+            }
+            | (params_dict.get("filter_airstrip_events") or {}),
+            method="call",
+        ),
+        "normalize_airstrip_values": Node(
+            async_task=normalize_column.validate()
+            .handle_errors(task_instance_id="normalize_airstrip_values")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("filter_airstrip_events"),
+            }
+            | (params_dict.get("normalize_airstrip_values") or {}),
+            method="call",
+        ),
+        "rename_airstrip": Node(
+            async_task=map_columns.validate()
+            .handle_errors(task_instance_id="rename_airstrip")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "drop_columns": [],
+                "retain_columns": [],
+                "rename_columns": {
+                    "event_details__guide": "guide",
+                    "event_details__airline": "airline",
+                    "event_details__attendant": "attendant",
+                    "event_details__camplodge": "camp_lodge",
+                    "event_details__flight_number": "flight_number",
+                    "event_details__number_of_clients": "number_of_clients",
+                    "event_details__arrival_or_departure": "arrival_or_departure",
+                },
+                "df": DependsOn("normalize_airstrip_values"),
+            }
+            | (params_dict.get("rename_airstrip") or {}),
+            method="call",
+        ),
+        "remove_air_brackets": Node(
+            async_task=remove_brackets_from_column.validate()
+            .handle_errors(task_instance_id="remove_air_brackets")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_airstrip"),
+                "columns": [
+                    "airline",
+                    "attendant",
+                    "camp_lodge",
+                    "arrival_or_departure",
+                ],
+            }
+            | (params_dict.get("remove_air_brackets") or {}),
+            method="call",
+        ),
+        "replace_camp_lodge_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .handle_errors(task_instance_id="replace_camp_lodge_nulls")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("remove_air_brackets"),
+                "column_name": "camp_lodge",
+                "label": "other",
+            }
+            | (params_dict.get("replace_camp_lodge_nulls") or {}),
+            method="call",
+        ),
+        "convert_clients_int": Node(
+            async_task=convert_to_int.validate()
+            .handle_errors(task_instance_id="convert_clients_int")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("replace_camp_lodge_nulls"),
+                "columns": ["number_of_clients"],
+                "errors": "coerce",
+                "fill_value": 0,
+                "inplace": False,
+            }
+            | (params_dict.get("convert_clients_int") or {}),
+            method="call",
+        ),
+        "airstrip_summary_table": Node(
+            async_task=summarize_df.validate()
+            .handle_errors(task_instance_id="airstrip_summary_table")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("convert_clients_int"),
+                "groupby_cols": ["camp_lodge", "arrival_or_departure"],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_passengers",
+                        "aggregator": "sum",
+                        "column": "number_of_clients",
+                    }
+                ],
+                "reset_index": True,
+            }
+            | (params_dict.get("airstrip_summary_table") or {}),
+            method="call",
+        ),
+        "pivot_airstrip_table": Node(
+            async_task=pivot_df.validate()
+            .handle_errors(task_instance_id="pivot_airstrip_table")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("airstrip_summary_table"),
+                "index_col": "camp_lodge",
+                "columns_col": "arrival_or_departure",
+                "values_col": "no_of_passengers",
+                "reset_idx": True,
+            }
+            | (params_dict.get("pivot_airstrip_table") or {}),
+            method="call",
+        ),
+        "persist_airstrip_summary": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_airstrip_summary")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("pivot_airstrip_table"),
+                "filename": "airstrip_arrivals_and_departure",
+            }
+            | (params_dict.get("persist_airstrip_summary") or {}),
+            method="call",
+        ),
+        "conv_chart_png": Node(
+            async_task=html_snapshot.validate()
+            .handle_errors(task_instance_id="conv_chart_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOnSequence(
+                    [
+                        DependsOn("persist_precipitation"),
+                        DependsOn("persist_temperature"),
+                        DependsOn("persist_wind_speed"),
+                        DependsOn("persist_wind_gusts"),
+                        DependsOn("persist_soil_temp"),
+                        DependsOn("persist_rel_humidity"),
+                        DependsOn("persist_pressure"),
+                        DependsOn("persist_total_events"),
+                        DependsOn("persist_elephant_bar"),
+                        DependsOn("persist_buffalo_bar"),
+                    ],
+                ),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 200},
+            }
+            | (params_dict.get("conv_chart_png") or {}),
+            method="call",
+        ),
+        "convert_foot_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_foot_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_foot_patrol_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_foot_html_png") or {}),
+            method="call",
+        ),
+        "convert_vehicle_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_vehicle_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_vehicle_patrol_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_vehicle_html_png") or {}),
+            method="call",
+        ),
+        "convert_motor_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_motor_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_motor_patrol_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_motor_html_png") or {}),
+            method="call",
+        ),
+        "convert_grid_map_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_grid_map_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_grid_map_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_grid_map_html_png") or {}),
+            method="call",
+        ),
+        "convert_mobile_boma_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_mobile_boma_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_mobile_boma_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_mobile_boma_html_png") or {}),
+            method="call",
+        ),
+        "convert_livestock_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_livestock_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_livestock_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_livestock_html_png") or {}),
+            method="call",
+        ),
+        "convert_wildlife_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_wildlife_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_wildlife_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_wildlife_html_png") or {}),
+            method="call",
+        ),
+        "convert_elephant_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_elephant_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_elephant_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_elephant_html_png") or {}),
+            method="call",
+        ),
+        "convert_ele_herd_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_ele_herd_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_ele_herd_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_ele_herd_html_png") or {}),
+            method="call",
+        ),
+        "convert_buffalo_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_buffalo_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_buffalo_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_buffalo_html_png") or {}),
+            method="call",
+        ),
+        "convert_buffalo_herd_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_buffalo_herd_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_buffalo_herd_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_buffalo_herd_html_png") or {}),
+            method="call",
+        ),
+        "convert_rhino_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_rhino_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_rhino_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_rhino_html_png") or {}),
+            method="call",
+        ),
+        "convert_lion_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_lion_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_lion_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_lion_html_png") or {}),
+            method="call",
+        ),
+        "convert_leopard_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_leopard_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_leopard_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_leopard_html_png") or {}),
+            method="call",
+        ),
+        "convert_cheetah_html_png": Node(
+            async_task=html_to_png.validate()
+            .handle_errors(task_instance_id="convert_cheetah_html_png")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "html_path": DependsOn("persist_cheetah_urls"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "config": {"wait_for_timeout": 20000},
+            }
+            | (params_dict.get("convert_cheetah_html_png") or {}),
+            method="call",
+        ),
         "mnc_events_dashboard": Node(
             async_task=gather_dashboard.validate()
             .handle_errors(task_instance_id="mnc_events_dashboard")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "details": DependsOn("workflow_details"),

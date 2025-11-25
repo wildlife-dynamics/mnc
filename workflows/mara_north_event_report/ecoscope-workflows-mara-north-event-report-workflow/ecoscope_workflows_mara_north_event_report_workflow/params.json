@@ -535,19 +535,117 @@
       "type": "object",
       "title": "Filter events to get livestock predation events"
     },
-    "replace_species_null": {
+    "retrieve_elephant_events": {
       "additionalProperties": false,
       "properties": {
-        "column_name": {
-          "title": "Column Name",
-          "type": "string"
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
         }
       },
-      "required": [
-        "column_name"
-      ],
+      "required": [],
       "type": "object",
-      "title": "Replace livestock species null with unknown"
+      "title": "Retrieve elephant events"
+    },
+    "retrieve_buffalo_events": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Retrieve buffalo events"
+    },
+    "retrieve_rhino_events": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Retrieve rhino events"
+    },
+    "retrieve_lion_events": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Retrieve lion events"
+    },
+    "retrieve_leopard_events": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Retrieve leopard events"
+    },
+    "retrieve_cheetah_events": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Retrieve cheetah events"
+    },
+    "filter_balloon_events": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Filter events and get balloon sighting records"
+    },
+    "filter_airstrip_events": {
+      "additionalProperties": false,
+      "properties": {
+        "reset_index": {
+          "default": false,
+          "title": "Reset Index",
+          "type": "boolean",
+          "description": "If reset index, default is False"
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Filter events and get airstrip operations records"
     }
   },
   "$defs": {
@@ -692,7 +790,14 @@
       "motor_trajs",
       "filter_mobile_boma",
       "filter_predation",
-      "replace_species_null"
+      "retrieve_elephant_events",
+      "retrieve_buffalo_events",
+      "retrieve_rhino_events",
+      "retrieve_lion_events",
+      "retrieve_leopard_events",
+      "retrieve_cheetah_events",
+      "filter_balloon_events",
+      "filter_airstrip_events"
     ]
   },
   "additionalProperties": false

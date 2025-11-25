@@ -309,11 +309,76 @@ class FilterPredation(BaseModel):
     )
 
 
-class ReplaceSpeciesNull(BaseModel):
+class RetrieveElephantEvents(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    column_name: str = Field(..., title="Column Name")
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class RetrieveBuffaloEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class RetrieveRhinoEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class RetrieveLionEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class RetrieveLeopardEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class RetrieveCheetahEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class FilterBalloonEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
+
+
+class FilterAirstripEvents(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    reset_index: Optional[bool] = Field(
+        False, description="If reset index, default is False", title="Reset Index"
+    )
 
 
 class TimezoneInfo(BaseModel):
@@ -484,6 +549,27 @@ class Params(BaseModel):
     filter_predation: Optional[FilterPredation] = Field(
         None, title="Filter events to get livestock predation events"
     )
-    replace_species_null: Optional[ReplaceSpeciesNull] = Field(
-        None, title="Replace livestock species null with unknown"
+    retrieve_elephant_events: Optional[RetrieveElephantEvents] = Field(
+        None, title="Retrieve elephant events"
+    )
+    retrieve_buffalo_events: Optional[RetrieveBuffaloEvents] = Field(
+        None, title="Retrieve buffalo events"
+    )
+    retrieve_rhino_events: Optional[RetrieveRhinoEvents] = Field(
+        None, title="Retrieve rhino events"
+    )
+    retrieve_lion_events: Optional[RetrieveLionEvents] = Field(
+        None, title="Retrieve lion events"
+    )
+    retrieve_leopard_events: Optional[RetrieveLeopardEvents] = Field(
+        None, title="Retrieve leopard events"
+    )
+    retrieve_cheetah_events: Optional[RetrieveCheetahEvents] = Field(
+        None, title="Retrieve cheetah events"
+    )
+    filter_balloon_events: Optional[FilterBalloonEvents] = Field(
+        None, title="Filter events and get balloon sighting records"
+    )
+    filter_airstrip_events: Optional[FilterAirstripEvents] = Field(
+        None, title="Filter events and get airstrip operations records"
     )
