@@ -66,14 +66,14 @@ from ecoscope_workflows_ext_mnc.tasks import (
     download_file_and_persist,
     draw_custom_map,
     drop_null_values,
-    exclude_by_value,
     exclude_geom_outliers,
     filter_by_value,
+    generate_mnc_report,
     get_patrol_observations_from_patrols_dataframe_and_combined_params,
     get_patrols_from_combined_parameters,
-    html_snapshot,
     make_event_summary_df,
     make_text_layer,
+    map_column_values,
     merge_multiple_df,
     merge_static_and_grouped_layers,
     pivot_df,
@@ -126,7 +126,6 @@ workflow_details = (
 time_range_params = dict(
     since=...,
     until=...,
-    timezone=...,
 )
 
 # %%
@@ -142,7 +141,16 @@ time_range = (
         ],
         unpack_depth=1,
     )
-    .partial(time_format="%d %b %Y %H:%M:%S %Z", **time_range_params)
+    .partial(
+        time_format="%d %b %Y %H:%M:%S %Z",
+        timezone={
+            "label": "UTC",
+            "tzCode": "UTC",
+            "name": "UTC",
+            "utc_offset": "+00:00",
+        },
+        **time_range_params,
+    )
     .call()
 )
 
@@ -251,7 +259,7 @@ persist_mnc_tpt = (
         unpack_depth=1,
     )
     .partial(
-        url="https://www.dropbox.com/scl/fi/wkzd2lm1t5rzidie9wl2j/mara_north_conservancy_report_template_v4.docx?rlkey=os9ffgdk737dc60n568jfrct2&st=zo3i4ovj&dl=0",
+        url="https://www.dropbox.com/scl/fi/swqlc8wjdaojkwhwn1ut5/mnc_template_2.docx?rlkey=y5gwkwx61j6u56ypzwmcbkltc&st=w62ngh5f&dl=0",
         output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         overwrite_existing=False,
         retries=3,
@@ -462,6 +470,51 @@ create_mnc_styled_layers = (
 
 
 # %% [markdown]
+# ## Create styled layers from split mnc zones
+
+# %%
+# parameters
+
+create_conservancy_styled_layer_params = dict()
+
+# %%
+# call the task
+
+
+create_conservancy_styled_layer = (
+    create_styled_layers_from_dict.handle_errors(
+        task_instance_id="create_conservancy_styled_layer"
+    )
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        gdf_dict=split_gdf_by_zone,
+        style_config={
+            "styles": {
+                "Conservancy": {
+                    "extruded": False,
+                    "get_fill_color": [105, 105, 105, 200],
+                    "get_line_color": [105, 105, 105, 200],
+                    "get_line_width": 2.25,
+                    "stroked": True,
+                    "filled": False,
+                    "opacity": 0.95,
+                }
+            },
+            "legend": {"label": ["Conservancy boundaries"], "color": ["#696969"]},
+        },
+        **create_conservancy_styled_layer_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Create conservancy gdf from split dict
 
 # %%
@@ -493,9 +546,7 @@ conservancy_gdf = (
 # %%
 # parameters
 
-overall_grazing_zones_params = dict(
-    reset_index=...,
-)
+overall_grazing_zones_params = dict()
 
 # %%
 # call the task
@@ -515,6 +566,7 @@ overall_grazing_zones = (
         op="ne",
         value="Conservancy",
         df=load_local_shapefiles,
+        reset_index=False,
         **overall_grazing_zones_params,
     )
     .call()
@@ -548,7 +600,7 @@ custom_text_layer = (
         fallback_columns=["name"],
         use_centroid=True,
         color=[0, 0, 0, 255],
-        size=78,
+        size=75,
         font_family="Arial",
         font_weight="normal",
         background=False,
@@ -909,7 +961,6 @@ rename_grouper_columns = (
 # parameters
 
 df_with_temporal_index_params = dict(
-    cast_to_datetime=...,
     format=...,
 )
 
@@ -929,6 +980,7 @@ df_with_temporal_index = (
     .partial(
         df=rename_grouper_columns,
         time_col="fixtime",
+        cast_to_datetime=True,
         groupers=groupers,
         **df_with_temporal_index_params,
     )
@@ -1638,6 +1690,223 @@ persist_pressure = (
 
 
 # %% [markdown]
+# ## Convert precipitation chart html to png
+
+# %%
+# parameters
+
+conv_precipitation_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_precipitation_png = (
+    html_to_png.handle_errors(task_instance_id="conv_precipitation_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_precipitation,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_precipitation_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert temperature chart html to png
+
+# %%
+# parameters
+
+conv_temperature_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_temperature_png = (
+    html_to_png.handle_errors(task_instance_id="conv_temperature_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_temperature,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_temperature_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert wind speed chart html to png
+
+# %%
+# parameters
+
+conv_wind_speed_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_wind_speed_png = (
+    html_to_png.handle_errors(task_instance_id="conv_wind_speed_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_wind_speed,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_wind_speed_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert wind gusts chart html to png
+
+# %%
+# parameters
+
+conv_wind_gusts_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_wind_gusts_png = (
+    html_to_png.handle_errors(task_instance_id="conv_wind_gusts_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_wind_gusts,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_wind_gusts_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert soil temp chart html to png
+
+# %%
+# parameters
+
+conv_soil_temp_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_soil_temp_png = (
+    html_to_png.handle_errors(task_instance_id="conv_soil_temp_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_soil_temp,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_soil_temp_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert rel humidity chart html to png
+
+# %%
+# parameters
+
+conv_rel_humidity_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_rel_humidity_png = (
+    html_to_png.handle_errors(task_instance_id="conv_rel_humidity_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_rel_humidity,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_rel_humidity_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert pressure chart html to png
+
+# %%
+# parameters
+
+conv_pressure_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_pressure_png = (
+    html_to_png.handle_errors(task_instance_id="conv_pressure_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_pressure,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_pressure_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Get events
 
 # %%
@@ -1723,7 +1992,6 @@ extract_event_date = (
 # parameters
 
 events_wtemporal_params = dict(
-    cast_to_datetime=...,
     format=...,
 )
 
@@ -1744,6 +2012,7 @@ events_wtemporal = (
         df=extract_event_date,
         time_col="date",
         groupers=groupers,
+        cast_to_datetime=True,
         **events_wtemporal_params,
     )
     .call()
@@ -1756,14 +2025,14 @@ events_wtemporal = (
 # %%
 # parameters
 
-exclude_event_type_values_params = dict()
+filter_event_type_values_params = dict()
 
 # %%
 # call the task
 
 
-exclude_event_type_values = (
-    exclude_by_value.handle_errors(task_instance_id="exclude_event_type_values")
+filter_event_type_values = (
+    filter_by_value.handle_errors(task_instance_id="filter_event_type_values")
     .skipif(
         conditions=[
             any_is_empty_df,
@@ -1774,8 +2043,22 @@ exclude_event_type_values = (
     .partial(
         df=events_wtemporal,
         column_name="event_type",
-        value=["distancecountwildlife_rep", "distancecountpatrol_rep"],
-        **exclude_event_type_values_params,
+        value=[
+            "all_posts",
+            "lion_sighting_rep",
+            "buffalo_sighting_rep",
+            "elephant_sighting_rep",
+            "cheetah_sighting_rep",
+            "hwc_rep",
+            "livestock_predation_rep",
+            "leopardsightingrep",
+            "injured_animal_rep",
+            "wildlife_treatment_rep",
+            "activity_rep",
+            "night_and_special_operation",
+            "wildlife_carcass_rep",
+        ],
+        **filter_event_type_values_params,
     )
     .call()
 )
@@ -1808,7 +2091,7 @@ total_events_recorded = (
             {"display_name": "no_of_events", "aggregator": "nunique", "column": "id"}
         ],
         reset_index=True,
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
         **total_events_recorded_params,
     )
     .call()
@@ -1964,6 +2247,37 @@ persist_total_events = (
 
 
 # %% [markdown]
+# ## Convert total events chart html to png
+
+# %%
+# parameters
+
+conv_total_events_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_total_events_png = (
+    html_to_png.handle_errors(task_instance_id="conv_total_events_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_total_events,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_total_events_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Calculate total events recorded by event type
 
 # %%
@@ -1990,7 +2304,7 @@ total_events_type_recorded = (
             {"display_name": "no_of_events", "aggregator": "nunique", "column": "id"}
         ],
         reset_index=True,
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
         **total_events_type_recorded_params,
     )
     .call()
@@ -2035,9 +2349,7 @@ persist_summary_event_type = (
 # %%
 # parameters
 
-filter_patrol_info_events_params = dict(
-    reset_index=...,
-)
+filter_patrol_info_events_params = dict()
 
 # %%
 # call the task
@@ -2056,7 +2368,8 @@ filter_patrol_info_events = (
         column_name="event_type",
         op="equal",
         value="patrol_information",
-        df=exclude_event_type_values,
+        df=events_wtemporal,
+        reset_index=False,
         **filter_patrol_info_events_params,
     )
     .call()
@@ -2538,9 +2851,7 @@ map_patrol_types = (
 # %%
 # parameters
 
-filter_foot_patrols_params = dict(
-    reset_index=...,
-)
+filter_foot_patrols_params = dict()
 
 # %%
 # call the task
@@ -2560,6 +2871,7 @@ filter_foot_patrols = (
         op="equal",
         value="foot",
         df=map_patrol_types,
+        reset_index=False,
         **filter_foot_patrols_params,
     )
     .call()
@@ -2572,9 +2884,7 @@ filter_foot_patrols = (
 # %%
 # parameters
 
-filter_vehicle_patrols_params = dict(
-    reset_index=...,
-)
+filter_vehicle_patrols_params = dict()
 
 # %%
 # call the task
@@ -2594,6 +2904,7 @@ filter_vehicle_patrols = (
         op="equal",
         value="vehicle",
         df=map_patrol_types,
+        reset_index=False,
         **filter_vehicle_patrols_params,
     )
     .call()
@@ -2606,9 +2917,7 @@ filter_vehicle_patrols = (
 # %%
 # parameters
 
-filter_motor_patrols_params = dict(
-    reset_index=...,
-)
+filter_motor_patrols_params = dict()
 
 # %%
 # call the task
@@ -2628,6 +2937,7 @@ filter_motor_patrols = (
         op="equal",
         value="motorcycle",
         df=map_patrol_types,
+        reset_index=False,
         **filter_motor_patrols_params,
     )
     .call()
@@ -3145,6 +3455,11 @@ foot_patrol_metrics = (
                 "original_unit": "s",
                 "new_unit": "h",
             },
+            {
+                "display_name": "average_speed",
+                "aggregator": "mean",
+                "column": "speed_kmhr",
+            },
         ],
         reset_index=True,
         df=rename_foot_trajs,
@@ -3346,7 +3661,7 @@ combine_custom_foot_patrols = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_foot_layers,
         **combine_custom_foot_patrols_params,
     )
@@ -3425,6 +3740,37 @@ persist_foot_patrol_urls = (
 
 
 # %% [markdown]
+# ## Convert foot patrols html to png
+
+# %%
+# parameters
+
+convert_foot_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_foot_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_foot_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_foot_patrol_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_foot_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Summarize vehicle patrol metrics
 
 # %%
@@ -3466,6 +3812,11 @@ vehicle_patrol_metrics = (
                 "column": "timespan_seconds",
                 "original_unit": "s",
                 "new_unit": "h",
+            },
+            {
+                "display_name": "average_speed",
+                "aggregator": "mean",
+                "column": "speed_kmhr",
             },
         ],
         reset_index=True,
@@ -3670,7 +4021,7 @@ combine_custom_vehicle_patrols = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_vehicle_layers,
         **combine_custom_vehicle_patrols_params,
     )
@@ -3749,6 +4100,37 @@ persist_vehicle_patrol_urls = (
 
 
 # %% [markdown]
+# ## Convert vehicle patrols html to png
+
+# %%
+# parameters
+
+convert_vehicle_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_vehicle_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_vehicle_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_vehicle_patrol_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_vehicle_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Summarize motorbike patrol metrics
 
 # %%
@@ -3790,6 +4172,11 @@ motor_patrol_metrics = (
                 "column": "timespan_seconds",
                 "original_unit": "s",
                 "new_unit": "h",
+            },
+            {
+                "display_name": "average_speed",
+                "aggregator": "mean",
+                "column": "speed_kmhr",
             },
         ],
         reset_index=True,
@@ -3992,7 +4379,7 @@ combine_custom_motor_patrols = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_motor_layers,
         **combine_custom_motor_patrols_params,
     )
@@ -4065,6 +4452,37 @@ persist_motor_patrol_urls = (
         text=draw_motor_patrol_map,
         filename="motorbike_patrols_map.html",
         **persist_motor_patrol_urls_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert motor patrols html to png
+
+# %%
+# parameters
+
+convert_motor_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_motor_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_motor_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_motor_patrol_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_motor_html_png_params,
     )
     .call()
 )
@@ -4204,6 +4622,7 @@ ranger_patrol_metrics = (
                 "display_name": "no_of_patrols",
                 "aggregator": "nunique",
                 "column": "patrol_id",
+                "decimal_places": 0,
             },
             {
                 "display_name": "distance_km",
@@ -4211,6 +4630,7 @@ ranger_patrol_metrics = (
                 "column": "dist_meters",
                 "original_unit": "m",
                 "new_unit": "km",
+                "decimal_places": 2,
             },
             {
                 "display_name": "duration_hrs",
@@ -4218,6 +4638,7 @@ ranger_patrol_metrics = (
                 "column": "timespan_seconds",
                 "original_unit": "s",
                 "new_unit": "h",
+                "decimal_places": 2,
             },
         ],
         reset_index=True,
@@ -4470,7 +4891,7 @@ combine_patrol_grid = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_grid_layers,
         **combine_patrol_grid_params,
     )
@@ -4543,6 +4964,37 @@ persist_grid_map_urls = (
         text=draw_grid_map,
         filename="patrol_coverage_map.html",
         **persist_grid_map_urls_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert grid map html to png
+
+# %%
+# parameters
+
+convert_grid_map_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_grid_map_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_grid_map_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_grid_map_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_grid_map_html_png_params,
     )
     .call()
 )
@@ -4648,9 +5100,7 @@ persist_occupancy_df = (
 # %%
 # parameters
 
-filter_mobile_boma_params = dict(
-    reset_index=...,
-)
+filter_mobile_boma_params = dict()
 
 # %%
 # call the task
@@ -4669,7 +5119,8 @@ filter_mobile_boma = (
         column_name="event_type",
         op="equal",
         value="mobile_boma_rep",
-        df=exclude_event_type_values,
+        df=events_wtemporal,
+        reset_index=False,
         **filter_mobile_boma_params,
     )
     .call()
@@ -5034,14 +5485,43 @@ persist_mobile_boma_urls = (
 
 
 # %% [markdown]
+# ## Convert mobile boma html to png
+
+# %%
+# parameters
+
+convert_mobile_boma_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_mobile_boma_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_mobile_boma_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_mobile_boma_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_mobile_boma_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Filter events to get livestock predation events
 
 # %%
 # parameters
 
-filter_predation_params = dict(
-    reset_index=...,
-)
+filter_predation_params = dict()
 
 # %%
 # call the task
@@ -5060,7 +5540,8 @@ filter_predation = (
         column_name="event_type",
         op="equal",
         value="livestock_predation_rep",
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
+        reset_index=False,
         **filter_predation_params,
     )
     .call()
@@ -5276,6 +5757,66 @@ convert_livestock_int = (
 
 
 # %% [markdown]
+# ## Convert suspected predator to sentence case
+
+# %%
+# parameters
+
+suspected_predator_scase_params = dict()
+
+# %%
+# call the task
+
+
+suspected_predator_scase = (
+    to_sentence_case.handle_errors(task_instance_id="suspected_predator_scase")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=convert_livestock_int,
+        column="suspected_predator",
+        **suspected_predator_scase_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert livestock species to sentence case
+
+# %%
+# parameters
+
+livestock_species_scase_params = dict()
+
+# %%
+# call the task
+
+
+livestock_species_scase = (
+    to_sentence_case.handle_errors(task_instance_id="livestock_species_scase")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=suspected_predator_scase,
+        column="livestock_species",
+        **livestock_species_scase_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Livestock predation summary table
 
 # %%
@@ -5306,7 +5847,7 @@ livestock_predation_summary = (
             }
         ],
         reset_index=True,
-        df=convert_livestock_int,
+        df=livestock_species_scase,
         **livestock_predation_summary_params,
     )
     .call()
@@ -5372,7 +5913,7 @@ livestock_events_recorded = (
             {"display_name": "no_of_events", "aggregator": "nunique", "column": "id"}
         ],
         reset_index=True,
-        df=convert_livestock_int,
+        df=livestock_species_scase,
         **livestock_events_recorded_params,
     )
     .call()
@@ -5464,7 +6005,7 @@ exclude_livestock_outliers = (
         unpack_depth=1,
     )
     .partial(
-        df=convert_livestock_int, z_threshold=3, **exclude_livestock_outliers_params
+        df=livestock_species_scase, z_threshold=3, **exclude_livestock_outliers_params
     )
     .call()
 )
@@ -5522,7 +6063,7 @@ apply_livestock_colormap = (
     .partial(
         input_column_name="livestock_species",
         output_column_name="colors",
-        colormap="Reds_r",
+        colormap="plasma",
         df=remove_invalid_geoms,
         **apply_livestock_colormap_params,
     )
@@ -5622,7 +6163,7 @@ combine_custom_livestock = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_livestock_layers,
         **combine_custom_livestock_params,
     )
@@ -5701,6 +6242,37 @@ persist_livestock_urls = (
 
 
 # %% [markdown]
+# ## Convert livestock html to png
+
+# %%
+# parameters
+
+convert_livestock_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_livestock_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_livestock_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_livestock_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_livestock_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Filter wildlife incident event types
 
 # %%
@@ -5722,7 +6294,7 @@ filter_wildlife_events = (
         unpack_depth=1,
     )
     .partial(
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
         column_name="event_type",
         value=[
             "snare_rep",
@@ -6154,7 +6726,7 @@ combine_custom_wildlife = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_wildlife_layers,
         **combine_custom_wildlife_params,
     )
@@ -6233,14 +6805,43 @@ persist_wildlife_urls = (
 
 
 # %% [markdown]
+# ## Convert wildlife html to png
+
+# %%
+# parameters
+
+convert_wildlife_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_wildlife_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_wildlife_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_wildlife_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_wildlife_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Retrieve elephant events
 
 # %%
 # parameters
 
-retrieve_elephant_events_params = dict(
-    reset_index=...,
-)
+retrieve_elephant_events_params = dict()
 
 # %%
 # call the task
@@ -6259,7 +6860,8 @@ retrieve_elephant_events = (
         column_name="event_type",
         op="equal",
         value="elephant_sighting_rep",
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
+        reset_index=False,
         **retrieve_elephant_events_params,
     )
     .call()
@@ -6519,6 +7121,43 @@ remove_ele_invalid_geoms = (
 
 
 # %% [markdown]
+# ## Rename values in elephant sight herd composition column
+
+# %%
+# parameters
+
+rename_ele_column_params = dict()
+
+# %%
+# call the task
+
+
+rename_ele_column = (
+    map_column_values.handle_errors(task_instance_id="rename_ele_column")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=remove_ele_invalid_geoms,
+        columns=["elephant_sight_herd_composition"],
+        value_map={
+            "bachelor": "Bachelor",
+            "femalecalf": "Female/calf",
+            "mixed": "Mixed",
+            "unspecified": "Unspecified",
+        },
+        inplace=True,
+        **rename_ele_column_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Apply Colormap to elephant events
 
 # %%
@@ -6543,7 +7182,7 @@ apply_ele_events_colormap = (
         input_column_name="elephant_sight_herd_composition",
         output_column_name="colors",
         colormap="plasma",
-        df=remove_ele_invalid_geoms,
+        df=rename_ele_column,
         **apply_ele_events_colormap_params,
     )
     .call()
@@ -6640,7 +7279,7 @@ combine_custom_ele = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_elephant_layers,
         **combine_custom_ele_params,
     )
@@ -6713,6 +7352,37 @@ persist_elephant_urls = (
         text=draw_elephant_map,
         filename="elephant_sightings_events.html",
         **persist_elephant_urls_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert elephant html to png
+
+# %%
+# parameters
+
+convert_elephant_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_elephant_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_elephant_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_elephant_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_elephant_html_png_params,
     )
     .call()
 )
@@ -6966,6 +7636,37 @@ persist_elephant_bar = (
 
 
 # %% [markdown]
+# ## Convert elephant bar chart html to png
+
+# %%
+# parameters
+
+conv_elephant_bar_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_elephant_bar_png = (
+    html_to_png.handle_errors(task_instance_id="conv_elephant_bar_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_elephant_bar,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_elephant_bar_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Drop null size elephant sight bins
 
 # %%
@@ -7019,7 +7720,7 @@ apply_ele_color_bins = (
     .partial(
         input_column_name="elephant_sight_herd_sizebins",
         output_column_name="colors",
-        colormap="Blues",
+        colormap="plasma",
         df=drop_null_ele_bins,
         **apply_ele_color_bins_params,
     )
@@ -7118,7 +7819,7 @@ combine_ele_bins = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_ele_herd_layers,
         **combine_ele_bins_params,
     )
@@ -7197,14 +7898,43 @@ persist_ele_herd_urls = (
 
 
 # %% [markdown]
+# ## Convert elephant herd html to png
+
+# %%
+# parameters
+
+convert_ele_herd_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_ele_herd_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_ele_herd_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_ele_herd_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_ele_herd_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Retrieve buffalo events
 
 # %%
 # parameters
 
-retrieve_buffalo_events_params = dict(
-    reset_index=...,
-)
+retrieve_buffalo_events_params = dict()
 
 # %%
 # call the task
@@ -7223,7 +7953,8 @@ retrieve_buffalo_events = (
         column_name="event_type",
         op="equal",
         value="buffalo_sighting_rep",
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
+        reset_index=False,
         **retrieve_buffalo_events_params,
     )
     .call()
@@ -7424,6 +8155,42 @@ replace_buffalo_nulls = (
 
 
 # %% [markdown]
+# ## Rename values in buffalo herd composition column
+
+# %%
+# parameters
+
+rename_buffalo_column_params = dict()
+
+# %%
+# call the task
+
+
+rename_buffalo_column = (
+    map_column_values.handle_errors(task_instance_id="rename_buffalo_column")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=replace_buffalo_nulls,
+        columns=["buffalo_herd"],
+        value_map={
+            "bachelor": "Bachelor",
+            "mixed": "Mixed",
+            "unspecified": "Unspecified",
+        },
+        inplace=True,
+        **rename_buffalo_column_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Exclude geometry outliers from buffalo events
 
 # %%
@@ -7444,7 +8211,7 @@ exclude_buffalo_outliers = (
         ],
         unpack_depth=1,
     )
-    .partial(df=replace_buffalo_nulls, z_threshold=3, **exclude_buffalo_outliers_params)
+    .partial(df=rename_buffalo_column, z_threshold=3, **exclude_buffalo_outliers_params)
     .call()
 )
 
@@ -7601,7 +8368,7 @@ combine_custom_buffalo = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_buffalo_layers,
         **combine_custom_buffalo_params,
     )
@@ -7674,6 +8441,37 @@ persist_buffalo_urls = (
         text=draw_buffalo_map,
         filename="buffalo_herd_map.html",
         **persist_buffalo_urls_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert buffalo html to png
+
+# %%
+# parameters
+
+convert_buffalo_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_buffalo_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_buffalo_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_buffalo_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_buffalo_html_png_params,
     )
     .call()
 )
@@ -7824,6 +8622,37 @@ persist_buffalo_bar = (
 
 
 # %% [markdown]
+# ## Convert buffalo bar chart html to png
+
+# %%
+# parameters
+
+conv_buffalo_bar_png_params = dict()
+
+# %%
+# call the task
+
+
+conv_buffalo_bar_png = (
+    html_to_png.handle_errors(task_instance_id="conv_buffalo_bar_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_buffalo_bar,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 50},
+        **conv_buffalo_bar_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Drop null size buffalo sight bins
 
 # %%
@@ -7877,7 +8706,7 @@ apply_buffalo_color_bins = (
     .partial(
         input_column_name="buffalo_herd_sizebins",
         output_column_name="colors",
-        colormap="Blues",
+        colormap="plasma",
         df=drop_null_buffalo_bins,
         **apply_buffalo_color_bins_params,
     )
@@ -7982,7 +8811,7 @@ combine_buffalo_bins = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_buffalo_herd_layers,
         **combine_buffalo_bins_params,
     )
@@ -8061,14 +8890,43 @@ persist_buffalo_herd_urls = (
 
 
 # %% [markdown]
+# ## Convert buffalo herd types html to png
+
+# %%
+# parameters
+
+convert_buffalo_herd_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_buffalo_herd_png = (
+    html_to_png.handle_errors(task_instance_id="convert_buffalo_herd_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_buffalo_herd_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_buffalo_herd_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Retrieve rhino events
 
 # %%
 # parameters
 
-retrieve_rhino_events_params = dict(
-    reset_index=...,
-)
+retrieve_rhino_events_params = dict()
 
 # %%
 # call the task
@@ -8087,7 +8945,8 @@ retrieve_rhino_events = (
         column_name="event_type",
         op="equal",
         value="rhino_sighting_rep",
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
+        reset_index=False,
         **retrieve_rhino_events_params,
     )
     .call()
@@ -8397,7 +9256,7 @@ combine_custom_rhino = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_rhino_layers,
         **combine_custom_rhino_params,
     )
@@ -8476,14 +9335,43 @@ persist_rhino_urls = (
 
 
 # %% [markdown]
+# ## Convert rhino html to png
+
+# %%
+# parameters
+
+convert_rhino_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_rhino_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_rhino_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_rhino_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_rhino_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Retrieve lion events
 
 # %%
 # parameters
 
-retrieve_lion_events_params = dict(
-    reset_index=...,
-)
+retrieve_lion_events_params = dict()
 
 # %%
 # call the task
@@ -8502,7 +9390,8 @@ retrieve_lion_events = (
         column_name="event_type",
         op="equal",
         value="lion_sighting_rep",
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
+        reset_index=False,
         **retrieve_lion_events_params,
     )
     .call()
@@ -8732,6 +9621,45 @@ lion_pride_scase = (
 
 
 # %% [markdown]
+# ## Rename values in lion pride column
+
+# %%
+# parameters
+
+rename_lion_pride_column_params = dict()
+
+# %%
+# call the task
+
+
+rename_lion_pride_column = (
+    map_column_values.handle_errors(task_instance_id="rename_lion_pride_column")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=lion_pride_scase,
+        columns=["lion_pride"],
+        value_map={
+            "Acacia": "Acacia",
+            "Enkuyanai": "Enkuyanai",
+            "Lemekhills": "Lemek hills",
+            "Offbeat": "Offbeat",
+            "Oldikidiki": "Oldikidiki",
+            "River": "River",
+        },
+        inplace=True,
+        **rename_lion_pride_column_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Unique lion prides summary table
 
 # %%
@@ -8758,7 +9686,7 @@ unique_lions_summary = (
             {"display_name": "no_of_events", "aggregator": "nunique", "column": "id"}
         ],
         reset_index=True,
-        df=lion_pride_scase,
+        df=rename_lion_pride_column,
         **unique_lions_summary_params,
     )
     .call()
@@ -8819,7 +9747,7 @@ replace_ip_lion_nulls = (
         unpack_depth=1,
     )
     .partial(
-        df=lion_pride_scase,
+        df=rename_lion_pride_column,
         column_name="individual_present",
         label="unspecified",
         **replace_ip_lion_nulls_params,
@@ -9035,7 +9963,7 @@ combine_custom_lion = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_lion_layers,
         **combine_custom_lion_params,
     )
@@ -9114,14 +10042,43 @@ persist_lion_urls = (
 
 
 # %% [markdown]
+# ## Convert lion html to png
+
+# %%
+# parameters
+
+convert_lion_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_lion_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_lion_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_lion_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_lion_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Retrieve leopard events
 
 # %%
 # parameters
 
-retrieve_leopard_events_params = dict(
-    reset_index=...,
-)
+retrieve_leopard_events_params = dict()
 
 # %%
 # call the task
@@ -9140,7 +10097,8 @@ retrieve_leopard_events = (
         column_name="event_type",
         op="equal",
         value="leopardsightingrep",
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
+        reset_index=False,
         **retrieve_leopard_events_params,
     )
     .call()
@@ -9647,7 +10605,7 @@ combine_custom_leopard = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_leopard_layers,
         **combine_custom_leopard_params,
     )
@@ -9726,14 +10684,43 @@ persist_leopard_urls = (
 
 
 # %% [markdown]
+# ## Convert leopard html to png
+
+# %%
+# parameters
+
+convert_leopard_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_leopard_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_leopard_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_leopard_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_leopard_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Retrieve cheetah events
 
 # %%
 # parameters
 
-retrieve_cheetah_events_params = dict(
-    reset_index=...,
-)
+retrieve_cheetah_events_params = dict()
 
 # %%
 # call the task
@@ -9752,7 +10739,8 @@ retrieve_cheetah_events = (
         column_name="event_type",
         op="equal",
         value="cheetah_sighting_rep",
-        df=exclude_event_type_values,
+        df=filter_event_type_values,
+        reset_index=False,
         **retrieve_cheetah_events_params,
     )
     .call()
@@ -9957,6 +10945,48 @@ persist_cheetah_df = (
 
 
 # %% [markdown]
+# ## Rename values in cheetah individual present  column
+
+# %%
+# parameters
+
+rename_cheetah_column_params = dict()
+
+# %%
+# call the task
+
+
+rename_cheetah_column = (
+    map_column_values.handle_errors(task_instance_id="rename_cheetah_column")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=replace_cheetah_nulls,
+        columns=["individual_present"],
+        value_map={
+            "karacub": "Bachelor",
+            "kulete": "Female/calf",
+            "kweli": "Mixed",
+            "milele": "Unspecified",
+            "neema": "Neema",
+            "other": "Other",
+            "ranger": "Ranger",
+            "risasi": "Risasi",
+            "unknown": "Unknown",
+        },
+        inplace=True,
+        **rename_cheetah_column_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Individual cheetah present  summary table
 
 # %%
@@ -9983,7 +11013,7 @@ unique_cheetah_summary = (
             {"display_name": "no_of_events", "aggregator": "nunique", "column": "id"}
         ],
         reset_index=True,
-        df=replace_cheetah_nulls,
+        df=rename_cheetah_column,
         **unique_cheetah_summary_params,
     )
     .call()
@@ -10043,7 +11073,7 @@ exclude_cheetah_outliers = (
         ],
         unpack_depth=1,
     )
-    .partial(df=replace_cheetah_nulls, z_threshold=3, **exclude_cheetah_outliers_params)
+    .partial(df=rename_cheetah_column, z_threshold=3, **exclude_cheetah_outliers_params)
     .call()
 )
 
@@ -10200,7 +11230,7 @@ combine_custom_cheetah = (
         unpack_depth=1,
     )
     .partial(
-        static_layers=[create_mnc_styled_layers, custom_text_layer],
+        static_layers=[create_conservancy_styled_layer, custom_text_layer],
         grouped_layers=generate_cheetah_layers,
         **combine_custom_cheetah_params,
     )
@@ -10279,14 +11309,43 @@ persist_cheetah_urls = (
 
 
 # %% [markdown]
+# ## Convert cheetah html to png
+
+# %%
+# parameters
+
+convert_cheetah_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_cheetah_html_png = (
+    html_to_png.handle_errors(task_instance_id="convert_cheetah_html_png")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        html_path=persist_cheetah_urls,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        config={"wait_for_timeout": 15000},
+        **convert_cheetah_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Filter events and get balloon sighting records
 
 # %%
 # parameters
 
-filter_balloon_events_params = dict(
-    reset_index=...,
-)
+filter_balloon_events_params = dict()
 
 # %%
 # call the task
@@ -10305,7 +11364,8 @@ filter_balloon_events = (
         column_name="event_type",
         op="equal",
         value="balloon_sighting_rep",
-        df=exclude_event_type_values,
+        df=events_wtemporal,
+        reset_index=False,
         **filter_balloon_events_params,
     )
     .call()
@@ -10318,9 +11378,7 @@ filter_balloon_events = (
 # %%
 # parameters
 
-filter_airstrip_events_params = dict(
-    reset_index=...,
-)
+filter_airstrip_events_params = dict()
 
 # %%
 # call the task
@@ -10339,7 +11397,8 @@ filter_airstrip_events = (
         column_name="event_type",
         op="equal",
         value="airstrip_operations",
-        df=exclude_event_type_values,
+        df=events_wtemporal,
+        reset_index=False,
         **filter_airstrip_events_params,
     )
     .call()
@@ -10513,6 +11572,51 @@ convert_clients_int = (
 
 
 # %% [markdown]
+# ## Rename values in airstrip camp_lodge column
+
+# %%
+# parameters
+
+rename_camp_lodge_column_params = dict()
+
+# %%
+# call the task
+
+
+rename_camp_lodge_column = (
+    map_column_values.handle_errors(task_instance_id="rename_camp_lodge_column")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=convert_clients_int,
+        columns=["camp_lodge"],
+        value_map={
+            "elephant_pepper": "Elephant pepper",
+            "fairmontmarasafariclub": "Fairmont mara safari club",
+            "karen_blixen": "Karen blixen",
+            "kicheche": "Kicheche",
+            "losokwancamp": "Losokwan camp",
+            "naretoiplots": "Naretoi plots",
+            "neptunecamp": "Neptune camp",
+            "offbeat_mara": "Offbeat mara",
+            "richardscamp": "Richards camp",
+            "safarisunlimited": "Safari unlimited",
+            "saruni_mara": "Saruni mara",
+            "seriancamp": "Serian camp",
+        },
+        inplace=True,
+        **rename_camp_lodge_column_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Airstrip operations summary table
 
 # %%
@@ -10534,13 +11638,14 @@ airstrip_summary_table = (
         unpack_depth=1,
     )
     .partial(
-        df=convert_clients_int,
+        df=rename_camp_lodge_column,
         groupby_cols=["camp_lodge", "arrival_or_departure"],
         summary_params=[
             {
                 "display_name": "no_of_passengers",
                 "aggregator": "sum",
                 "column": "number_of_clients",
+                "decimal_places": 0,
             }
         ],
         reset_index=True,
@@ -10616,19 +11721,19 @@ persist_airstrip_summary = (
 
 
 # %% [markdown]
-# ## Convert all chart htmls to pngs
+# ## Generate mnc word doc report
 
 # %%
 # parameters
 
-conv_chart_png_params = dict()
+generate_mnc_word_doc_params = dict()
 
 # %%
 # call the task
 
 
-conv_chart_png = (
-    html_snapshot.handle_errors(task_instance_id="conv_chart_png")
+generate_mnc_word_doc = (
+    generate_mnc_report.handle_errors(task_instance_id="generate_mnc_word_doc")
     .skipif(
         conditions=[
             any_is_empty_df,
@@ -10637,486 +11742,15 @@ conv_chart_png = (
         unpack_depth=1,
     )
     .partial(
-        html_path=[
-            persist_precipitation,
-            persist_temperature,
-            persist_wind_speed,
-            persist_wind_gusts,
-            persist_soil_temp,
-            persist_rel_humidity,
-            persist_pressure,
-            persist_total_events,
-            persist_elephant_bar,
-            persist_buffalo_bar,
-        ],
+        template_path=persist_mnc_tpt,
         output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 200},
-        **conv_chart_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert foot patrols html to png
-
-# %%
-# parameters
-
-convert_foot_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_foot_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_foot_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_foot_patrol_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_foot_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert vehicle patrols html to png
-
-# %%
-# parameters
-
-convert_vehicle_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_vehicle_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_vehicle_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_vehicle_patrol_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_vehicle_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert motor patrols html to png
-
-# %%
-# parameters
-
-convert_motor_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_motor_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_motor_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_motor_patrol_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_motor_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert grid map html to png
-
-# %%
-# parameters
-
-convert_grid_map_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_grid_map_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_grid_map_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_grid_map_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_grid_map_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert mobile boma html to png
-
-# %%
-# parameters
-
-convert_mobile_boma_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_mobile_boma_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_mobile_boma_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_mobile_boma_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_mobile_boma_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert livestock html to png
-
-# %%
-# parameters
-
-convert_livestock_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_livestock_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_livestock_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_livestock_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_livestock_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert wildlife html to png
-
-# %%
-# parameters
-
-convert_wildlife_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_wildlife_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_wildlife_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_wildlife_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_wildlife_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert elephant html to png
-
-# %%
-# parameters
-
-convert_elephant_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_elephant_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_elephant_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_elephant_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_elephant_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert elephant herd html to png
-
-# %%
-# parameters
-
-convert_ele_herd_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_ele_herd_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_ele_herd_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_ele_herd_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_ele_herd_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert buffalo html to png
-
-# %%
-# parameters
-
-convert_buffalo_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_buffalo_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_buffalo_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_buffalo_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_buffalo_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert buffalo herd html to png
-
-# %%
-# parameters
-
-convert_buffalo_herd_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_buffalo_herd_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_buffalo_herd_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_buffalo_herd_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_buffalo_herd_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert rhino html to png
-
-# %%
-# parameters
-
-convert_rhino_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_rhino_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_rhino_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_rhino_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_rhino_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert lion html to png
-
-# %%
-# parameters
-
-convert_lion_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_lion_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_lion_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_lion_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_lion_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert leopard html to png
-
-# %%
-# parameters
-
-convert_leopard_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_leopard_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_leopard_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_leopard_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_leopard_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Convert cheetah html to png
-
-# %%
-# parameters
-
-convert_cheetah_html_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_cheetah_html_png = (
-    html_to_png.handle_errors(task_instance_id="convert_cheetah_html_png")
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        html_path=persist_cheetah_urls,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        config={"wait_for_timeout": 20000},
-        **convert_cheetah_html_png_params,
+        generated_by="Ecoscope",
+        validate_images=True,
+        box_h_cm=6.5,
+        box_w_cm=11.11,
+        time_period=time_range,
+        filename="mara_north_conservancy_comprehensive_report.docx",
+        **generate_mnc_word_doc_params,
     )
     .call()
 )

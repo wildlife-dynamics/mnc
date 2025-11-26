@@ -18,6 +18,14 @@ class WorkflowDetails(BaseModel):
     description: Optional[str] = Field("", title="Workflow Description")
 
 
+class TimeRange(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    since: datetime = Field(..., description="The start time", title="Since")
+    until: datetime = Field(..., description="The end time", title="Until")
+
+
 class Url(str, Enum):
     https___tile_openstreetmap_org__z___x___y__png = (
         "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -186,15 +194,6 @@ class ConfigureBaseMaps(BaseModel):
     )
 
 
-class OverallGrazingZones(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
 class SubjectObservations(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -205,11 +204,6 @@ class SubjectObservations(BaseModel):
 class DfWithTemporalIndex(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
-    )
-    cast_to_datetime: Optional[bool] = Field(
-        True,
-        description="Whether to attempt casting `time_col` to datetime.",
-        title="Cast To Datetime",
     )
     format: Optional[str] = Field(
         "mixed",
@@ -222,24 +216,10 @@ class EventsWtemporal(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
-    cast_to_datetime: Optional[bool] = Field(
-        True,
-        description="Whether to attempt casting `time_col` to datetime.",
-        title="Cast To Datetime",
-    )
     format: Optional[str] = Field(
         "mixed",
         description='            If `cast_to_datetime=True`, the format to pass to `pd.to_datetime`\n            when attempting to cast `time_col` to datetime. Defaults to "mixed".\n            ',
         title="Format",
-    )
-
-
-class FilterPatrolInfoEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
     )
 
 
@@ -262,130 +242,6 @@ class ErPatrolAndEventsParams(BaseModel):
     include_null_geometry: Optional[bool] = Field(
         True, title="Include Events Without a Geometry (point or polygon)"
     )
-
-
-class FilterFootPatrols(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class FilterVehiclePatrols(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class FilterMotorPatrols(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class FilterMobileBoma(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class FilterPredation(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class RetrieveElephantEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class RetrieveBuffaloEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class RetrieveRhinoEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class RetrieveLionEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class RetrieveLeopardEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class RetrieveCheetahEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class FilterBalloonEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class FilterAirstripEvents(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    reset_index: Optional[bool] = Field(
-        False, description="If reset index, default is False", title="Reset Index"
-    )
-
-
-class TimezoneInfo(BaseModel):
-    label: str = Field(..., title="Label")
-    tzCode: str = Field(..., title="Tzcode")
-    name: str = Field(..., title="Name")
-    utc: str = Field(..., title="Utc")
 
 
 class EarthRangerConnection(BaseModel):
@@ -411,15 +267,6 @@ class TrajectorySegmentFilter(BaseModel):
     max_speed_kmhr: Optional[confloat(gt=0.001)] = Field(
         500, title="Maximum Segment Speed (Kilometers per Hour)"
     )
-
-
-class TimeRange(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    since: datetime = Field(..., description="The start time", title="Since")
-    until: datetime = Field(..., description="The end time", title="Until")
-    timezone: Optional[TimezoneInfo] = Field(None, title="Timezone")
 
 
 class ErClientName(BaseModel):
@@ -507,9 +354,6 @@ class Params(BaseModel):
     configure_base_maps: Optional[ConfigureBaseMaps] = Field(
         None, title="Configure base map layers"
     )
-    overall_grazing_zones: Optional[OverallGrazingZones] = Field(
-        None, title="Create group ranch gdf from loaded gdf"
-    )
     subject_observations: Optional[SubjectObservations] = Field(
         None, title="Get subject observations from ER"
     )
@@ -519,20 +363,8 @@ class Params(BaseModel):
     events_wtemporal: Optional[EventsWtemporal] = Field(
         None, title="Add temporal index on events"
     )
-    filter_patrol_info_events: Optional[FilterPatrolInfoEvents] = Field(
-        None, title="Filter events and get patrol information records"
-    )
     er_patrol_and_events_params: Optional[ErPatrolAndEventsParams] = Field(
         None, title="patrol and event types"
-    )
-    filter_foot_patrols: Optional[FilterFootPatrols] = Field(
-        None, title="Filter foot patrol observations"
-    )
-    filter_vehicle_patrols: Optional[FilterVehiclePatrols] = Field(
-        None, title="Filter vehicle patrol observations"
-    )
-    filter_motor_patrols: Optional[FilterMotorPatrols] = Field(
-        None, title="Filter motorbike patrol observations"
     )
     foot_trajs: Optional[FootTrajs] = Field(
         None, title="Convert foot relocations to trajectories"
@@ -542,34 +374,4 @@ class Params(BaseModel):
     )
     motor_trajs: Optional[MotorTrajs] = Field(
         None, title="Convert motorbike relocations to trajectories"
-    )
-    filter_mobile_boma: Optional[FilterMobileBoma] = Field(
-        None, title="Filter events to get mobile boma rep"
-    )
-    filter_predation: Optional[FilterPredation] = Field(
-        None, title="Filter events to get livestock predation events"
-    )
-    retrieve_elephant_events: Optional[RetrieveElephantEvents] = Field(
-        None, title="Retrieve elephant events"
-    )
-    retrieve_buffalo_events: Optional[RetrieveBuffaloEvents] = Field(
-        None, title="Retrieve buffalo events"
-    )
-    retrieve_rhino_events: Optional[RetrieveRhinoEvents] = Field(
-        None, title="Retrieve rhino events"
-    )
-    retrieve_lion_events: Optional[RetrieveLionEvents] = Field(
-        None, title="Retrieve lion events"
-    )
-    retrieve_leopard_events: Optional[RetrieveLeopardEvents] = Field(
-        None, title="Retrieve leopard events"
-    )
-    retrieve_cheetah_events: Optional[RetrieveCheetahEvents] = Field(
-        None, title="Retrieve cheetah events"
-    )
-    filter_balloon_events: Optional[FilterBalloonEvents] = Field(
-        None, title="Filter events and get balloon sighting records"
-    )
-    filter_airstrip_events: Optional[FilterAirstripEvents] = Field(
-        None, title="Filter events and get airstrip operations records"
     )

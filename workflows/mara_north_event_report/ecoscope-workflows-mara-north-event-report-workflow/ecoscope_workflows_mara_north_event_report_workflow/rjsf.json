@@ -34,15 +34,6 @@
           "title": "Until",
           "type": "string",
           "description": "The end time"
-        },
-        "timezone": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/TimezoneInfo"
-            }
-          ],
-          "default": null,
-          "title": "Timezone"
         }
       },
       "required": [
@@ -270,20 +261,6 @@
       "required": [],
       "title": "Configure base map layers"
     },
-    "overall_grazing_zones": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Create group ranch gdf from loaded gdf"
-    },
     "subject_observations": {
       "additionalProperties": false,
       "properties": {
@@ -301,13 +278,6 @@
     "df_with_temporal_index": {
       "additionalProperties": false,
       "properties": {
-        "cast_to_datetime": {
-          "default": true,
-          "title": "Cast To Datetime",
-          "type": "boolean",
-          "description": "Whether to attempt casting `time_col` to datetime.",
-          "ecoscope:advanced": true
-        },
         "format": {
           "default": "mixed",
           "title": "Format",
@@ -323,13 +293,6 @@
     "events_wtemporal": {
       "additionalProperties": false,
       "properties": {
-        "cast_to_datetime": {
-          "default": true,
-          "title": "Cast To Datetime",
-          "type": "boolean",
-          "description": "Whether to attempt casting `time_col` to datetime.",
-          "ecoscope:advanced": true
-        },
         "format": {
           "default": "mixed",
           "title": "Format",
@@ -341,20 +304,6 @@
       "required": [],
       "type": "object",
       "title": "Add temporal index on events"
-    },
-    "filter_patrol_info_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Filter events and get patrol information records"
     },
     "er_patrol_and_events_params": {
       "additionalProperties": false,
@@ -386,48 +335,6 @@
       "required": [],
       "type": "object",
       "title": "patrol and event types"
-    },
-    "filter_foot_patrols": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Filter foot patrol observations"
-    },
-    "filter_vehicle_patrols": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Filter vehicle patrol observations"
-    },
-    "filter_motor_patrols": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Filter motorbike patrol observations"
     },
     "foot_trajs": {
       "additionalProperties": false,
@@ -506,177 +413,9 @@
       "required": [],
       "type": "object",
       "title": "Convert motorbike relocations to trajectories"
-    },
-    "filter_mobile_boma": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Filter events to get mobile boma rep"
-    },
-    "filter_predation": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Filter events to get livestock predation events"
-    },
-    "retrieve_elephant_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Retrieve elephant events"
-    },
-    "retrieve_buffalo_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Retrieve buffalo events"
-    },
-    "retrieve_rhino_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Retrieve rhino events"
-    },
-    "retrieve_lion_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Retrieve lion events"
-    },
-    "retrieve_leopard_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Retrieve leopard events"
-    },
-    "retrieve_cheetah_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Retrieve cheetah events"
-    },
-    "filter_balloon_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Filter events and get balloon sighting records"
-    },
-    "filter_airstrip_events": {
-      "additionalProperties": false,
-      "properties": {
-        "reset_index": {
-          "default": false,
-          "title": "Reset Index",
-          "type": "boolean",
-          "description": "If reset index, default is False"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Filter events and get airstrip operations records"
     }
   },
   "$defs": {
-    "TimezoneInfo": {
-      "properties": {
-        "label": {
-          "title": "Label",
-          "type": "string"
-        },
-        "tzCode": {
-          "title": "Tzcode",
-          "type": "string"
-        },
-        "name": {
-          "title": "Name",
-          "type": "string"
-        },
-        "utc": {
-          "title": "Utc",
-          "type": "string"
-        }
-      },
-      "required": [
-        "label",
-        "tzCode",
-        "name",
-        "utc"
-      ],
-      "title": "TimezoneInfo",
-      "type": "object"
-    },
     "EarthRangerConnection": {
       "properties": {
         "name": {
@@ -749,20 +488,7 @@
     "time_range": {
       "ui:order": [
         "since",
-        "until",
-        "timezone"
-      ]
-    },
-    "df_with_temporal_index": {
-      "ui:order": [
-        "cast_to_datetime",
-        "format"
-      ]
-    },
-    "events_wtemporal": {
-      "ui:order": [
-        "cast_to_datetime",
-        "format"
+        "until"
       ]
     },
     "er_patrol_and_events_params": {
@@ -776,28 +502,13 @@
       "time_range",
       "er_client_name",
       "configure_base_maps",
-      "overall_grazing_zones",
       "subject_observations",
       "df_with_temporal_index",
       "events_wtemporal",
-      "filter_patrol_info_events",
       "er_patrol_and_events_params",
-      "filter_foot_patrols",
-      "filter_vehicle_patrols",
-      "filter_motor_patrols",
       "foot_trajs",
       "vehicle_trajs",
-      "motor_trajs",
-      "filter_mobile_boma",
-      "filter_predation",
-      "retrieve_elephant_events",
-      "retrieve_buffalo_events",
-      "retrieve_rhino_events",
-      "retrieve_lion_events",
-      "retrieve_leopard_events",
-      "retrieve_cheetah_events",
-      "filter_balloon_events",
-      "filter_airstrip_events"
+      "motor_trajs"
     ]
   },
   "additionalProperties": false

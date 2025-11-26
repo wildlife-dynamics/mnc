@@ -1,19 +1,21 @@
 workflow_details:
-  name: "MNC Patrols ,weather report --v7"
-  description: "Patrol info weather data."
+  name: "Mara North Conservancy comprehensive report"
+  description: "This report entails weather data , patrols data, wildlife incidents data , wildlife data and logistics data."
 
-# Desired time range
+
 time_range:
   since: "2025-07-01T00:00:00Z"
   until: "2025-09-30T23:59:59Z"
 
-# Connect to EarthRanger
+
 er_client_name:
   data_source:
     name: "mnc"
 
+
 subject_observations:
   subject_group_name: "ER2ER - From GMMF"
+
 
 foot_trajs:
   trajectory_segment_filter:
@@ -24,6 +26,7 @@ foot_trajs:
     max_speed_kmhr: 9.0
     min_speed_kmhr: 0.5
 
+
 vehicle_trajs:
   trajectory_segment_filter:
     min_length_meters: 0.35
@@ -32,6 +35,7 @@ vehicle_trajs:
     min_time_secs: 1.0
     max_speed_kmhr: 100.0
     min_speed_kmhr: 10.0
+
 
 motor_trajs:
   trajectory_segment_filter:
@@ -42,16 +46,17 @@ motor_trajs:
     max_speed_kmhr: 100.0
     min_speed_kmhr: 10.0
 
+
 configure_base_maps:
   base_maps:
+    - url: >-
+        https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}
+      opacity: 0.15
+      max_zoom: 12
+      min_zoom: 3
+
     - url: >-
         https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}
       opacity: 0.85
       max_zoom: 12 
-      min_zoom: null
-
-    - url: >-
-        https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}
-      opacity: 0.2
-      max_zoom: 12
-      min_zoom: null
+      min_zoom: 3
