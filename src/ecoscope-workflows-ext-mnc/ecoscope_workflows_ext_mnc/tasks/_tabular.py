@@ -1,7 +1,8 @@
 import re
 import numpy as np
 import pandas as pd
-from typing import Union, List, Optional
+import warnings
+from typing import Union, List, Optional,Dict
 from ecoscope_workflows_core.decorators import task
 from ecoscope_workflows_core.annotations import AnyDataFrame
 
@@ -265,3 +266,21 @@ def pivot_df(
         result = result.reset_index()
     
     return result
+
+@task
+def map_column_values(
+    df: AnyDataFrame,
+    columns: List[str],
+    value_map: Dict[str, str],
+    inplace: bool = False
+) -> AnyDataFrame:
+    if not inplace:
+        df = df.copy()
+
+    for column in columns:
+        if column in df.columns:
+            df[column] = df[column].replace(value_map)
+        else:
+            warnings.warn(f"Column '{column}' not found in DataFrame. Skipping.")
+    
+    return df

@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "mnc"
 channels = [
     # Uncomment the following lines to use local channels for development.
@@ -20,7 +20,7 @@ pip="*"
 [feature.compile.dependencies]
 # Include this if you add new tasks and the package has been built
 ecoscope-workflows-ext-mnc = "*"
-ecoscope-workflows-ext-custom = "*"
+ecoscope-workflows-ext-custom = "0.0.7.*"
 
 ecoscope-workflows-core = "0.14.0.*"
 # Here we don't specify the channel on purpose, as we want to use the local channel if it exists,

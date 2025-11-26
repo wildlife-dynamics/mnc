@@ -20,7 +20,6 @@ def normalize_file_url(path: str) -> str:
     path = path[7:]
     
     if os.name == 'nt':
-        # Remove leading slash before drive letter: /C:/path -> C:/path
         if path.startswith('/') and len(path) > 2 and path[2] in (':', '|'):
             path = path[1:]
         path = path.replace('/', '\\')
@@ -33,15 +32,12 @@ def normalize_file_url(path: str) -> str:
 
 def _load_df(df: Union[str, Path, AnyDataFrame]) -> AnyDataFrame:
     """Load DataFrame from file path or return existing DataFrame."""
-    # Check if it's already a DataFrame
     if isinstance(df, pd.DataFrame):
         return df
     
-    # If it's None, return empty DataFrame
     if df is None:
         return pd.DataFrame()
-    
-    # Normalize the path and convert to Path object
+
     normalized_path = normalize_file_url(str(df))
     p = Path(normalized_path)
     
@@ -70,6 +66,118 @@ def _safe_extract_value(df: pd.DataFrame, column: str, default= 0):
         return value if pd.notna(value) else default
     except (IndexError, KeyError):
         return default
+
+
+# for the mnc context ,the following items need to be added section by section 
+# 1. weather 
+# temperature_chart -> temperature_readings_over_time.png
+# precipitation_chart -> precipitation_readings_over_time.png
+# atmospheric_pressure_chart  -> atmospheric_pressure_readings_over_time.png
+# wind_gusts_chart-> wind_gusts_readings_over_time.png
+# wind_speed_chart -> wind_speed_readings_over_time.png
+# soil_temperature_chart -> soil_temperature_readings_over_time.png
+
+# 2. Patrol Effort 
+# total events - int  --> total_events_recorded summary table ["no_of_events"] last column 
+# total_events_chart -> total_events_recorded.png 
+
+# foot patrol summary table 
+# -- foot_patrol_efforts.csv
+# no_of_foot_patrols -int,[no_of_patrols] total_foot_patrol_hours -float,[duration_hrs] 
+# total_foot_patrol_distance -float[distance_km], average_speed -float[average_speed]
+# foot_patrols_map - foot_patrols_map.png
+
+# vehicle patrol summary table 
+# -- vehicle_patrol_efforts.csv
+# no_of_vehicle_patrols -int[ no_of_patrols ], total_vehicle_patrol_hours -float[duration_hrs], 
+# total_vehicle_patrol_distance -float[distance_km] , average_speed -float [average_speed]
+# vehicle_patrols_map - vehicle_patrols_map.png
+
+# motorbike patrol summary table 
+# no_of_motor_patrols -int[ no_of_patrols ], total_motor_patrol_distance -float [distance_km], 
+# total_motor_patrol_hours -float [duration_hrs ], average_motor_patrol_speed -float [average_speed ]
+# motorbike_patrols_map - motorbike_patrols_map.png 
+
+# patrol coverage 
+# mara_conservancy_percentage covered - float [conservancy_name]== 'Mara North Conservancy' [occupancy_percentage]
+# patrols_coverage_map - patrol_coverage_map.png 
+# patrol coverage summary table -patrol_coverage.csv [ patrol_coverage ]
+
+# purpose of patrols 
+# night_patrols_percent -float [purpose]night [no_of_patrols]/total , 
+# routine_patrols_percent -float [purpose]routine [no_of_patrols]/total , 
+# joint_patrols_percent -float [purpose]joint [no_of_patrols]/total , 
+# patrol_purpose_summary_table  - patrol_purpose_summary.csv [ patrol_purpose ]
+
+# patrol effort by ranger 
+# patrol_effort_by_ranger_table - overall_patrol_efforts.csv [ patrol_efforts ]
+
+# 3. Livestock Monitoring 
+# Cattle counts 
+# no_of_cow_events -int  # not done yet so pass nothing 
+# table_count_summary_table - mobile_boma_summary.csv [ zone_stats ]
+
+# Boma movements 
+# no_of_boma_movements -int  mobile_boma_summary.csv [boma][Total] total_count
+# boma_movements_ecomap -boma_movement_map.png 
+
+# Livestock predation events 
+# livestock_predation_events -int -- livestock_events_recorded.csv [date]Total no_of_events 
+
+# livestock_predation_events_summary_table -- livestock_predation_events.csv
+# livestock_predation_events_ecomap - livestock_predation_events.png 
+
+
+# 4. Wildlife Monitoring 
+# wildlife incidents 
+# total_wildlife_incidents -int -wildlife_incidents_recorded.csv [date]Total [no_of_events]
+
+# wildlife_incidents_recorded -summary_table - wildlife_incidents_summary.csv
+# wildlife_incidents_events_ecomap - wildlife_incidents_map.png 
+
+# Elephant 
+# no_of_elephant_events -int -- elephant_events_recorded.csv [event_type]Total [no_of_events]
+# elephant_events_distribution -bar_chart -- elephant_herd_size_bar_chart.png 
+# elephant_sightings_ecomap -- elephant_sightings_events.png 
+# elephant_herd_types_ecomap - elephant_herd_types_map.png 
+
+# Buffalo 
+# no_of_buffalo_events -int - buffalo_events_recorded.csv [event_type]Total [no_of_events]
+# buffalo_events_distribution -bar_chart - buffalo_herd_size_bar_chart.png 
+# buffalo_sightings_ecomap - buffalo_herd_map.png 
+# buffalo_herd_types_ecomap - buffalo_herd_types_map.png 
+
+# Rhino 
+# no_of_rhino_events -int -rhino_events_recorded.csv[event_type]Total [no_of_events]
+# rhino_events_sightings  -rhino_sighting_map.png
+
+# Lion 
+# no_of_lion_events -int -lion_events_recorded.csv[event_type]Total [no_of_events]
+# common lion prides , A-B-C - unique_lion_prides.csv [ lion_pride ][no_of_events]
+# lion_sightings_ecomap - lion_sightings_map
+
+# Leopard
+# no_of_leopard_sightings -int -leopard_events_recorded.csv[event_type]Total [no_of_events]
+# common individuals - A-B-C - individual_leopard_summary.csv [individual_present][no_of_events]cheetah_observations
+# leopard_sightings_ecomap - leopard_sightings_map.png
+
+# Cheetah 
+# no_of_cheetah_events -int -cheetah_events_recorded.csv[event_type]Total [no_of_events]
+# common observed cheetah -str - individual_cheetah_summary.csv [individual_present][no_of_events]
+#  individual cheetah observations -summary_table  -- individual_cheetah_summary.csv
+# cheetah_sightings_ecomap -- cheetah_sightings_map.png
+
+
+# 5. Logistics
+# Balloon landings 
+# Balloon landing summary table -- not yet available 
+
+# Airstrip arrival and departure 
+# Airstrip arrival_and_departure_summary_table - airstrip_arrivals_and_departure.csv [ airstrip_observations ]
+
+# Airstrip maintenace 
+# airstrip maintenace summary table  -- not yet available 
+
 
 @dataclass
 class MncContext:
@@ -114,7 +222,7 @@ class MncContext:
     er_user: Optional[str]= None
     generated_on: Optional[str]=None
 
-
+        
 @task
 def create_mnc_context(
 
@@ -455,3 +563,366 @@ def create_mnc_context(
     except Exception as e:
         print(f"\nError rendering document: {str(e)}")
         raise
+    
+# df['no_of_events'].iloc[-1] if 'no_of_events' in df.columns else 0
+
+@task 
+def generate_mnc_report(
+    template_path: str,
+    output_dir: str,
+    generated_by: Optional[str] = None, 
+    validate_images: bool = True,
+    box_h_cm: float = 6.5,
+    box_w_cm: float = 11.11,
+    time_period: Optional[TimeRange] = None, 
+    filename: Optional[str] = None 
+) -> str:
+    template_path = normalize_file_url(template_path)
+    output_dir = normalize_file_url(output_dir)
+    
+    print(f"\nTemplate Path: {template_path}")
+    print(f"Output Directory: {output_dir}")
+    
+    # Validate paths
+    if not template_path.strip():
+        raise ValueError("template_path is empty after normalization")
+    if not output_dir.strip():
+        raise ValueError("output_directory is empty after normalization")
+    if not os.path.exists(template_path):
+        raise FileNotFoundError(f"Template file not found: {template_path}")
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Define image extensions
+    IMAGE_EXTS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp'}
+    
+    # Scan for all images and CSVs in output_dir
+    images_found = {}
+    csvs_found = {}
+    
+    for root, _, files in os.walk(output_dir):
+        for f in files:
+            p = Path(root) / f
+            if p.suffix.lower() in IMAGE_EXTS:
+                var_name = p.stem
+                images_found[var_name] = str(p)
+            elif p.suffix.lower() == '.csv':
+                var_name = p.stem
+                csvs_found[var_name] = str(p)
+    
+    print(f"Found {len(images_found)} images and {len(csvs_found)} CSV files")
+    
+    # Load template
+    tpl = DocxTemplate(template_path)
+    
+    # Build context dictionary
+    context = {}
+    
+    # ==========================
+    # IMAGE MAPPINGS
+    # ==========================
+    
+    # 1. Weather images
+    weather_images = {
+        'temperature_chart': 'temperature_readings_over_time',
+        'precipitation_chart': 'precipitation_readings_over_time',
+        'atmospheric_pressure_chart': 'atmospheric_pressure_readings_over_time',
+        'wind_gusts_chart': 'wind_gusts_readings_over_time',
+        'wind_speed_chart': 'wind_speed_readings_over_time',
+        'soil_temperature_chart': 'soil_temperature_readings_over_time'
+    }
+    
+    # 2. Patrol effort images
+    patrol_images = {
+        'total_events_chart': 'total_events_recorded',
+        'foot_patrols_map': 'foot_patrols_map',
+        'vehicle_patrols_map': 'vehicle_patrols_map',
+        'motorbike_patrols_map': 'motorbike_patrols_map',
+        'patrols_coverage_map': 'patrol_coverage_map'
+    }
+    
+    # 3. Livestock monitoring images
+    livestock_images = {
+        'boma_movement_ecomap': 'boma_movement_map',
+        'livestock_predation_events_ecomap': 'livestock_predation_events'
+    }
+    
+    # 4. Wildlife monitoring images
+    wildlife_images = {
+        'wildlife_incidents_events_ecomap': 'wildlife_incidents_map',
+        'elephant_events_distribution': 'elephant_herd_size_bar_chart',
+        'elephant_sighting_ecomap': 'elephant_sightings_events',
+        'elephant_herd_types_ecomap': 'elephant_herd_types_map',
+        'buffalo_events_distribution': 'buffalo_herd_size_bar_chart',
+        'buffalo_sightings_ecomap': 'buffalo_herd_map',
+        'buffalo_herd_types_ecomap': 'buffalo_herd_types_map',
+        'rhino_events_sightings': 'rhino_sighting_map',
+        'lion_sightings_ecomap': 'lion_sightings_map',
+        'leopard_sightings_ecomap': 'leopard_sightings_map',
+        'cheetah_sightings_ecomap': 'cheetah_sightings_map'
+    }
+    
+    # Combine all image mappings
+    all_image_mappings = {
+        **weather_images,
+        **patrol_images,
+        **livestock_images,
+        **wildlife_images
+    }
+    
+    # Add images to context
+    for template_var, file_stem in all_image_mappings.items():
+        if file_stem in images_found:
+            img_path = images_found[file_stem]
+            try:
+                context[template_var] = InlineImage(
+                    tpl, 
+                    img_path, 
+                    width=Cm(box_w_cm), 
+                    height=Cm(box_h_cm)
+                )
+            except Exception as e:
+                print(f"Warning: Could not load image {template_var}: {e}")
+                context[template_var] = None
+        else:
+            context[template_var] = None
+            if validate_images:
+                print(f"Warning: Image not found for {template_var} (expected: {file_stem})")
+    
+    # ==========================
+    # TABLE MAPPINGS
+    # ==========================
+    
+    table_mappings = {
+        # Patrol effort tables
+        'patrol_efforts': 'overall_patrol_efforts',
+        'foot_patrol_efforts': 'foot_patrol_efforts',
+        'vehicle_patrol_efforts': 'vehicle_patrol_efforts',
+        'patrol_coverage': 'patrol_coverage',
+        'patrol_purpose': 'patrol_purpose_summary',
+        
+        # Livestock tables
+        'zone_stats': 'mobile_boma_summary',
+        'livestock_predation_events': 'livestock_predation_events',
+        
+        # Wildlife tables
+        'wildlife_incidents_summary': 'wildlife_incidents_summary',
+        'unique_lion_prides': 'unique_lion_prides',
+        'individual_leopard_summary': 'individual_leopard_summary',
+        'individual_cheetah_summary': 'individual_cheetah_summary',
+        'cheetah_observations': 'individual_cheetah_summary',
+        
+        # Logistics tables
+        'airstrip_observations': 'airstrip_arrivals_and_departure'
+    }
+    
+    # Add tables to context
+    for template_var, file_stem in table_mappings.items():
+        if file_stem in csvs_found:
+            csv_path = csvs_found[file_stem]
+            try:
+                df = pd.read_csv(csv_path)
+                df = df.fillna(0)
+                context[template_var] = df.to_dict(orient='records')
+            except Exception as e:
+                print(f"Warning: Could not load CSV {template_var}: {e}")
+                context[template_var] = []
+        else:
+            context[template_var] = []
+            print(f"Info: CSV not found for {template_var} (expected: {file_stem})")
+    
+    # ==========================
+    # EXTRACT SPECIFIC VALUES FROM CSVs
+    # ==========================
+    
+    # Helper function to safely read CSV
+    def read_csv_safe(file_stem):
+        if file_stem in csvs_found:
+            try:
+                return pd.read_csv(csvs_found[file_stem])
+            except Exception as e:
+                print(f"Warning: Could not read {file_stem}: {e}")
+        return None
+    
+    # 1. Total events
+    df = read_csv_safe('total_events_recorded')
+    if df is not None and 'no_of_events' in df.columns:
+        context['total_events'] = int(df['no_of_events'].iloc[-1])
+    else:
+        context['total_events'] = 0
+    
+    # 2. Foot patrol summary
+    df = read_csv_safe('foot_patrol_efforts')
+    if df is not None:
+        context['no_of_foot_patrols'] = int(df['no_of_patrols'].iloc[-1]) if 'no_of_patrols' in df.columns else 0
+        context['total_foot_patrol_hours'] = round(float(df['duration_hrs'].iloc[-1]),2) if 'duration_hrs' in df.columns else 0.0
+        context['total_foot_patrol_distance'] = round(float(df['distance_km'].iloc[-1]),2)if 'distance_km' in df.columns else 0.0
+        context['average_foot_patrol_speed'] = round(float(df['average_speed'].iloc[-1]),2) if 'average_speed' in df.columns else 0.0
+    
+    # 3. Vehicle patrol summary
+    df = read_csv_safe('vehicle_patrol_efforts')
+    if df is not None:
+        context['no_of_vehicle_patrols'] = int(df['no_of_patrols'].iloc[-1]) if 'no_of_patrols' in df.columns else 0
+        context['total_vehicle_patrol_hours'] = round(float(df['duration_hrs'].iloc[-1]),2) if 'duration_hrs' in df.columns else 0.0
+        context['total_vehicle_patrol_distance'] = round(float(df['distance_km'].iloc[-1]),2) if 'distance_km' in df.columns else 0.0
+        context['average_vehicle_patrol_speed'] = round(float(df['average_speed'].iloc[-1]),2) if 'average_speed' in df.columns else 0.0
+    
+    # 4. Motorbike patrol summary
+    df = read_csv_safe('motorbike_patrol_efforts')
+    if df is not None:
+        context['no_of_motor_patrols'] = int(df['no_of_patrols'].iloc[-1]) if 'no_of_patrols' in df.columns else 0
+        context['total_motor_patrol_distance'] = round(float(df['distance_km'].iloc[-1]),2) if 'distance_km' in df.columns else 0.0
+        context['total_motor_patrol_hours'] = round(float(df['duration_hrs'].iloc[-1]),2) if 'duration_hrs' in df.columns else 0.0
+        context['average_motor_patrol_speed'] = round(float(df['average_speed'].iloc[-1]),2) if 'average_speed' in df.columns else 0.0
+    
+    # 5. Patrol coverage - Mara North Conservancy percentage
+    df = read_csv_safe('patrol_coverage')
+    if df is not None and 'conservancy_name' in df.columns and 'occupancy_percentage' in df.columns:
+        mnc_row = df[df['conservancy_name'] == 'Mara North Conservancy']
+        context['mara_conservancy_percentage'] = round(float(mnc_row['occupancy_percentage'].iloc[0]),2) if not mnc_row.empty else 0.0
+    else:
+        context['mara_conservancy_percentage'] = 0.0
+    
+    # 6. Patrol purpose percentages
+    df = read_csv_safe('patrol_purpose_summary')
+    if df is not None and 'purpose' in df.columns and 'no_of_patrols' in df.columns:
+        total_patrols = df['no_of_patrols'].iloc[-1]
+        
+        night_row = df[df['purpose'] == 'night']
+        context['night_patrols_percent'] = float((night_row['no_of_patrols'].iloc[0] / total_patrols * 100)) if not night_row.empty and total_patrols > 0 else 0.0
+        
+        routine_row = df[df['purpose'] == 'routine']
+        context['routine_patrols_percent'] = float((routine_row['no_of_patrols'].iloc[0] / total_patrols * 100)) if not routine_row.empty and total_patrols > 0 else 0.0
+        
+        joint_row = df[df['purpose'] == 'joint']
+        context['joint_patrols_percent'] = float((joint_row['no_of_patrols'].iloc[0] / total_patrols * 100)) if not joint_row.empty and total_patrols > 0 else 0.0
+    else:
+        context['night_patrols_percent'] = 0.0
+        context['routine_patrols_percent'] = 0.0
+        context['joint_patrols_percent'] = 0. # pause on this 
+    
+    # 7. Boma movements
+    df = read_csv_safe('mobile_boma_summary')
+    if df is not None and 'boma' in df.columns and 'total_count' in df.columns:
+        total_row = df[df['boma'] == 'Total']
+        context['no_of_boma_movements'] = int(total_row['total_count'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['no_of_boma_movements'] = 0
+    
+    # 8. Livestock predation events
+    df = read_csv_safe('livestock_events_recorded')
+    if df is not None and 'date' in df.columns and 'no_of_events' in df.columns:
+        total_row = df[df['date'] == 'Total']
+        context['total_livestock_predation_events'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['livestock_predation_events'] = 0
+    
+    # 9. Total wildlife incidents
+    df = read_csv_safe('wildlife_incidents_recorded')
+    if df is not None and 'date' in df.columns and 'no_of_events' in df.columns:
+        total_row = df[df['date'] == 'Total']
+        context['total_wildlife_incidents'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['total_wildlife_incidents'] = 0
+    
+    # 10. Elephant events
+    df = read_csv_safe('elephant_events_recorded')
+    if df is not None and 'event_type' in df.columns and 'no_of_events' in df.columns:
+        total_row = df[df['event_type'] == 'Total']
+        context['no_of_elephant_events'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['no_of_elephant_events'] = 0
+    
+    # 11. Buffalo events
+    df = read_csv_safe('buffalo_events_recorded')
+    if df is not None and 'event_type' in df.columns and 'no_of_events' in df.columns:
+        total_row = df[df['event_type'] == 'Total']
+        context['no_of_buffalo_events'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['no_of_buffalo_events'] = 0
+    
+    # 12. Rhino events
+    df = read_csv_safe('rhino_events_recorded')
+    if df is not None and 'event_type' in df.columns and 'no_of_events' in df.columns:
+        total_row = df[df['event_type'] == 'Total']
+        context['no_of_rhino_events'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['no_of_rhino_events'] = 0
+    
+    # 13. Lion events and top 3 prides
+    df = read_csv_safe('lion_events_recorded')
+    if df is not None and 'event_type' in df.columns and 'no_of_events' in df.columns:
+        total_row = df[df['event_type'] == 'Total']
+        context['no_of_lion_events'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['no_of_lion_events'] = 0
+    
+    df = read_csv_safe('unique_lion_prides')
+    if df is not None and 'lion_pride' in df.columns and 'no_of_events' in df.columns:
+        top_prides = df.nlargest(3, 'no_of_events')['lion_pride'].tolist()
+        context['common_lion_prides'] = ', '.join(top_prides) if top_prides else 'N/A'
+    else:
+        context['common_lion_prides'] = 'N/A'
+
+    # 14. Leopard sightings and top 3 individuals
+    df = read_csv_safe('leopard_events_recorded')
+    if df is not None and 'event_type' in df.columns and 'no_of_events' in df.columns:
+        total_row = df[df['event_type'] == 'Total']
+        context['no_of_leopard_sightings'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['no_of_leopard_sightings'] = 0
+    
+    df = read_csv_safe('individual_leopard_summary')
+    if df is not None and 'individual_present' in df.columns and 'no_of_events' in df.columns:
+        top_individuals = df.nlargest(3, 'no_of_events')['individual_present'].tolist()
+        context['common_leopard_individuals'] = ', '.join(top_individuals) if top_individuals else 'N/A'
+    else:
+        context['common_leopard_individuals'] = 'N/A'
+    
+    # 15. Cheetah events and common individuals
+    df = read_csv_safe('cheetah_events_recorded')
+    if df is not None and 'event_type' in df.columns and 'no_of_events' in df.columns:
+        total_row = df[df['event_type'] == 'Total']
+        context['no_of_cheetah_events'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+    else:
+        context['no_of_cheetah_events'] = 0
+    
+    df = read_csv_safe('individual_cheetah_summary')
+    if df is not None and 'individual_present' in df.columns and 'no_of_events' in df.columns:
+        top_individuals = df.nlargest(3, 'no_of_events')['individual_present'].tolist()
+        context['common_cheetah_individuals'] = ', '.join(top_individuals) if top_individuals else 'N/A'
+    else:
+        context['common_cheetah_individuals'] = 'N/A'
+    
+    # ==========================
+    # METADATA
+    # ==========================
+    
+    if generated_by:
+        context['er_user'] = generated_by
+    
+    time_period_str = None
+    if time_period:
+        fmt = getattr(time_period, "time_format", "%Y-%m-%d")
+        time_period_str = f"{time_period.since.strftime(fmt)} to {time_period.until.strftime(fmt)}"
+
+    context['time_range'] = time_period_str
+    
+    context['generated_on'] = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # ==========================
+    # RENDER AND SAVE
+    # ==========================
+    
+    output_filename = filename or f"MNC_Report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.docx"
+    output_path = os.path.join(output_dir, output_filename)
+    
+    print(f"context:{context}")
+    tpl.render(context)
+    tpl.save(output_path)
+    
+    print(f"\nDocument generated successfully!")
+    print(f"Output: {output_path}")
+    print("=" * 80)
+    return str(output_path)
+

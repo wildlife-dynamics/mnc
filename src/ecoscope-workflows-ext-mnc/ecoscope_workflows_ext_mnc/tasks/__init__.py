@@ -1,6 +1,6 @@
 from ._merge import merge_multiple_df
 from ._classify import classify_mnc_patrol
-from ._mnc_context import create_mnc_context
+from ._mnc_context import generate_mnc_report
 from ._summarize import make_event_summary_df
 from ._zip import zip_grouped_by_key,flatten_tuple
 from ._inspect import print_output,view_df,view_gdf
@@ -19,6 +19,7 @@ from ._tabular import (
     round_values,
     categorize_bins,
     drop_null_values,
+    map_column_values,
     replace_missing_with_label,
     remove_brackets_from_column
 )
@@ -47,6 +48,7 @@ from ._retrieve_patrols import (
 )
 
 __all__ = [
+    "map_column_values",
     "_convert_html_to_png",
     "html_snapshot",
     "pivot_df",
@@ -73,7 +75,7 @@ __all__ = [
     "create_map_layers",
     "merge_multiple_df",
     "classify_mnc_patrol",
-    "create_mnc_context",
+    "generate_mnc_report",
     "create_geojson_layer",
     "custom_deckgl_layer",
     "view_state_deck_gdf",
