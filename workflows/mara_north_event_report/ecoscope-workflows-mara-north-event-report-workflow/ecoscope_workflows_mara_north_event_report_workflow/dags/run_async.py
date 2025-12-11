@@ -135,6 +135,7 @@ def main(params: Params):
         "conv_pressure_png": ["persist_pressure"],
         "get_events_data": ["er_client_name", "time_range"],
         "extract_event_date": ["get_events_data"],
+        "persist_events_data": ["get_events_data"],
         "events_wtemporal": ["extract_event_date", "groupers"],
         "filter_event_type_values": ["events_wtemporal"],
         "total_events_recorded": ["filter_event_type_values"],
@@ -149,7 +150,8 @@ def main(params: Params):
         "normalize_pi_values": ["filter_patrol_info_events"],
         "rename_patrol_info": ["normalize_pi_values"],
         "patrol_info_summary": ["rename_patrol_info"],
-        "include_pat_totals": ["patrol_info_summary"],
+        "patrol_purpose_scase": ["patrol_info_summary"],
+        "include_pat_totals": ["patrol_purpose_scase"],
         "persist_patrol_df": ["include_pat_totals"],
         "er_patrol_and_events_params": ["er_client_name", "time_range"],
         "prefetch_patrols": ["er_patrol_and_events_params"],
@@ -160,6 +162,7 @@ def main(params: Params):
             "time_range",
         ],
         "map_patrol_types": ["patrol_observations"],
+        "persist_patrol_obs_df": ["map_patrol_types"],
         "filter_foot_patrols": ["map_patrol_types"],
         "filter_vehicle_patrols": ["map_patrol_types"],
         "filter_motor_patrols": ["map_patrol_types"],
@@ -180,7 +183,7 @@ def main(params: Params):
         "persist_foot_df": ["add_fp_metrics_totals"],
         "apply_footp_colormap": ["rename_foot_trajs"],
         "generate_foot_layers": ["apply_footp_colormap"],
-        "zoom_foot_patrols": ["apply_footp_colormap"],
+        "zoom_foot_patrols": ["overall_grazing_zones"],
         "combine_custom_foot_patrols": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -198,7 +201,7 @@ def main(params: Params):
         "persist_vehicle_df": ["add_vh_metrics_totals"],
         "apply_vehicle_colormap": ["rename_vehicle_trajs"],
         "generate_vehicle_layers": ["apply_vehicle_colormap"],
-        "zoom_vehicle_patrols": ["apply_vehicle_colormap"],
+        "zoom_vehicle_patrols": ["overall_grazing_zones"],
         "combine_custom_vehicle_patrols": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -294,7 +297,7 @@ def main(params: Params):
         "remove_invalid_geoms": ["exclude_livestock_outliers"],
         "apply_livestock_colormap": ["remove_invalid_geoms"],
         "generate_livestock_layers": ["apply_livestock_colormap"],
-        "zoom_livestock_events": ["apply_livestock_colormap"],
+        "zoom_livestock_events": ["overall_grazing_zones"],
         "combine_custom_livestock": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -344,7 +347,7 @@ def main(params: Params):
         "rename_ele_column": ["remove_ele_invalid_geoms"],
         "apply_ele_events_colormap": ["rename_ele_column"],
         "generate_elephant_layers": ["apply_ele_events_colormap"],
-        "zoom_elephant_events": ["apply_ele_events_colormap"],
+        "zoom_elephant_events": ["overall_grazing_zones"],
         "combine_custom_ele": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -368,7 +371,7 @@ def main(params: Params):
         "drop_null_ele_bins": ["cat_elephant_bins"],
         "apply_ele_color_bins": ["drop_null_ele_bins"],
         "generate_ele_herd_layers": ["apply_ele_color_bins"],
-        "zoom_ele_bins": ["apply_ele_color_bins"],
+        "zoom_ele_bins": ["overall_grazing_zones"],
         "combine_ele_bins": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -393,7 +396,7 @@ def main(params: Params):
         "remove_buffalo_invalid_geoms": ["exclude_buffalo_outliers"],
         "apply_buffalo_colormap": ["remove_buffalo_invalid_geoms"],
         "generate_buffalo_layers": ["apply_buffalo_colormap"],
-        "zoom_buffalo_events": ["apply_buffalo_colormap"],
+        "zoom_buffalo_events": ["overall_grazing_zones"],
         "combine_custom_buffalo": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -414,7 +417,7 @@ def main(params: Params):
         "drop_null_buffalo_bins": ["cat_buffalo_bins"],
         "apply_buffalo_color_bins": ["drop_null_buffalo_bins"],
         "generate_buffalo_herd_layers": ["apply_buffalo_color_bins"],
-        "zoom_buffalo_bins": ["apply_buffalo_color_bins"],
+        "zoom_buffalo_bins": ["overall_grazing_zones"],
         "combine_buffalo_bins": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -466,7 +469,7 @@ def main(params: Params):
         "remove_lion_invalid_geoms": ["exclude_lion_outliers"],
         "apply_lion_colormap": ["remove_lion_invalid_geoms"],
         "generate_lion_layers": ["apply_lion_colormap"],
-        "zoom_lion_events": ["apply_lion_colormap"],
+        "zoom_lion_events": ["overall_grazing_zones"],
         "combine_custom_lion": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -494,7 +497,7 @@ def main(params: Params):
         "remove_leopard_invalid_geoms": ["exclude_leopard_outliers"],
         "apply_leopard_colormap": ["remove_leopard_invalid_geoms"],
         "generate_leopard_layers": ["apply_leopard_colormap"],
-        "zoom_leopard_events": ["apply_leopard_colormap"],
+        "zoom_leopard_events": ["overall_grazing_zones"],
         "combine_custom_leopard": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -514,14 +517,14 @@ def main(params: Params):
         "cheetah_summary": ["replace_cheetah_nulls"],
         "include_cheetah_totals": ["cheetah_summary"],
         "persist_cheetah_df": ["include_cheetah_totals"],
-        "rename_cheetah_column": ["replace_cheetah_nulls"],
-        "unique_cheetah_summary": ["rename_cheetah_column"],
+        "cheetah_scase": ["replace_cheetah_nulls"],
+        "unique_cheetah_summary": ["cheetah_scase"],
         "persist_cheetah_summary": ["unique_cheetah_summary"],
-        "exclude_cheetah_outliers": ["rename_cheetah_column"],
+        "exclude_cheetah_outliers": ["cheetah_scase"],
         "remove_cheetah_invalid_geoms": ["exclude_cheetah_outliers"],
         "apply_cheetah_colormap": ["remove_cheetah_invalid_geoms"],
         "generate_cheetah_layers": ["apply_cheetah_colormap"],
-        "zoom_cheetah_events": ["apply_cheetah_colormap"],
+        "zoom_cheetah_events": ["overall_grazing_zones"],
         "combine_custom_cheetah": [
             "create_conservancy_styled_layer",
             "custom_text_layer",
@@ -541,8 +544,8 @@ def main(params: Params):
         "remove_air_brackets": ["rename_airstrip"],
         "replace_camp_lodge_nulls": ["remove_air_brackets"],
         "convert_clients_int": ["replace_camp_lodge_nulls"],
-        "rename_camp_lodge_column": ["convert_clients_int"],
-        "airstrip_summary_table": ["rename_camp_lodge_column"],
+        "lodge_scase": ["convert_clients_int"],
+        "airstrip_summary_table": ["lodge_scase"],
         "pivot_airstrip_table": ["airstrip_summary_table"],
         "persist_airstrip_summary": ["pivot_airstrip_table"],
         "generate_mnc_word_doc": ["persist_mnc_tpt", "time_range"],
@@ -1811,6 +1814,26 @@ def main(params: Params):
             | (params_dict.get("extract_event_date") or {}),
             method="call",
         ),
+        "persist_events_data": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_events_data")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "geoparquet",
+                "df": DependsOn("get_events_data"),
+                "filename": "events_data",
+            }
+            | (params_dict.get("persist_events_data") or {}),
+            method="call",
+        ),
         "events_wtemporal": Node(
             async_task=add_temporal_index.validate()
             .handle_errors(task_instance_id="events_wtemporal")
@@ -2140,6 +2163,24 @@ def main(params: Params):
             | (params_dict.get("patrol_info_summary") or {}),
             method="call",
         ),
+        "patrol_purpose_scase": Node(
+            async_task=to_sentence_case.validate()
+            .handle_errors(task_instance_id="patrol_purpose_scase")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("patrol_info_summary"),
+                "column": "purpose",
+            }
+            | (params_dict.get("patrol_purpose_scase") or {}),
+            method="call",
+        ),
         "include_pat_totals": Node(
             async_task=add_totals_row.validate()
             .handle_errors(task_instance_id="include_pat_totals")
@@ -2154,7 +2195,7 @@ def main(params: Params):
             partial={
                 "label_col": ["purpose"],
                 "label": "Total",
-                "df": DependsOn("patrol_info_summary"),
+                "df": DependsOn("patrol_purpose_scase"),
             }
             | (params_dict.get("include_pat_totals") or {}),
             method="call",
@@ -2417,6 +2458,26 @@ def main(params: Params):
                 "new_column": "patrol_cat_types",
             }
             | (params_dict.get("map_patrol_types") or {}),
+            method="call",
+        ),
+        "persist_patrol_obs_df": Node(
+            async_task=persist_df.validate()
+            .handle_errors(task_instance_id="persist_patrol_obs_df")
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "geoparquet",
+                "df": DependsOn("map_patrol_types"),
+                "filename": "patrol_observations",
+            }
+            | (params_dict.get("persist_patrol_obs_df") or {}),
             method="call",
         ),
         "filter_foot_patrols": Node(
@@ -2907,7 +2968,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "patrol_type_value",
                 "output_column_name": "foot_patrol_colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("rename_foot_trajs"),
             }
             | (params_dict.get("apply_footp_colormap") or {}),
@@ -2962,7 +3023,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_footp_colormap"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_foot_patrols") or {}),
             method="call",
@@ -3149,7 +3210,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "patrol_type_value",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("rename_vehicle_trajs"),
             }
             | (params_dict.get("apply_vehicle_colormap") or {}),
@@ -3204,7 +3265,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_vehicle_colormap"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_vehicle_patrols") or {}),
             method="call",
@@ -3394,7 +3455,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "patrol_type_value",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("rename_motor_trajs"),
             }
             | (params_dict.get("apply_motor_colormap") or {}),
@@ -3581,7 +3642,7 @@ def main(params: Params):
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "geoparquet",
                 "df": DependsOn("merge_trajs"),
-                "filename": "trajectories",
+                "filename": "patrol_trajectories",
             }
             | (params_dict.get("persist_patrol_trajs") or {}),
             method="call",
@@ -4087,7 +4148,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "event_type",
                 "output_column_name": "event_type_colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("rename_mobile_boma"),
             }
             | (params_dict.get("apply_mb_colormap") or {}),
@@ -4107,7 +4168,7 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "event_type_colors",
-                    "get_radius": 5,
+                    "get_radius": 7,
                     "opacity": 0.75,
                     "stroked": False,
                 },
@@ -4582,7 +4643,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "livestock_species",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("remove_invalid_geoms"),
             }
             | (params_dict.get("apply_livestock_colormap") or {}),
@@ -4602,7 +4663,7 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_radius": 7,
                     "opacity": 0.75,
                     "stroked": False,
                 },
@@ -4630,7 +4691,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_livestock_colormap"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_livestock_events") or {}),
             method="call",
@@ -4955,7 +5016,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "event_type",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("remove_invalid_wild_geoms"),
             }
             | (params_dict.get("apply_wildlife_colormap") or {}),
@@ -4975,7 +5036,7 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_radius": 7,
                     "opacity": 0.75,
                     "stroked": False,
                 },
@@ -5317,7 +5378,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "elephant_sight_herd_composition",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("rename_ele_column"),
             }
             | (params_dict.get("apply_ele_events_colormap") or {}),
@@ -5337,7 +5398,7 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_radius": 7,
                     "opacity": 0.75,
                     "stroked": False,
                 },
@@ -5365,7 +5426,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_ele_events_colormap"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_elephant_events") or {}),
             method="call",
@@ -5664,7 +5725,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "elephant_sight_herd_sizebins",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("drop_null_ele_bins"),
             }
             | (params_dict.get("apply_ele_color_bins") or {}),
@@ -5715,7 +5776,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_ele_color_bins"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_ele_bins") or {}),
             method="call",
@@ -6023,7 +6084,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "buffalo_herd",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("remove_buffalo_invalid_geoms"),
             }
             | (params_dict.get("apply_buffalo_colormap") or {}),
@@ -6071,7 +6132,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_buffalo_colormap"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_buffalo_events") or {}),
             method="call",
@@ -6173,7 +6234,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "columns": ["buffalo_herd_size"],
-                "bins": 5,
+                "bins": 7,
                 "suffix": "bins",
                 "inplace": False,
                 "df": DependsOn("rename_buffalo_cols"),
@@ -6305,7 +6366,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "buffalo_herd_sizebins",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("drop_null_buffalo_bins"),
             }
             | (params_dict.get("apply_buffalo_color_bins") or {}),
@@ -6328,7 +6389,7 @@ def main(params: Params):
                     "get_radius": "buffalo_herd_size",
                     "line_width_min_pixels": 1,
                     "radius_units": "pixels",
-                    "radius_scale": 0.025,
+                    "radius_scale": 0.015,
                     "opacity": 0.75,
                     "stroked": False,
                 },
@@ -6356,7 +6417,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_buffalo_color_bins"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_buffalo_bins") or {}),
             method="call",
@@ -6598,7 +6659,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "event_type",
                 "output_column_name": "colors",
-                "colormap": "plasma",
+                "colormap": "Spectral",
                 "df": DependsOn("remove_rhino_invalid_geoms"),
             }
             | (params_dict.get("apply_rhino_colormap") or {}),
@@ -7112,7 +7173,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_lion_colormap"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_lion_events") or {}),
             method="call",
@@ -7531,7 +7592,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_leopard_colormap"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_leopard_events") or {}),
             method="call",
@@ -7770,9 +7831,9 @@ def main(params: Params):
             | (params_dict.get("persist_cheetah_df") or {}),
             method="call",
         ),
-        "rename_cheetah_column": Node(
-            async_task=map_column_values.validate()
-            .handle_errors(task_instance_id="rename_cheetah_column")
+        "cheetah_scase": Node(
+            async_task=to_sentence_case.validate()
+            .handle_errors(task_instance_id="cheetah_scase")
             .skipif(
                 conditions=[
                     any_is_empty_df,
@@ -7783,21 +7844,9 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("replace_cheetah_nulls"),
-                "columns": ["individual_present"],
-                "value_map": {
-                    "karacub": "Bachelor",
-                    "kulete": "Female/calf",
-                    "kweli": "Mixed",
-                    "milele": "Unspecified",
-                    "neema": "Neema",
-                    "other": "Other",
-                    "ranger": "Ranger",
-                    "risasi": "Risasi",
-                    "unknown": "Unknown",
-                },
-                "inplace": True,
+                "column": "individual_present",
             }
-            | (params_dict.get("rename_cheetah_column") or {}),
+            | (params_dict.get("cheetah_scase") or {}),
             method="call",
         ),
         "unique_cheetah_summary": Node(
@@ -7821,7 +7870,7 @@ def main(params: Params):
                     }
                 ],
                 "reset_index": True,
-                "df": DependsOn("rename_cheetah_column"),
+                "df": DependsOn("cheetah_scase"),
             }
             | (params_dict.get("unique_cheetah_summary") or {}),
             method="call",
@@ -7858,7 +7907,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("rename_cheetah_column"),
+                "df": DependsOn("cheetah_scase"),
                 "z_threshold": 3,
             }
             | (params_dict.get("exclude_cheetah_outliers") or {}),
@@ -7943,7 +7992,7 @@ def main(params: Params):
             partial={
                 "pitch": 0,
                 "bearing": 0,
-                "gdf": DependsOn("apply_cheetah_colormap"),
+                "gdf": DependsOn("overall_grazing_zones"),
             }
             | (params_dict.get("zoom_cheetah_events") or {}),
             method="call",
@@ -8183,9 +8232,9 @@ def main(params: Params):
             | (params_dict.get("convert_clients_int") or {}),
             method="call",
         ),
-        "rename_camp_lodge_column": Node(
-            async_task=map_column_values.validate()
-            .handle_errors(task_instance_id="rename_camp_lodge_column")
+        "lodge_scase": Node(
+            async_task=to_sentence_case.validate()
+            .handle_errors(task_instance_id="lodge_scase")
             .skipif(
                 conditions=[
                     any_is_empty_df,
@@ -8196,24 +8245,9 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_clients_int"),
-                "columns": ["camp_lodge"],
-                "value_map": {
-                    "elephant_pepper": "Elephant pepper",
-                    "fairmontmarasafariclub": "Fairmont mara safari club",
-                    "karen_blixen": "Karen blixen",
-                    "kicheche": "Kicheche",
-                    "losokwancamp": "Losokwan camp",
-                    "naretoiplots": "Naretoi plots",
-                    "neptunecamp": "Neptune camp",
-                    "offbeat_mara": "Offbeat mara",
-                    "richardscamp": "Richards camp",
-                    "safarisunlimited": "Safari unlimited",
-                    "saruni_mara": "Saruni mara",
-                    "seriancamp": "Serian camp",
-                },
-                "inplace": True,
+                "column": "camp_lodge",
             }
-            | (params_dict.get("rename_camp_lodge_column") or {}),
+            | (params_dict.get("lodge_scase") or {}),
             method="call",
         ),
         "airstrip_summary_table": Node(
@@ -8228,7 +8262,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("rename_camp_lodge_column"),
+                "df": DependsOn("lodge_scase"),
                 "groupby_cols": ["camp_lodge", "arrival_or_departure"],
                 "summary_params": [
                     {

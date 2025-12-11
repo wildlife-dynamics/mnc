@@ -2,20 +2,16 @@ workflow_details:
   name: "Mara North Conservancy comprehensive report"
   description: "This report entails weather data , patrols data, wildlife incidents data , wildlife data and logistics data."
 
-
 time_range:
-  since: "2025-07-01T00:00:00Z"
-  until: "2025-09-30T23:59:59Z"
-
+  since: "2025-10-01T00:00:00Z"
+  until: "2025-11-30T23:59:59Z"
 
 er_client_name:
   data_source:
     name: "mnc"
 
-
 subject_observations:
   subject_group_name: "ER2ER - From GMMF"
-
 
 foot_trajs:
   trajectory_segment_filter:
@@ -26,7 +22,6 @@ foot_trajs:
     max_speed_kmhr: 9.0
     min_speed_kmhr: 0.5
 
-
 vehicle_trajs:
   trajectory_segment_filter:
     min_length_meters: 0.35
@@ -36,7 +31,6 @@ vehicle_trajs:
     max_speed_kmhr: 100.0
     min_speed_kmhr: 10.0
 
-
 motor_trajs:
   trajectory_segment_filter:
     min_length_meters: 0.35
@@ -45,7 +39,6 @@ motor_trajs:
     min_time_secs: 1.0
     max_speed_kmhr: 100.0
     min_speed_kmhr: 10.0
-
 
 configure_base_maps:
   base_maps:

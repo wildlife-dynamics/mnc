@@ -16,6 +16,7 @@ rattler-build = "*"
 yq = "*"
 hatch = "*"
 pip="*"
+hatch-vcs="*"
 
 [feature.compile.dependencies]
 # Include this if you add new tasks and the package has been built
@@ -60,5 +61,5 @@ cmd = './dev/recompile.sh mara_north_event_report --install'
 depends-on = ["build-release"]
 
 [feature.compile.tasks.recompile-mara_north_event_report]
-cmd = './dev/recompile.sh mara_north_event_report --update'
+cmd = './dev/recompile.sh mara_north_event_report --no-install'
 depends-on = ["build-release"]

@@ -1338,6 +1338,26 @@ def main(params: Params):
         .call()
     )
 
+    persist_events_data = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_events_data")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="geoparquet",
+            df=get_events_data,
+            filename="events_data",
+            **(params_dict.get("persist_events_data") or {}),
+        )
+        .call()
+    )
+
     events_wtemporal = (
         add_temporal_index.validate()
         .handle_errors(task_instance_id="events_wtemporal")
@@ -1667,6 +1687,24 @@ def main(params: Params):
         .call()
     )
 
+    patrol_purpose_scase = (
+        to_sentence_case.validate()
+        .handle_errors(task_instance_id="patrol_purpose_scase")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=patrol_info_summary,
+            column="purpose",
+            **(params_dict.get("patrol_purpose_scase") or {}),
+        )
+        .call()
+    )
+
     include_pat_totals = (
         add_totals_row.validate()
         .handle_errors(task_instance_id="include_pat_totals")
@@ -1680,7 +1718,7 @@ def main(params: Params):
         .partial(
             label_col=["purpose"],
             label="Total",
-            df=patrol_info_summary,
+            df=patrol_purpose_scase,
             **(params_dict.get("include_pat_totals") or {}),
         )
         .call()
@@ -1942,6 +1980,26 @@ def main(params: Params):
             patrol_column="patrol_type__value",
             new_column="patrol_cat_types",
             **(params_dict.get("map_patrol_types") or {}),
+        )
+        .call()
+    )
+
+    persist_patrol_obs_df = (
+        persist_df.validate()
+        .handle_errors(task_instance_id="persist_patrol_obs_df")
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="geoparquet",
+            df=map_patrol_types,
+            filename="patrol_observations",
+            **(params_dict.get("persist_patrol_obs_df") or {}),
         )
         .call()
     )
@@ -2428,7 +2486,7 @@ def main(params: Params):
         .partial(
             input_column_name="patrol_type_value",
             output_column_name="foot_patrol_colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=rename_foot_trajs,
             **(params_dict.get("apply_footp_colormap") or {}),
         )
@@ -2483,7 +2541,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_footp_colormap,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_foot_patrols") or {}),
         )
         .call()
@@ -2665,7 +2723,7 @@ def main(params: Params):
         .partial(
             input_column_name="patrol_type_value",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=rename_vehicle_trajs,
             **(params_dict.get("apply_vehicle_colormap") or {}),
         )
@@ -2720,7 +2778,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_vehicle_colormap,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_vehicle_patrols") or {}),
         )
         .call()
@@ -2902,7 +2960,7 @@ def main(params: Params):
         .partial(
             input_column_name="patrol_type_value",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=rename_motor_trajs,
             **(params_dict.get("apply_motor_colormap") or {}),
         )
@@ -3075,7 +3133,7 @@ def main(params: Params):
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="geoparquet",
             df=merge_trajs,
-            filename="trajectories",
+            filename="patrol_trajectories",
             **(params_dict.get("persist_patrol_trajs") or {}),
         )
         .call()
@@ -3566,7 +3624,7 @@ def main(params: Params):
         .partial(
             input_column_name="event_type",
             output_column_name="event_type_colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=rename_mobile_boma,
             **(params_dict.get("apply_mb_colormap") or {}),
         )
@@ -3586,7 +3644,7 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "event_type_colors",
-                "get_radius": 5,
+                "get_radius": 7,
                 "opacity": 0.75,
                 "stroked": False,
             },
@@ -4053,7 +4111,7 @@ def main(params: Params):
         .partial(
             input_column_name="livestock_species",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=remove_invalid_geoms,
             **(params_dict.get("apply_livestock_colormap") or {}),
         )
@@ -4073,7 +4131,7 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_radius": 7,
                 "opacity": 0.75,
                 "stroked": False,
             },
@@ -4101,7 +4159,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_livestock_colormap,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_livestock_events") or {}),
         )
         .call()
@@ -4418,7 +4476,7 @@ def main(params: Params):
         .partial(
             input_column_name="event_type",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=remove_invalid_wild_geoms,
             **(params_dict.get("apply_wildlife_colormap") or {}),
         )
@@ -4438,7 +4496,7 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_radius": 7,
                 "opacity": 0.75,
                 "stroked": False,
             },
@@ -4775,7 +4833,7 @@ def main(params: Params):
         .partial(
             input_column_name="elephant_sight_herd_composition",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=rename_ele_column,
             **(params_dict.get("apply_ele_events_colormap") or {}),
         )
@@ -4795,7 +4853,7 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_radius": 7,
                 "opacity": 0.75,
                 "stroked": False,
             },
@@ -4823,7 +4881,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_ele_events_colormap,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_elephant_events") or {}),
         )
         .call()
@@ -5117,7 +5175,7 @@ def main(params: Params):
         .partial(
             input_column_name="elephant_sight_herd_sizebins",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=drop_null_ele_bins,
             **(params_dict.get("apply_ele_color_bins") or {}),
         )
@@ -5168,7 +5226,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_ele_color_bins,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_ele_bins") or {}),
         )
         .call()
@@ -5471,7 +5529,7 @@ def main(params: Params):
         .partial(
             input_column_name="buffalo_herd",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=remove_buffalo_invalid_geoms,
             **(params_dict.get("apply_buffalo_colormap") or {}),
         )
@@ -5519,7 +5577,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_buffalo_colormap,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_buffalo_events") or {}),
         )
         .call()
@@ -5616,7 +5674,7 @@ def main(params: Params):
         )
         .partial(
             columns=["buffalo_herd_size"],
-            bins=5,
+            bins=7,
             suffix="bins",
             inplace=False,
             df=rename_buffalo_cols,
@@ -5748,7 +5806,7 @@ def main(params: Params):
         .partial(
             input_column_name="buffalo_herd_sizebins",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=drop_null_buffalo_bins,
             **(params_dict.get("apply_buffalo_color_bins") or {}),
         )
@@ -5771,7 +5829,7 @@ def main(params: Params):
                 "get_radius": "buffalo_herd_size",
                 "line_width_min_pixels": 1,
                 "radius_units": "pixels",
-                "radius_scale": 0.025,
+                "radius_scale": 0.015,
                 "opacity": 0.75,
                 "stroked": False,
             },
@@ -5799,7 +5857,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_buffalo_color_bins,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_buffalo_bins") or {}),
         )
         .call()
@@ -6036,7 +6094,7 @@ def main(params: Params):
         .partial(
             input_column_name="event_type",
             output_column_name="colors",
-            colormap="plasma",
+            colormap="Spectral",
             df=remove_rhino_invalid_geoms,
             **(params_dict.get("apply_rhino_colormap") or {}),
         )
@@ -6545,7 +6603,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_lion_colormap,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_lion_events") or {}),
         )
         .call()
@@ -6959,7 +7017,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_leopard_colormap,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_leopard_events") or {}),
         )
         .call()
@@ -7194,9 +7252,9 @@ def main(params: Params):
         .call()
     )
 
-    rename_cheetah_column = (
-        map_column_values.validate()
-        .handle_errors(task_instance_id="rename_cheetah_column")
+    cheetah_scase = (
+        to_sentence_case.validate()
+        .handle_errors(task_instance_id="cheetah_scase")
         .skipif(
             conditions=[
                 any_is_empty_df,
@@ -7206,20 +7264,8 @@ def main(params: Params):
         )
         .partial(
             df=replace_cheetah_nulls,
-            columns=["individual_present"],
-            value_map={
-                "karacub": "Bachelor",
-                "kulete": "Female/calf",
-                "kweli": "Mixed",
-                "milele": "Unspecified",
-                "neema": "Neema",
-                "other": "Other",
-                "ranger": "Ranger",
-                "risasi": "Risasi",
-                "unknown": "Unknown",
-            },
-            inplace=True,
-            **(params_dict.get("rename_cheetah_column") or {}),
+            column="individual_present",
+            **(params_dict.get("cheetah_scase") or {}),
         )
         .call()
     )
@@ -7244,7 +7290,7 @@ def main(params: Params):
                 }
             ],
             reset_index=True,
-            df=rename_cheetah_column,
+            df=cheetah_scase,
             **(params_dict.get("unique_cheetah_summary") or {}),
         )
         .call()
@@ -7281,7 +7327,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            df=rename_cheetah_column,
+            df=cheetah_scase,
             z_threshold=3,
             **(params_dict.get("exclude_cheetah_outliers") or {}),
         )
@@ -7366,7 +7412,7 @@ def main(params: Params):
         .partial(
             pitch=0,
             bearing=0,
-            gdf=apply_cheetah_colormap,
+            gdf=overall_grazing_zones,
             **(params_dict.get("zoom_cheetah_events") or {}),
         )
         .call()
@@ -7597,9 +7643,9 @@ def main(params: Params):
         .call()
     )
 
-    rename_camp_lodge_column = (
-        map_column_values.validate()
-        .handle_errors(task_instance_id="rename_camp_lodge_column")
+    lodge_scase = (
+        to_sentence_case.validate()
+        .handle_errors(task_instance_id="lodge_scase")
         .skipif(
             conditions=[
                 any_is_empty_df,
@@ -7609,23 +7655,8 @@ def main(params: Params):
         )
         .partial(
             df=convert_clients_int,
-            columns=["camp_lodge"],
-            value_map={
-                "elephant_pepper": "Elephant pepper",
-                "fairmontmarasafariclub": "Fairmont mara safari club",
-                "karen_blixen": "Karen blixen",
-                "kicheche": "Kicheche",
-                "losokwancamp": "Losokwan camp",
-                "naretoiplots": "Naretoi plots",
-                "neptunecamp": "Neptune camp",
-                "offbeat_mara": "Offbeat mara",
-                "richardscamp": "Richards camp",
-                "safarisunlimited": "Safari unlimited",
-                "saruni_mara": "Saruni mara",
-                "seriancamp": "Serian camp",
-            },
-            inplace=True,
-            **(params_dict.get("rename_camp_lodge_column") or {}),
+            column="camp_lodge",
+            **(params_dict.get("lodge_scase") or {}),
         )
         .call()
     )
@@ -7641,7 +7672,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            df=rename_camp_lodge_column,
+            df=lodge_scase,
             groupby_cols=["camp_lodge", "arrival_or_departure"],
             summary_params=[
                 {

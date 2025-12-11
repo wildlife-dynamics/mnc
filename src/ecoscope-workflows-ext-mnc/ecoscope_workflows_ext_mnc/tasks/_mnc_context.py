@@ -66,119 +66,6 @@ def _safe_extract_value(df: pd.DataFrame, column: str, default= 0):
         return value if pd.notna(value) else default
     except (IndexError, KeyError):
         return default
-
-
-# for the mnc context ,the following items need to be added section by section 
-# 1. weather 
-# temperature_chart -> temperature_readings_over_time.png
-# precipitation_chart -> precipitation_readings_over_time.png
-# atmospheric_pressure_chart  -> atmospheric_pressure_readings_over_time.png
-# wind_gusts_chart-> wind_gusts_readings_over_time.png
-# wind_speed_chart -> wind_speed_readings_over_time.png
-# soil_temperature_chart -> soil_temperature_readings_over_time.png
-
-# 2. Patrol Effort 
-# total events - int  --> total_events_recorded summary table ["no_of_events"] last column 
-# total_events_chart -> total_events_recorded.png 
-
-# foot patrol summary table 
-# -- foot_patrol_efforts.csv
-# no_of_foot_patrols -int,[no_of_patrols] total_foot_patrol_hours -float,[duration_hrs] 
-# total_foot_patrol_distance -float[distance_km], average_speed -float[average_speed]
-# foot_patrols_map - foot_patrols_map.png
-
-# vehicle patrol summary table 
-# -- vehicle_patrol_efforts.csv
-# no_of_vehicle_patrols -int[ no_of_patrols ], total_vehicle_patrol_hours -float[duration_hrs], 
-# total_vehicle_patrol_distance -float[distance_km] , average_speed -float [average_speed]
-# vehicle_patrols_map - vehicle_patrols_map.png
-
-# motorbike patrol summary table 
-# no_of_motor_patrols -int[ no_of_patrols ], total_motor_patrol_distance -float [distance_km], 
-# total_motor_patrol_hours -float [duration_hrs ], average_motor_patrol_speed -float [average_speed ]
-# motorbike_patrols_map - motorbike_patrols_map.png 
-
-# patrol coverage 
-# mara_conservancy_percentage covered - float [conservancy_name]== 'Mara North Conservancy' [occupancy_percentage]
-# patrols_coverage_map - patrol_coverage_map.png 
-# patrol coverage summary table -patrol_coverage.csv [ patrol_coverage ]
-
-# purpose of patrols 
-# night_patrols_percent -float [purpose]night [no_of_patrols]/total , 
-# routine_patrols_percent -float [purpose]routine [no_of_patrols]/total , 
-# joint_patrols_percent -float [purpose]joint [no_of_patrols]/total , 
-# patrol_purpose_summary_table  - patrol_purpose_summary.csv [ patrol_purpose ]
-
-# patrol effort by ranger 
-# patrol_effort_by_ranger_table - overall_patrol_efforts.csv [ patrol_efforts ]
-
-# 3. Livestock Monitoring 
-# Cattle counts 
-# no_of_cow_events -int  # not done yet so pass nothing 
-# table_count_summary_table - mobile_boma_summary.csv [ zone_stats ]
-
-# Boma movements 
-# no_of_boma_movements -int  mobile_boma_summary.csv [boma][Total] total_count
-# boma_movements_ecomap -boma_movement_map.png 
-
-# Livestock predation events 
-# livestock_predation_events -int -- livestock_events_recorded.csv [date]Total no_of_events 
-
-# livestock_predation_events_summary_table -- livestock_predation_events.csv
-# livestock_predation_events_ecomap - livestock_predation_events.png 
-
-
-# 4. Wildlife Monitoring 
-# wildlife incidents 
-# total_wildlife_incidents -int -wildlife_incidents_recorded.csv [date]Total [no_of_events]
-
-# wildlife_incidents_recorded -summary_table - wildlife_incidents_summary.csv
-# wildlife_incidents_events_ecomap - wildlife_incidents_map.png 
-
-# Elephant 
-# no_of_elephant_events -int -- elephant_events_recorded.csv [event_type]Total [no_of_events]
-# elephant_events_distribution -bar_chart -- elephant_herd_size_bar_chart.png 
-# elephant_sightings_ecomap -- elephant_sightings_events.png 
-# elephant_herd_types_ecomap - elephant_herd_types_map.png 
-
-# Buffalo 
-# no_of_buffalo_events -int - buffalo_events_recorded.csv [event_type]Total [no_of_events]
-# buffalo_events_distribution -bar_chart - buffalo_herd_size_bar_chart.png 
-# buffalo_sightings_ecomap - buffalo_herd_map.png 
-# buffalo_herd_types_ecomap - buffalo_herd_types_map.png 
-
-# Rhino 
-# no_of_rhino_events -int -rhino_events_recorded.csv[event_type]Total [no_of_events]
-# rhino_events_sightings  -rhino_sighting_map.png
-
-# Lion 
-# no_of_lion_events -int -lion_events_recorded.csv[event_type]Total [no_of_events]
-# common lion prides , A-B-C - unique_lion_prides.csv [ lion_pride ][no_of_events]
-# lion_sightings_ecomap - lion_sightings_map
-
-# Leopard
-# no_of_leopard_sightings -int -leopard_events_recorded.csv[event_type]Total [no_of_events]
-# common individuals - A-B-C - individual_leopard_summary.csv [individual_present][no_of_events]cheetah_observations
-# leopard_sightings_ecomap - leopard_sightings_map.png
-
-# Cheetah 
-# no_of_cheetah_events -int -cheetah_events_recorded.csv[event_type]Total [no_of_events]
-# common observed cheetah -str - individual_cheetah_summary.csv [individual_present][no_of_events]
-#  individual cheetah observations -summary_table  -- individual_cheetah_summary.csv
-# cheetah_sightings_ecomap -- cheetah_sightings_map.png
-
-
-# 5. Logistics
-# Balloon landings 
-# Balloon landing summary table -- not yet available 
-
-# Airstrip arrival and departure 
-# Airstrip arrival_and_departure_summary_table - airstrip_arrivals_and_departure.csv [ airstrip_observations ]
-
-# Airstrip maintenace 
-# airstrip maintenace summary table  -- not yet available 
-
-
 @dataclass
 class MncContext:
     """Data class to hold all context variables for MNC report generation."""
@@ -730,7 +617,7 @@ def generate_mnc_report(
         else:
             context[template_var] = []
             print(f"Info: CSV not found for {template_var} (expected: {file_stem})")
-    
+        
     # ==========================
     # EXTRACT SPECIFIC VALUES FROM CSVs
     # ==========================
@@ -743,6 +630,22 @@ def generate_mnc_report(
             except Exception as e:
                 print(f"Warning: Could not read {file_stem}: {e}")
         return None
+    
+    # Patrol efforts processing
+    patrol_efforts_df = read_csv_safe("overall_patrol_efforts")
+    if patrol_efforts_df is not None:
+        patrol_efforts_df["no_of_patrols"] = patrol_efforts_df["no_of_patrols"].fillna(0).astype(int)
+        patrol_efforts_df["distance_km"] = patrol_efforts_df["distance_km"].round(2)
+        patrol_efforts_df["duration_hrs"] = patrol_efforts_df["duration_hrs"].round(2)
+        context["patrol_efforts"] = patrol_efforts_df.to_dict(orient="records")
+
+    # Airstrip processing - overwrites the key from table_mappings
+    air_df = read_csv_safe("airstrip_arrivals_and_departure")
+    if air_df is not None:
+        air_df["arrival"] = air_df["arrival"].fillna(0).astype(int)
+        air_df["departure"] = air_df["departure"].fillna(0).astype(int)
+        context["airstrip_observations"] = air_df.to_dict(orient="records")
+    
     
     # 1. Total events
     df = read_csv_safe('total_events_recorded')
@@ -837,9 +740,9 @@ def generate_mnc_report(
     df = read_csv_safe('buffalo_events_recorded')
     if df is not None and 'event_type' in df.columns and 'no_of_events' in df.columns:
         total_row = df[df['event_type'] == 'Total']
-        context['no_of_buffalo_events'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
+        context['no_of_buffalo_sightings'] = int(total_row['no_of_events'].iloc[0]) if not total_row.empty else 0
     else:
-        context['no_of_buffalo_events'] = 0
+        context['no_of_buffalo_sightings'] = 0
     
     # 12. Rhino events
     df = read_csv_safe('rhino_events_recorded')

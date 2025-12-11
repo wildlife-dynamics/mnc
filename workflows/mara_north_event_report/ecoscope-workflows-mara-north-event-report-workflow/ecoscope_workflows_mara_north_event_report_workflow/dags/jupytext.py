@@ -1986,6 +1986,38 @@ extract_event_date = (
 
 
 # %% [markdown]
+# ## Persist events data
+
+# %%
+# parameters
+
+persist_events_data_params = dict()
+
+# %%
+# call the task
+
+
+persist_events_data = (
+    persist_df.handle_errors(task_instance_id="persist_events_data")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="geoparquet",
+        df=get_events_data,
+        filename="events_data",
+        **persist_events_data_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Add temporal index on events
 
 # %%
@@ -2477,6 +2509,32 @@ patrol_info_summary = (
 
 
 # %% [markdown]
+# ## Convert patrol purpose to sentence case
+
+# %%
+# parameters
+
+patrol_purpose_scase_params = dict()
+
+# %%
+# call the task
+
+
+patrol_purpose_scase = (
+    to_sentence_case.handle_errors(task_instance_id="patrol_purpose_scase")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(df=patrol_info_summary, column="purpose", **patrol_purpose_scase_params)
+    .call()
+)
+
+
+# %% [markdown]
 # ## Add totals row in patrol info summary table
 
 # %%
@@ -2500,7 +2558,7 @@ include_pat_totals = (
     .partial(
         label_col=["purpose"],
         label="Total",
-        df=patrol_info_summary,
+        df=patrol_purpose_scase,
         **include_pat_totals_params,
     )
     .call()
@@ -2840,6 +2898,38 @@ map_patrol_types = (
         patrol_column="patrol_type__value",
         new_column="patrol_cat_types",
         **map_patrol_types_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Persist patrol observations df
+
+# %%
+# parameters
+
+persist_patrol_obs_df_params = dict()
+
+# %%
+# call the task
+
+
+persist_patrol_obs_df = (
+    persist_df.handle_errors(task_instance_id="persist_patrol_obs_df")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="geoparquet",
+        df=map_patrol_types,
+        filename="patrol_observations",
+        **persist_patrol_obs_df_params,
     )
     .call()
 )
@@ -3556,7 +3646,7 @@ apply_footp_colormap = (
     .partial(
         input_column_name="patrol_type_value",
         output_column_name="foot_patrol_colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=rename_foot_trajs,
         **apply_footp_colormap_params,
     )
@@ -3632,7 +3722,7 @@ zoom_foot_patrols = (
         ],
         unpack_depth=1,
     )
-    .partial(pitch=0, bearing=0, gdf=apply_footp_colormap, **zoom_foot_patrols_params)
+    .partial(pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_foot_patrols_params)
     .call()
 )
 
@@ -3914,7 +4004,7 @@ apply_vehicle_colormap = (
     .partial(
         input_column_name="patrol_type_value",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=rename_vehicle_trajs,
         **apply_vehicle_colormap_params,
     )
@@ -3991,7 +4081,7 @@ zoom_vehicle_patrols = (
         unpack_depth=1,
     )
     .partial(
-        pitch=0, bearing=0, gdf=apply_vehicle_colormap, **zoom_vehicle_patrols_params
+        pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_vehicle_patrols_params
     )
     .call()
 )
@@ -4274,7 +4364,7 @@ apply_motor_colormap = (
     .partial(
         input_column_name="patrol_type_value",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=rename_motor_trajs,
         **apply_motor_colormap_params,
     )
@@ -4544,7 +4634,7 @@ persist_patrol_trajs = (
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="geoparquet",
         df=merge_trajs,
-        filename="trajectories",
+        filename="patrol_trajectories",
         **persist_patrol_trajs_params,
     )
     .call()
@@ -5308,7 +5398,7 @@ apply_mb_colormap = (
     .partial(
         input_column_name="event_type",
         output_column_name="event_type_colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=rename_mobile_boma,
         **apply_mb_colormap_params,
     )
@@ -5340,7 +5430,7 @@ generate_mb_layers = (
     .partial(
         layer_style={
             "get_fill_color": "event_type_colors",
-            "get_radius": 5,
+            "get_radius": 7,
             "opacity": 0.75,
             "stroked": False,
         },
@@ -6063,7 +6153,7 @@ apply_livestock_colormap = (
     .partial(
         input_column_name="livestock_species",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=remove_invalid_geoms,
         **apply_livestock_colormap_params,
     )
@@ -6095,7 +6185,7 @@ generate_livestock_layers = (
     .partial(
         layer_style={
             "get_fill_color": "colors",
-            "get_radius": 5,
+            "get_radius": 7,
             "opacity": 0.75,
             "stroked": False,
         },
@@ -6133,7 +6223,7 @@ zoom_livestock_events = (
         unpack_depth=1,
     )
     .partial(
-        pitch=0, bearing=0, gdf=apply_livestock_colormap, **zoom_livestock_events_params
+        pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_livestock_events_params
     )
     .call()
 )
@@ -6626,7 +6716,7 @@ apply_wildlife_colormap = (
     .partial(
         input_column_name="event_type",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=remove_invalid_wild_geoms,
         **apply_wildlife_colormap_params,
     )
@@ -6658,7 +6748,7 @@ generate_wildlife_layers = (
     .partial(
         layer_style={
             "get_fill_color": "colors",
-            "get_radius": 5,
+            "get_radius": 7,
             "opacity": 0.75,
             "stroked": False,
         },
@@ -7181,7 +7271,7 @@ apply_ele_events_colormap = (
     .partial(
         input_column_name="elephant_sight_herd_composition",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=rename_ele_column,
         **apply_ele_events_colormap_params,
     )
@@ -7213,7 +7303,7 @@ generate_elephant_layers = (
     .partial(
         layer_style={
             "get_fill_color": "colors",
-            "get_radius": 5,
+            "get_radius": 7,
             "opacity": 0.75,
             "stroked": False,
         },
@@ -7251,7 +7341,7 @@ zoom_elephant_events = (
         unpack_depth=1,
     )
     .partial(
-        pitch=0, bearing=0, gdf=apply_ele_events_colormap, **zoom_elephant_events_params
+        pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_elephant_events_params
     )
     .call()
 )
@@ -7720,7 +7810,7 @@ apply_ele_color_bins = (
     .partial(
         input_column_name="elephant_sight_herd_sizebins",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=drop_null_ele_bins,
         **apply_ele_color_bins_params,
     )
@@ -7792,7 +7882,7 @@ zoom_ele_bins = (
         ],
         unpack_depth=1,
     )
-    .partial(pitch=0, bearing=0, gdf=apply_ele_color_bins, **zoom_ele_bins_params)
+    .partial(pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_ele_bins_params)
     .call()
 )
 
@@ -8268,7 +8358,7 @@ apply_buffalo_colormap = (
     .partial(
         input_column_name="buffalo_herd",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=remove_buffalo_invalid_geoms,
         **apply_buffalo_colormap_params,
     )
@@ -8338,7 +8428,7 @@ zoom_buffalo_events = (
         unpack_depth=1,
     )
     .partial(
-        pitch=0, bearing=0, gdf=apply_buffalo_colormap, **zoom_buffalo_events_params
+        pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_buffalo_events_params
     )
     .call()
 )
@@ -8500,7 +8590,7 @@ bin_buffalo_herd_col = (
     )
     .partial(
         columns=["buffalo_herd_size"],
-        bins=5,
+        bins=7,
         suffix="bins",
         inplace=False,
         df=rename_buffalo_cols,
@@ -8706,7 +8796,7 @@ apply_buffalo_color_bins = (
     .partial(
         input_column_name="buffalo_herd_sizebins",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=drop_null_buffalo_bins,
         **apply_buffalo_color_bins_params,
     )
@@ -8743,7 +8833,7 @@ generate_buffalo_herd_layers = (
             "get_radius": "buffalo_herd_size",
             "line_width_min_pixels": 1,
             "radius_units": "pixels",
-            "radius_scale": 0.025,
+            "radius_scale": 0.015,
             "opacity": 0.75,
             "stroked": False,
         },
@@ -8780,9 +8870,7 @@ zoom_buffalo_bins = (
         ],
         unpack_depth=1,
     )
-    .partial(
-        pitch=0, bearing=0, gdf=apply_buffalo_color_bins, **zoom_buffalo_bins_params
-    )
+    .partial(pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_buffalo_bins_params)
     .call()
 )
 
@@ -9158,7 +9246,7 @@ apply_rhino_colormap = (
     .partial(
         input_column_name="event_type",
         output_column_name="colors",
-        colormap="plasma",
+        colormap="Spectral",
         df=remove_rhino_invalid_geoms,
         **apply_rhino_colormap_params,
     )
@@ -9934,7 +10022,7 @@ zoom_lion_events = (
         ],
         unpack_depth=1,
     )
-    .partial(pitch=0, bearing=0, gdf=apply_lion_colormap, **zoom_lion_events_params)
+    .partial(pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_lion_events_params)
     .call()
 )
 
@@ -10575,7 +10663,7 @@ zoom_leopard_events = (
         unpack_depth=1,
     )
     .partial(
-        pitch=0, bearing=0, gdf=apply_leopard_colormap, **zoom_leopard_events_params
+        pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_leopard_events_params
     )
     .call()
 )
@@ -10945,19 +11033,19 @@ persist_cheetah_df = (
 
 
 # %% [markdown]
-# ## Rename values in cheetah individual present  column
+# ## Convert cheetah individual to sentence case
 
 # %%
 # parameters
 
-rename_cheetah_column_params = dict()
+cheetah_scase_params = dict()
 
 # %%
 # call the task
 
 
-rename_cheetah_column = (
-    map_column_values.handle_errors(task_instance_id="rename_cheetah_column")
+cheetah_scase = (
+    to_sentence_case.handle_errors(task_instance_id="cheetah_scase")
     .skipif(
         conditions=[
             any_is_empty_df,
@@ -10966,21 +11054,7 @@ rename_cheetah_column = (
         unpack_depth=1,
     )
     .partial(
-        df=replace_cheetah_nulls,
-        columns=["individual_present"],
-        value_map={
-            "karacub": "Bachelor",
-            "kulete": "Female/calf",
-            "kweli": "Mixed",
-            "milele": "Unspecified",
-            "neema": "Neema",
-            "other": "Other",
-            "ranger": "Ranger",
-            "risasi": "Risasi",
-            "unknown": "Unknown",
-        },
-        inplace=True,
-        **rename_cheetah_column_params,
+        df=replace_cheetah_nulls, column="individual_present", **cheetah_scase_params
     )
     .call()
 )
@@ -11013,7 +11087,7 @@ unique_cheetah_summary = (
             {"display_name": "no_of_events", "aggregator": "nunique", "column": "id"}
         ],
         reset_index=True,
-        df=rename_cheetah_column,
+        df=cheetah_scase,
         **unique_cheetah_summary_params,
     )
     .call()
@@ -11073,7 +11147,7 @@ exclude_cheetah_outliers = (
         ],
         unpack_depth=1,
     )
-    .partial(df=rename_cheetah_column, z_threshold=3, **exclude_cheetah_outliers_params)
+    .partial(df=cheetah_scase, z_threshold=3, **exclude_cheetah_outliers_params)
     .call()
 )
 
@@ -11200,7 +11274,7 @@ zoom_cheetah_events = (
         unpack_depth=1,
     )
     .partial(
-        pitch=0, bearing=0, gdf=apply_cheetah_colormap, **zoom_cheetah_events_params
+        pitch=0, bearing=0, gdf=overall_grazing_zones, **zoom_cheetah_events_params
     )
     .call()
 )
@@ -11572,19 +11646,19 @@ convert_clients_int = (
 
 
 # %% [markdown]
-# ## Rename values in airstrip camp_lodge column
+# ## Convert airstrip lodge to sentence case
 
 # %%
 # parameters
 
-rename_camp_lodge_column_params = dict()
+lodge_scase_params = dict()
 
 # %%
 # call the task
 
 
-rename_camp_lodge_column = (
-    map_column_values.handle_errors(task_instance_id="rename_camp_lodge_column")
+lodge_scase = (
+    to_sentence_case.handle_errors(task_instance_id="lodge_scase")
     .skipif(
         conditions=[
             any_is_empty_df,
@@ -11592,26 +11666,7 @@ rename_camp_lodge_column = (
         ],
         unpack_depth=1,
     )
-    .partial(
-        df=convert_clients_int,
-        columns=["camp_lodge"],
-        value_map={
-            "elephant_pepper": "Elephant pepper",
-            "fairmontmarasafariclub": "Fairmont mara safari club",
-            "karen_blixen": "Karen blixen",
-            "kicheche": "Kicheche",
-            "losokwancamp": "Losokwan camp",
-            "naretoiplots": "Naretoi plots",
-            "neptunecamp": "Neptune camp",
-            "offbeat_mara": "Offbeat mara",
-            "richardscamp": "Richards camp",
-            "safarisunlimited": "Safari unlimited",
-            "saruni_mara": "Saruni mara",
-            "seriancamp": "Serian camp",
-        },
-        inplace=True,
-        **rename_camp_lodge_column_params,
-    )
+    .partial(df=convert_clients_int, column="camp_lodge", **lodge_scase_params)
     .call()
 )
 
@@ -11638,7 +11693,7 @@ airstrip_summary_table = (
         unpack_depth=1,
     )
     .partial(
-        df=rename_camp_lodge_column,
+        df=lodge_scase,
         groupby_cols=["camp_lodge", "arrival_or_departure"],
         summary_params=[
             {
