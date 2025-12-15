@@ -61,7 +61,7 @@ workflow:
     id: persist_mnc_tpt
     task: download_file_and_persist
     partial:
-      url: https://www.dropbox.com/scl/fi/swqlc8wjdaojkwhwn1ut5/mnc_template_2.docx?rlkey=y5gwkwx61j6u56ypzwmcbkltc&st=w62ngh5f&dl=0
+      url: https://www.dropbox.com/scl/fi/zwb5d8nxfwqhjikjybmst/mara_north_template_2.docx?rlkey=it5d7a6382xyzgelh0cuy2xsy&st=zyi1ggdd&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       overwrite_existing: false
       retries: 3
@@ -419,7 +419,7 @@ workflow:
         title_x: 0.01
         title_y:  0.95
         showlegend: true
-        fontsize: 12
+        fontsize: 16
         fontcolor: "#2c3e50"
         plot_bgcolor: "#f5f5f5"
         xaxis:
@@ -460,7 +460,7 @@ workflow:
         title_x: 0.01
         title_y:  0.95
         showlegend: true
-        fontsize: 12
+        fontsize: 16
         fontcolor: "#2c3e50"
         plot_bgcolor: "#f5f5f5"
         xaxis:
@@ -498,7 +498,7 @@ workflow:
         title_x: 0.01
         title_y:  0.95
         showlegend: true
-        fontsize: 12
+        fontsize: 16
         fontcolor: "#2c3e50"
         plot_bgcolor: "#f5f5f5"
         xaxis:
@@ -536,7 +536,7 @@ workflow:
         title_x: 0.01
         title_y:  0.95
         showlegend: true
-        fontsize: 12
+        fontsize: 16
         fontcolor: "#2c3e50"
         plot_bgcolor: "#f5f5f5"
         xaxis:
@@ -574,7 +574,7 @@ workflow:
         title_x: 0.01
         title_y:  0.95
         showlegend: true
-        fontsize: 12
+        fontsize: 16
         fontcolor: "#2c3e50"
         plot_bgcolor: "#f5f5f5"
         xaxis:
@@ -612,7 +612,7 @@ workflow:
         title_x: 0.01
         title_y:  0.95
         showlegend: true
-        fontsize: 12
+        fontsize: 16
         fontcolor: "#2c3e50"
         plot_bgcolor: "#f5f5f5"
         xaxis:
@@ -650,7 +650,7 @@ workflow:
         title_x: 0.01
         title_y:  0.95
         showlegend: true
-        fontsize: 12
+        fontsize: 16
         fontcolor: "#2c3e50"
         plot_bgcolor: "#f5f5f5"
         xaxis:
@@ -857,7 +857,7 @@ workflow:
         title_x: 0.01
         title_y:  0.95
         showlegend: false
-        fontsize: 12
+        fontsize: 16
         fontcolor: "#2c3e50"
         plot_bgcolor: "#f5f5f5"
         xaxis:
@@ -1461,7 +1461,7 @@ workflow:
     partial:
       input_column_name: patrol_type_value
       output_column_name: foot_patrol_colors
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.rename_foot_trajs.return }}
 
   - name: Generate  foot patrol layers
@@ -1594,7 +1594,7 @@ workflow:
     partial:
       input_column_name: patrol_type_value
       output_column_name: colors
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.rename_vehicle_trajs.return }}
 
   - name: Generate vehiclce patrol layers
@@ -1724,7 +1724,7 @@ workflow:
     partial:
       input_column_name: patrol_type_value
       output_column_name: colors
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.rename_motor_trajs.return }}
 
   - name: Generate motor patrol layers
@@ -2072,14 +2072,25 @@ workflow:
       filename: mobile_boma_summary
       df: ${{ workflow.include_mb_totals.return }}
 
+  - name: Map boma values
+    id: map_boma_vals
+    task: map_column_values
+    partial:  
+      df: ${{ workflow.rename_mobile_boma.return }}
+      columns: 
+        - event_type 
+      value_map: 
+        mobile_boma_rep: Boma movements 
+      inplace: true 
+
   - name: Apply Colormap to mobile boma events
     id: apply_mb_colormap
     task: apply_color_map
     partial:
       input_column_name: event_type
       output_column_name: event_type_colors
-      colormap: Spectral
-      df: ${{ workflow.rename_mobile_boma.return }}
+      colormap: tab20
+      df: ${{ workflow.map_boma_vals.return }}
 
   - name: Generate mobile boma point layers
     id: generate_mb_layers
@@ -2321,7 +2332,7 @@ workflow:
     partial:
       input_column_name: livestock_species
       output_column_name: colors
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.remove_invalid_geoms.return }}
 
   - name: Generate livestock predation point layers
@@ -2506,7 +2517,7 @@ workflow:
     partial:
       input_column_name: event_type
       output_column_name: colors
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.remove_invalid_wild_geoms.return }}
 
   - name: Generate wildlife predation point layers
@@ -2858,7 +2869,7 @@ workflow:
     partial:
       input_column_name: elephant_sight_herd_sizebins 
       output_column_name: colors
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.drop_null_ele_bins.return }}
 
   - name: Generate elephant herd size point layers
@@ -3032,7 +3043,7 @@ workflow:
     partial:
       input_column_name: buffalo_herd 
       output_column_name: colors 
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.remove_buffalo_invalid_geoms.return }}
 
   - name: Generate buffalo sighting point layers 
@@ -3175,7 +3186,7 @@ workflow:
     partial:
       input_column_name: buffalo_herd_sizebins 
       output_column_name: colors
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.drop_null_buffalo_bins.return }}
 
   - name: Generate buffalo herd size point layers
@@ -3316,7 +3327,7 @@ workflow:
     partial:
       input_column_name: event_type
       output_column_name: colors 
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.remove_rhino_invalid_geoms.return }}
 
   - name: Generate rhino sighting point layers 
@@ -3544,7 +3555,7 @@ workflow:
     partial:
       input_column_name: lion_pride
       output_column_name: colors 
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.remove_lion_invalid_geoms.return }}
 
   - name: Generate lion sighting point layers 
@@ -3744,7 +3755,7 @@ workflow:
     partial:
       input_column_name: individual_present
       output_column_name: colors 
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.remove_leopard_invalid_geoms.return }}
 
   - name: Generate leopard sighting point layers 
@@ -3937,7 +3948,7 @@ workflow:
     partial:
       input_column_name: individual_present
       output_column_name: colors 
-      colormap: Spectral
+      colormap: tab20
       df: ${{ workflow.remove_cheetah_invalid_geoms.return }}
 
   - name: Generate cheetah sighting point layers 

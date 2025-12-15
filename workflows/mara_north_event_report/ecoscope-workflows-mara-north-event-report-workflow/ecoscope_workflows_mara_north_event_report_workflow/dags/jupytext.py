@@ -259,7 +259,7 @@ persist_mnc_tpt = (
         unpack_depth=1,
     )
     .partial(
-        url="https://www.dropbox.com/scl/fi/swqlc8wjdaojkwhwn1ut5/mnc_template_2.docx?rlkey=y5gwkwx61j6u56ypzwmcbkltc&st=w62ngh5f&dl=0",
+        url="https://www.dropbox.com/scl/fi/zwb5d8nxfwqhjikjybmst/mara_north_template_2.docx?rlkey=it5d7a6382xyzgelh0cuy2xsy&st=zyi1ggdd&dl=0",
         output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         overwrite_existing=False,
         retries=3,
@@ -1118,7 +1118,7 @@ precipitation_chart = (
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
-            "fontsize": 12,
+            "fontsize": 16,
             "fontcolor": "#2c3e50",
             "plot_bgcolor": "#f5f5f5",
             "xaxis": {
@@ -1207,7 +1207,7 @@ temperature_chart = (
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
-            "fontsize": 12,
+            "fontsize": 16,
             "fontcolor": "#2c3e50",
             "plot_bgcolor": "#f5f5f5",
             "xaxis": {
@@ -1293,7 +1293,7 @@ wind_speed_chart = (
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
-            "fontsize": 12,
+            "fontsize": 16,
             "fontcolor": "#2c3e50",
             "plot_bgcolor": "#f5f5f5",
             "xaxis": {
@@ -1379,7 +1379,7 @@ wind_gusts_chart = (
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
-            "fontsize": 12,
+            "fontsize": 16,
             "fontcolor": "#2c3e50",
             "plot_bgcolor": "#f5f5f5",
             "xaxis": {
@@ -1465,7 +1465,7 @@ soil_temp_chart = (
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
-            "fontsize": 12,
+            "fontsize": 16,
             "fontcolor": "#2c3e50",
             "plot_bgcolor": "#f5f5f5",
             "xaxis": {
@@ -1551,7 +1551,7 @@ rel_humidity_chart = (
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
-            "fontsize": 12,
+            "fontsize": 16,
             "fontcolor": "#2c3e50",
             "plot_bgcolor": "#f5f5f5",
             "xaxis": {
@@ -1637,7 +1637,7 @@ pressure_chart = (
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": True,
-            "fontsize": 12,
+            "fontsize": 16,
             "fontcolor": "#2c3e50",
             "plot_bgcolor": "#f5f5f5",
             "xaxis": {
@@ -2227,7 +2227,7 @@ draw_events_chart = (
             "title_x": 0.01,
             "title_y": 0.95,
             "showlegend": False,
-            "fontsize": 12,
+            "fontsize": 16,
             "fontcolor": "#2c3e50",
             "plot_bgcolor": "#f5f5f5",
             "xaxis": {
@@ -3646,7 +3646,7 @@ apply_footp_colormap = (
     .partial(
         input_column_name="patrol_type_value",
         output_column_name="foot_patrol_colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=rename_foot_trajs,
         **apply_footp_colormap_params,
     )
@@ -4004,7 +4004,7 @@ apply_vehicle_colormap = (
     .partial(
         input_column_name="patrol_type_value",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=rename_vehicle_trajs,
         **apply_vehicle_colormap_params,
     )
@@ -4364,7 +4364,7 @@ apply_motor_colormap = (
     .partial(
         input_column_name="patrol_type_value",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=rename_motor_trajs,
         **apply_motor_colormap_params,
     )
@@ -5375,6 +5375,38 @@ persist_mobile_df = (
 
 
 # %% [markdown]
+# ## Map boma values
+
+# %%
+# parameters
+
+map_boma_vals_params = dict()
+
+# %%
+# call the task
+
+
+map_boma_vals = (
+    map_column_values.handle_errors(task_instance_id="map_boma_vals")
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=rename_mobile_boma,
+        columns=["event_type"],
+        value_map={"mobile_boma_rep": "Boma movements"},
+        inplace=True,
+        **map_boma_vals_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Apply Colormap to mobile boma events
 
 # %%
@@ -5398,8 +5430,8 @@ apply_mb_colormap = (
     .partial(
         input_column_name="event_type",
         output_column_name="event_type_colors",
-        colormap="Spectral",
-        df=rename_mobile_boma,
+        colormap="tab20",
+        df=map_boma_vals,
         **apply_mb_colormap_params,
     )
     .call()
@@ -6153,7 +6185,7 @@ apply_livestock_colormap = (
     .partial(
         input_column_name="livestock_species",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=remove_invalid_geoms,
         **apply_livestock_colormap_params,
     )
@@ -6716,7 +6748,7 @@ apply_wildlife_colormap = (
     .partial(
         input_column_name="event_type",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=remove_invalid_wild_geoms,
         **apply_wildlife_colormap_params,
     )
@@ -7810,7 +7842,7 @@ apply_ele_color_bins = (
     .partial(
         input_column_name="elephant_sight_herd_sizebins",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=drop_null_ele_bins,
         **apply_ele_color_bins_params,
     )
@@ -8358,7 +8390,7 @@ apply_buffalo_colormap = (
     .partial(
         input_column_name="buffalo_herd",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=remove_buffalo_invalid_geoms,
         **apply_buffalo_colormap_params,
     )
@@ -8796,7 +8828,7 @@ apply_buffalo_color_bins = (
     .partial(
         input_column_name="buffalo_herd_sizebins",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=drop_null_buffalo_bins,
         **apply_buffalo_color_bins_params,
     )
@@ -9246,7 +9278,7 @@ apply_rhino_colormap = (
     .partial(
         input_column_name="event_type",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=remove_rhino_invalid_geoms,
         **apply_rhino_colormap_params,
     )
@@ -9953,7 +9985,7 @@ apply_lion_colormap = (
     .partial(
         input_column_name="lion_pride",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=remove_lion_invalid_geoms,
         **apply_lion_colormap_params,
     )
@@ -10593,7 +10625,7 @@ apply_leopard_colormap = (
     .partial(
         input_column_name="individual_present",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=remove_leopard_invalid_geoms,
         **apply_leopard_colormap_params,
     )
@@ -11204,7 +11236,7 @@ apply_cheetah_colormap = (
     .partial(
         input_column_name="individual_present",
         output_column_name="colors",
-        colormap="Spectral",
+        colormap="tab20",
         df=remove_cheetah_invalid_geoms,
         **apply_cheetah_colormap_params,
     )

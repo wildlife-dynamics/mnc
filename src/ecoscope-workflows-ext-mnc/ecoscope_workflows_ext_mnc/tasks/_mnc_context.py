@@ -791,11 +791,14 @@ def generate_mnc_report(
         context['no_of_cheetah_events'] = 0
     
     df = read_csv_safe('individual_cheetah_summary')
+    df = df.sort_values(by="no_of_events", ascending=False)
     if df is not None and 'individual_present' in df.columns and 'no_of_events' in df.columns:
         top_individuals = df.nlargest(3, 'no_of_events')['individual_present'].tolist()
         context['common_cheetah_individuals'] = ', '.join(top_individuals) if top_individuals else 'N/A'
     else:
         context['common_cheetah_individuals'] = 'N/A'
+    
+    context["individual_cheetah_summary"] = df.to_dict(orient="records")
     
     # ==========================
     # METADATA
@@ -810,7 +813,7 @@ def generate_mnc_report(
         time_period_str = f"{time_period.since.strftime(fmt)} to {time_period.until.strftime(fmt)}"
 
     context['time_range'] = time_period_str
-    
+    context['time_period'] = f"{time_period.since.date()} - {time_period.until.date()}"
     context['generated_on'] = pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')
     
     # ==========================
