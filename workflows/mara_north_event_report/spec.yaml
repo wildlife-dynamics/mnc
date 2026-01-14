@@ -1,0 +1,1877 @@
+id: mara_north_event_report
+requirements:
+  - name: ecoscope-workflows-core
+    version: "0.20.4.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+
+  - name: ecoscope-workflows-ext-ecoscope
+    version: "0.20.4.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+
+  - name: ecoscope-workflows-ext-custom
+    version: "0.0.12.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+  - name: ecoscope-workflows-ext-ste
+    version: "0.0.3.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+  - name: ecoscope-workflows-ext-mnc
+    version: "*"
+    channel: file:///tmp/ecoscope-workflows-custom/release/artifacts/
+
+task-instance-defaults:
+  skipif:
+    conditions:
+      - any_is_empty_df
+      - any_dependency_skipped
+
+workflow:
+  - name: Set workflow details
+    id: workflow_details
+    task: set_workflow_details
+
+  - name: Time range
+    id: time_range
+    task: set_time_range
+    partial:
+      time_format: "%d %b %Y %H:%M:%S %Z"
+      timezone: 
+        label: UTC 
+        tzCode: UTC 
+        name: UTC 
+        utc_offset: "+00:00"
+  
+  - name: Set groupers
+    id: groupers
+    task: set_groupers
+
+  - name: Connect to ER 
+    id: er_client_name
+    task: set_er_connection
+
+  - name: Configure base map layers
+    id: configure_base_maps
+    task: set_base_maps_pydeck
+
+  - name: Download MNC template and persist
+    id: persist_mnc_tpt
+    task: fetch_and_persist_file
+    partial:
+      url: https://www.dropbox.com/scl/fi/zwb5d8nxfwqhjikjybmst/mara_north_template_2.docx?rlkey=it5d7a6382xyzgelh0cuy2xsy&st=zyi1ggdd&dl=0
+      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      overwrite_existing: false
+      retries: 3
+      unzip: false
+
+  - name: Download MNC community conservancy boundaries
+    id: persist_mnc_gpkg
+    task: fetch_and_persist_file
+    partial:
+      url: https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=gtdi4vv0&dl=0
+      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      overwrite_existing: false
+      retries: 3
+      unzip: false
+  
+  - name: Download MNC Parcels gpkg
+    id: download_mnc_parcels
+    task: fetch_and_persist_file
+    partial:
+      url: https://www.dropbox.com/scl/fi/33rdzy896rh91gtkfs2j3/mnc_across_the_river_parcels.gpkg?rlkey=xima1v0rozc0h9h78esfogx6q&st=o3gkk5p1&dl=0
+      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      overwrite_existing: false
+      retries: 3
+      unzip: false
+  
+  - name : Load community conservancy boundaries  
+    id: load_comm_shp 
+    task: load_df
+    partial:
+      file_path: ${{ workflow.persist_mnc_gpkg.return }}
+      layer: null
+      deserialize_json: false
+
+  - name: Split loaded gdf by various grazing zones and blocks
+    id: split_gdf_by_zone
+    task: split_gdf_by_column
+    partial:  
+      gdf: ${{ workflow.load_comm_shp.return }}
+      column: grazing_zone
+
+  - name: Annotate community conservancy gpkg with geom type 
+    id: annotate_comm_gdf_dict 
+    task: annotate_gdf_dict_with_geom_type 
+    partial:
+      gdf_dict: ${{ workflow.split_gdf_by_zone.return }}
+
+  # check if the legend will include these labels 
+  - name: Create styled layers from split mnc zones
+    id: create_mnc_styled_layers
+    task: create_deckgl_layers_from_gdf_dict
+    partial:
+      gdf_dict: ${{ workflow.annotate_comm_gdf_dict.return }}
+      styles:
+        Conservancy:
+          extruded: false
+          get_fill_color: [105, 105, 105]
+          get_line_color: [105, 105, 105]
+          get_line_width: 2.25
+          stroked: true
+          filled: false
+          opacity: 0.95
+
+        Conservancy Herd Zone:
+          extruded: false
+          get_fill_color: [173, 255, 47]
+          get_line_color: [173, 255, 47]
+          get_line_width: 2.25
+          stroked: true
+          filled: true
+          opacity: 0.35
+
+        Grazing Zone 1:
+          extruded: false
+          get_fill_color: [85, 107, 47]
+          get_line_color: [85, 107, 47]
+          get_line_width: 2.25
+          stroked: true
+          filled: true
+          opacity: 0.35
+
+        Grazing Zone 2:
+          extruded: false
+          get_fill_color: [0, 139, 139]
+          get_line_color: [0, 139, 139]
+          get_line_width: 2.25
+          stroked: true
+          filled: true
+          opacity: 0.35
+
+        Grazing Zone 3:
+          extruded: false
+          get_fill_color: [0, 100, 0]
+          get_line_color: [0, 100, 0]
+          get_line_width: 2.25
+          stroked: true
+          filled: true
+          opacity: 0.35
+
+        Grazing Zone 4:
+          extruded: false
+          get_fill_color: [143, 188, 139]
+          get_line_color: [143, 188, 139]
+          get_line_width: 2.25
+          stroked: true
+          filled: true
+          opacity: 0.35
+
+      legends:
+        title: Community Areas 
+        values: 
+          - label: Conservancy boundaries
+            color: "#696969"
+          - label: Conservancy herd zone
+            color: "#adff2f"
+          - label: Grazing zone 1
+            color: "#556b2f"
+          - label: Grazing zone 2
+            color: "#008b8b"
+          - label: Grazing zone 3 
+            color: "#006400"
+          - label: Grazing zone 4 
+            color: "#8fbc8b"
+
+  - name: Create conservancy boundaries
+    id: create_conservancy_boundaries
+    task: create_deckgl_layers_from_gdf_dict
+    partial:
+      gdf_dict: ${{ workflow.annotate_comm_gdf_dict.return }}
+      styles:
+        Conservancy:
+          extruded: false
+          get_fill_color: [105, 105, 105]
+          get_line_color: [105, 105, 105]
+          get_line_width: 2.25
+          stroked: true
+          filled: false
+          opacity: 0.95
+
+      legends:
+        title: Boundaries
+        values: 
+          - label: Conservancy boundaries
+            color: "#696969"
+
+  - name: Create conservancy gdf from split dict 
+    id: conservancy_gdf
+    task: create_gdf_from_dict
+    partial: 
+      gdf_dict: ${{ workflow.split_gdf_by_zone.return }}
+      key: Conservancy
+
+  - name: Create group ranch gdf from loaded gdf
+    id: overall_grazing_zones
+    task: filter_df 
+    partial: 
+      column_name: grazing_zone
+      op: ne
+      value: Conservancy 
+      df: ${{ workflow.load_comm_shp.return }}
+      reset_index: false
+
+  - name: Create conservancy text layers here 
+    id: conservancy_text_layer
+    task: create_custom_text_layer 
+    partial: 
+      geodataframe: ${{ workflow.conservancy_gdf.return }}
+      layer_style: 
+        get_text: name 
+        get_color: [0,0,0,255]
+        
+        get_size: 1500
+        size_units: meters 
+        size_min_pixels: 70 #65 
+        size_max_pixels: 100
+        size_scale: 2.25 
+
+        font_family: Calibri 
+        font_weight: "700" 
+        get_text_anchor: middle 
+        get_alignment_baseline: center
+        billboard: true 
+
+        background_padding: [4,8]
+        pickable: true 
+        auto_highlight: false 
+      use_centroid: true 
+      legend: null 
+
+  - name: Load mnc parcels 
+    id: load_mnc_parcels 
+    task: load_df 
+    partial:
+      file_path: ${{ workflow.download_mnc_parcels.return }}
+      layer: null
+      deserialize_json: false
+
+  - name: Assign geom type to mnc parcels 
+    id: assign_mnc_geom
+    task: get_gdf_geom_type 
+    partial:
+      gdf: ${{ workflow.load_mnc_parcels.return }}
+
+  - name: Create mnc parcels layers 
+    id: create_mnc_parcels_layers 
+    task: create_deckgl_layer_from_gdf 
+    partial:
+      gdf: ${{ workflow.assign_mnc_geom.return }}
+      style: 
+        extruded: false
+        get_fill_color: [100, 149, 237]
+        get_line_color: [100, 149, 237]
+        get_line_width: 2.25
+        stroked: true 
+        filled: true 
+        opacity: 0.35
+      legend: 
+        title: Parcels
+        values: 
+          - label: Parcels across river
+            color: "#6495ed"
+
+  - name: Create mnc parcels text layer
+    id: parcels_text_layer
+    task: create_custom_text_layer
+    partial: 
+      geodataframe: ${{ workflow.load_mnc_parcels.return }}
+      layer_style: 
+        get_text: name 
+        get_color: [0,0,0,255]
+        
+        get_size: 1500
+        size_units: meters 
+        size_min_pixels: 70 #65 
+        size_max_pixels: 100
+        size_scale: 2.25 
+
+        font_family: Calibri 
+        font_weight: "700" 
+        get_text_anchor: middle 
+        get_alignment_baseline: center
+        billboard: true 
+
+        background_padding: [4,8]
+        pickable: true 
+        auto_highlight: false 
+      use_centroid: true 
+      legend: null 
+
+  # 1. --- Weather report --- 
+  - name: Retrieve weather observations from GMMF 
+    id: subject_observations
+    task: get_subjectgroup_observations
+    partial:
+      client: ${{ workflow.er_client_name.return }}
+      time_range: ${{ workflow.time_range.return }}
+      raise_on_empty: false
+      include_details: false
+      include_subjectsource_details: false
+      subject_group_name: "ER2ER - From GMMF"
+  
+  # Extract precipitation data
+  - name: Extract precipitation data
+    id: extract_precipitation
+    task: extract_value_from_json_column
+    partial:
+      df: ${{ workflow.subject_observations.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - precipitation
+      output_type: float
+      output_column_name: precipitation
+  
+  # Extract temperature data
+  - name: Extract temperature data
+    id: extract_temperature
+    task: extract_value_from_json_column
+    partial:
+      df: ${{ workflow.extract_precipitation.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - surface_air_temperature
+      output_type: float
+      output_column_name: temperature
+  
+  # Extract wind speed data 
+  - name: Extract wind speed data
+    id: extract_wind_speed
+    task: extract_value_from_json_column
+    partial:
+      df: ${{ workflow.extract_temperature.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - wind_speed
+      output_type: float
+      output_column_name: wind_speed
+
+  # Extract wind gusts data 
+  - name: Extract wind gusts data
+    id: extract_wind_gusts
+    task: extract_value_from_json_column
+    partial:
+      df: ${{ workflow.extract_wind_speed.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - wind_gusts
+      output_type: float
+      output_column_name: wind_gusts
+
+    # Extract soil temperature data 
+  - name: Extract soil temperature data
+    id: extract_soil_temperature
+    task: extract_value_from_json_column
+    partial:
+      df: ${{ workflow.extract_wind_gusts.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - soil_temperature
+      output_type: float
+      output_column_name: soil_temperature
+
+    # Extract relative humidity data 
+  - name: Extract relative humidity data
+    id: extract_relative_humidity
+    task: extract_value_from_json_column
+    partial:
+      df: ${{ workflow.extract_soil_temperature.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - relative_humidity
+      output_type: float
+      output_column_name: relative_humidity
+
+    # Extract atmospheric pressure data
+  - name: Extract atmospheric pressure data
+    id: extract_pressure
+    task: extract_value_from_json_column
+    partial:
+      df: ${{ workflow.extract_relative_humidity.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - atmospheric_pressure
+      output_type: float
+      output_column_name: atmospheric_pressure
+
+  # Extract date
+  - name: Extract date
+    id: extract_date
+    task: extract_column_as_type
+    partial:
+      df: ${{ workflow.extract_pressure.return }}
+      column_name: fixtime
+      output_type: date
+      output_column_name: date
+  
+  # Rename column
+  - name: Rename value grouper columns
+    id: rename_grouper_columns
+    task: map_columns
+    partial:
+      df: ${{ workflow.extract_date.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        extra__subject__name: "weather_station"
+
+  - name: Add temporal index
+    id: df_with_temporal_index
+    task: add_temporal_index
+    partial:
+      df: ${{ workflow.rename_grouper_columns.return }}
+      time_col: fixtime
+      cast_to_datetime: true
+      groupers: ${{ workflow.groupers.return }}
+      format: mixed 
+
+  - name: Calculate weather summary table 
+    id: daily_weather
+    task: summarize_df
+    partial:
+      df: ${{ workflow.df_with_temporal_index.return }}
+      groupby_cols:
+        - weather_station
+        - date
+      summary_params:
+        - display_name: precipitation
+          aggregator: sum
+          column: precipitation
+
+        - display_name: temperature
+          aggregator: mean
+          column: temperature
+
+        - display_name: wind_speed
+          aggregator: mean
+          column: wind_speed
+        
+        - display_name: wind_gusts
+          aggregator: max
+          column: wind_gusts
+        
+        - display_name: soil_temperature
+          aggregator: mean 
+          column: soil_temperature
+
+        - display_name: relative_humidity
+          aggregator: mean 
+          column: relative_humidity
+
+        - display_name: atmospheric_pressure
+          aggregator: mean 
+          column: atmospheric_pressure
+
+      reset_index: true
+
+  - name: Perist weather summary table 
+    id: persist_weather_summary 
+    task: persist_df
+    partial:  
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.daily_weather.return }}
+      filename: weather_summary_table
+
+  # Draw weather charts and persist
+  # Draw precipitation chart and persist
+  - name: Draw precipitation chart
+    id: precipitation_chart
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: precipitation
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          showgrid: true
+          gridcolor: "#e0e0e0"
+          gridwidth: 1
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Precipitation (mm)"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist precipitation chart as text
+    id: persist_precipitation
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.precipitation_chart.return }}
+      filename: precipitation_readings_over_time.html
+
+  # Draw temperature chart ,persist
+  - name: Draw temperature chart
+    id: temperature_chart
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: temperature
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average Temperature (°C)"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist temperature chart as text
+    id: persist_temperature
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.temperature_chart.return }}
+      filename: temperature_readings_over_time.html
+
+  # Draw wind speed  chart, persist and add widgets
+  - name: Draw wind speed chart 
+    id: wind_speed_chart
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: wind_speed
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average wind speed"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist wind speed chart as text
+    id: persist_wind_speed
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.wind_speed_chart.return }}
+      filename: wind_speed_readings_over_time.html
+
+  # Draw wind gusts  chart, persist and add widgets
+  - name: Draw wind gusts chart 
+    id: wind_gusts_chart
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: wind_gusts
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Max wind gusts"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist wind gusts chart as text
+    id: persist_wind_gusts
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.wind_gusts_chart.return }}
+      filename: wind_gusts_readings_over_time.html
+
+  # Draw soil temperature chart, persist and add widgets
+  - name: Draw soil temperature chart 
+    id: soil_temp_chart
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: soil_temperature
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average Temperature (°C)"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist soil temperature chart as text
+    id: persist_soil_temp
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.soil_temp_chart.return }}
+      filename: soil_temperature_readings_over_time.html
+
+  # Draw relative humidity and persist
+  - name: Draw relative humidity chart
+    id: rel_humidity_chart
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: relative_humidity
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average humidity"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist relative humidity chart as text
+    id: persist_rel_humidity
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.rel_humidity_chart.return }}
+      filename: relative_humidity_readings_over_time.html
+
+  # Draw atmospheric pressure and persist
+  - name: Draw atmospheric pressure chart
+    id: pressure_chart
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: atmospheric_pressure
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average pressure"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist atmospheric pressure chart as text
+    id: persist_pressure
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.pressure_chart.return }}
+      filename: atmospheric_pressure_readings_over_time.html
+
+  - name: Convert weather html charts to png 
+    id: convert_weather_png 
+    task: html_to_png 
+    partial: 
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: 
+        - ${{ workflow.persist_precipitation.return }} # precipitation
+        - ${{ workflow.persist_temperature.return }} # temperature 
+        - ${{ workflow.persist_wind_speed.return }} # wind speed
+        - ${{ workflow.persist_wind_gusts.return }} # wind gusts 
+        - ${{ workflow.persist_soil_temp.return }} # soil temperature 
+        - ${{ workflow.persist_rel_humidity.return }} # relative humidity
+        - ${{ workflow.persist_pressure.return }} # atmospheric pressure
+
+      config: 
+        full_page: true 
+        device_scale_factor: 2.0 
+        wait_for_timeout: 10 
+        max_concurrent_pages: 5
+
+  # 2. Events 
+  - name: Retrieve all events 
+    id: get_events_data
+    task: get_events
+    partial:
+      client: ${{ workflow.er_client_name.return }}
+      time_range: ${{ workflow.time_range.return }}
+      event_columns:
+        - id
+        - time
+        - event_type
+        - event_category
+        - reported_by
+        - serial_number
+        - geometry
+        - created_at
+        - event_details
+      event_types: []
+      raise_on_empty: true
+      include_details: true
+      include_updates: false
+      include_related_events: false
+      include_null_geometry: false
+
+  # Extract date
+  - name: Extract date from events data
+    id: extract_event_date
+    task: extract_column_as_type
+    partial:
+      df: ${{ workflow.get_events_data.return }}
+      column_name: time
+      output_type: date
+      output_column_name: date
+
+  - name: Add temporal index on events
+    id: events_temporal
+    task: add_temporal_index
+    partial:
+      df: ${{ workflow.extract_event_date.return }}
+      time_col: date
+      groupers: ${{ workflow.groupers.return }}
+      cast_to_datetime: true
+
+  - name: Exclude specific events types from total events
+    id: filter_events
+    task: exclude_row_values
+    partial:  
+      df: ${{ workflow.events_temporal.return }}
+      column_name: event_type 
+      value:
+        - distancecountwildlife_rep
+        - distancecountpatrol_rep
+
+  # Persist events table in all formats 
+  - name: Persist events data as geoparquet
+    id: persist_events_gpq
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: geoparquet
+      df: ${{ workflow.filter_events.return }}
+      filename: overall_events_data
+
+  - name: Persist events data as gpkg
+    id: persist_events_gpkg
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: gpkg
+      df: ${{ workflow.filter_events.return }}
+      filename: overall_events_data
+  
+  - name: Persist events data as csv
+    id: persist_events_csv
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: gpkg
+      df: ${{ workflow.filter_events.return }}
+      filename: overall_events_data
+
+  - name: Calculate total events
+    id: total_events_recorded
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - date
+      summary_params:
+        - display_name: no_of_events
+          aggregator: nunique
+          column: id
+      reset_index: true
+      df: ${{ workflow.filter_events.return }}
+  
+  - name: Add total row on total events recorded
+    id: add_total_events_row
+    task: add_totals_row
+    partial:
+      label_col:
+        - date 
+      label: Total
+      df: ${{ workflow.total_events_recorded.return }}
+
+  - name: Persist total events df 
+    id: persist_tevents_df
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.add_total_events_row.return }}
+      filename: total_events_recorded_by_date
+
+  - name: Calculate total events recorded by event type
+    id: total_events_type_recorded
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - date
+        - event_type
+      summary_params:
+        - display_name: no_of_events
+          aggregator: nunique
+          column: id
+      reset_index: true
+      df: ${{ workflow.filter_events.return }}
+
+  - name: Persist total events by event type df
+    id: persist_summary_event_type
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.total_events_type_recorded.return }}
+      filename: total_events_recorded_by_type
+
+  - name: Draw total events line chart 
+    id: draw_events_chart 
+    task: draw_line_chart
+    partial:
+      dataframe: ${{ workflow.total_events_recorded.return }}
+      x_column: date 
+      y_column: no_of_events
+      category_column: null
+      line_kwargs:
+        shape: "linear"
+        color: "lightsteelblue"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: false
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Number of events"
+          tickformat: ".1f"
+        hovermode: "x unified"
+
+  - name: Persist Total events chart as text
+    id: persist_total_events
+    task: persist_text
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_events_chart.return }}
+      filename: total_events_recorded.html # -- convert this to .png
+
+  # 2.1 Livestock summary
+  # Mobile boma - persist csv ,draw map
+  - name: Retrieve mobile_boma_rep
+    id: filter_mobile_boma 
+    task: filter_df
+    partial: 
+      column_name: event_type	
+      op: equal
+      value: mobile_boma_rep
+      df: ${{ workflow.events_temporal.return }}
+      reset_index: false
+
+  - name: Normalize event details columns 
+    id: normalize_mb_values
+    task: normalize_json_column
+    partial:
+      column: event_details
+      df: ${{ workflow.filter_mobile_boma.return }}
+      skip_if_not_exists: true 
+      sort_columns: true 
+      
+  - name: Rename mobile boma columns 
+    id: rename_mobile_boma
+    task: map_columns
+    partial:
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        event_details__mobile_boma : boma 
+      df: ${{ workflow.normalize_mb_values.return }}
+
+  - name: Rename mobile_boma_rep value to Mobile Boma 
+    id: rename_boma_values
+    task: map_column_values
+    partial: 
+      df: ${{ workflow.rename_mobile_boma.return }}
+      columns: 
+        - boma 
+      value_map:  
+        mobile_boma_rep: Mobile boma
+      inplace: false
+
+  - name: Mobile boma summary table
+    id: mobile_boma_summary
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - boma
+      summary_params:
+        - display_name: total_count
+          aggregator: nunique
+          column: id 
+      reset_index: true
+      df: ${{ workflow.rename_boma_values.return }}
+
+  - name: Add totals row in mobile boma summary table
+    id: include_mb_totals
+    task: add_totals_row
+    partial:
+      label_col: 
+        - boma
+      label: Total
+      df: ${{ workflow.mobile_boma_summary.return }}
+
+  - name: Persist mobile boma summary table 
+    id: persist_mobile_df
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: mobile_boma_summary_table
+      df: ${{ workflow.include_mb_totals.return }}
+
+  # draw mobile boma map
+  - name: Exclude geom outliers from mobile_boma_rep events
+    id: exclude_mb_outliers
+    task: exclude_geom_outliers
+    partial: 
+      df: ${{ workflow.rename_boma_values.return }}
+      z_threshold: 3
+
+  - name: Remove mobile boma invalid points 
+    id: remove_mb_invalid_geoms 
+    task: ecoscope-workflows-ext-custom.tasks.transformation.drop_null_geometry
+    partial: 
+      gdf: ${{ workflow.exclude_mb_outliers.return }}
+      geometry_column: geometry 
+
+  - name: Apply Colormap to mobile boma events
+    id: apply_mb_colormap
+    task: apply_color_map
+    partial:
+      input_column_name: event_type
+      output_column_name: event_type_colors
+      colormap: tab20
+      df: ${{ workflow.remove_mb_invalid_geoms.return }}
+
+  - name: Generate mobile boma point layers
+    id: generate_mb_layers
+    task: create_scatterplot_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        get_fill_color: event_type_colors
+        get_radius: 7
+        opacity: 0.75
+        stroked: false
+      legend:
+        title: Boma Movements
+        label_column: event_type
+        color_column: event_type_colors
+        sort: ascending
+        label_suffix: null
+      geodataframe: ${{ workflow.apply_mb_colormap.return }}
+  
+  # global zoom value 
+  - name: Global map zoom value
+    id: global_zoom_value
+    task: view_state_deck_gdf
+    partial:
+      pitch: 0
+      bearing: 0
+      gdf: ${{ workflow.overall_grazing_zones.return }}
+
+  - name: Combine styled layers with mobile boma 
+    id: combine_custom_mobile_boma
+    task: combine_deckgl_map_layers
+    partial:
+      static_layers: 
+        - ${{ workflow.create_mnc_styled_layers.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+        - ${{ workflow.custom_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_mb_layers.return }}
+
+  - name: Draw mobile boma events map 
+    id: draw_mb_map
+    task: draw_map
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 10
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_custom_mobile_boma.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist mobile boma map HTML paths
+    id: persist_mobile_boma_urls
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_mb_map.return }}
+      filename: boma_movement_map.html  # -- convert this to png 
+  
+  # 2.2 Livestock rep 
+  - name: Retrieve livestock_predation_rep events 
+    id: filter_predation 
+    task: filter_df
+    partial: 
+      column_name: event_type	
+      op: equal
+      value: livestock_predation_rep
+      df: ${{ workflow.filter_event_type_values.return }}
+      reset_index: false
+
+  - name: Normalize event details columns 
+    id: normalize_predation_values
+    task: normalize_json_column
+    partial:
+      column: event_details
+      df: ${{ workflow.filter_predation.return }}
+      skip_if_not_exists: true 
+      sort_columns: true
+
+  - name: Rename livestock predation columns 
+    id: rename_livestock_predation
+    task: map_columns
+    partial:
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        event_details__livestockpredation_comments: livestock_predation_comments
+        event_details__livestockpredation_location: predation_location 
+        event_details__livestockpredation_causedeath: predation_cause_of_death 
+        event_details__livestockpredation_retaliation: predation_retaliation 
+        event_details__livestockpredation_supervision: predation_supervision 
+        event_details__livestockpredation_predatorcount: predator_count 
+        event_details__livestockpredation_killedjuvenile:  killed_juvenile 
+        event_details__livestockpredation_livestockowner: livestock_owner 
+        event_details__livestockpredation_distancetopeople: distance_to_people
+        event_details__livestockpredation_livestockspecies: livestock_species
+        event_details__livestockpredation_livestockaffected: livestock_affected
+        event_details__livestockpredation_suspectedpredator: suspected_predator
+        event_details__livestockpredation_bomacontext: boma_context 
+        event_details__livestockpredation_killedadultmale: killed_adult_male 
+        event_details__livestockpredation_bomaconstruction:  boma_construction 
+        event_details__livestockpredation_woundedjuvenile: wounded_juvenile 
+        event_details__livestockpredation_woundedadultfemale: wounded_adult_female 
+        event_details__livestockpredation_woundedadultmale: wounded_adult_male 
+        event_details__livestockpredation_bomaheight: boma_height 
+        event_details__livestockpredation_bomavisibility: boma_visibility
+
+      df: ${{ workflow.normalize_predation_values.return }}
+
+  - name: Replace nulls on livestock predator table with unknown
+    id: replace_livestock_nulls
+    task: replace_missing_with_label
+    partial:
+      df: ${{ workflow.rename_livestock_predation.return }}
+      columns: 
+        - suspected_predator
+        - livestock_species
+      label: unknown 
+
+  - name: Convert livestock_affected col to int 
+    id: convert_livestock_int
+    task: convert_to_int
+    partial: 
+      df: ${{ workflow.replace_livestock_nulls.return }}
+      columns: 
+        - livestock_affected
+      errors: coerce
+      fill_value: 0
+      inplace: false
+  
+  - name: Capitalize columns in livestock predation
+    id: livestock_preds_scase
+    task: to_sentence_case 
+    partial:
+      df: ${{ workflow.convert_livestock_int.return }}
+      columns: 
+        - suspected_predator
+        - livestock_species
+  
+  - name: Persist livestock predation event details as gpkg
+    id: persist_livestock_events_gpkg
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: gpkg
+      filename: livestock_predation_events
+      df: ${{ workflow.livestock_preds_scase.return }}
+
+  - name: Persist livestock predation event details as csv
+    id: persist_livestock_events_csv
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: livestock_predation_events
+      df: ${{ workflow.livestock_preds_scase.return }}
+
+  - name: Livestock predation summary table
+    id: livestock_predation_summary
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - date
+        - suspected_predator
+        - livestock_species
+      summary_params:
+        - display_name: no_affected
+          aggregator: sum 
+          column: livestock_affected
+      reset_index: true
+      df: ${{ workflow.livestock_preds_scase.return }}
+
+  - name: Persist livestock predation summary table
+    id: persist_livestock_df
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: livestock_predation_summary_table
+      df: ${{ workflow.livestock_predation_summary.return }}
+
+  - name: Calculate livestock events recorded by date
+    id: livestock_events_recorded
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - date
+      summary_params:
+        - display_name: no_of_events
+          aggregator: nunique
+          column: id
+      reset_index: true
+      df: ${{ workflow.livestock_preds_scase.return }}
+  
+  - name: Add total row on livestock events recorded
+    id: add_total_livestock
+    task: add_totals_row
+    partial:
+      label_col:
+        - date 
+      label: Total
+      df: ${{ workflow.livestock_events_recorded.return }}
+
+  - name: Persist livestock events df 
+    id: livestock_events_df
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.add_total_livestock.return }}
+      filename: livestock_events_recorded_by_date
+
+  # Draw map 
+  # Remove geom outliers 
+  - name: Exclude geom outliers from livestock predation events 
+    id: exclude_livestock_outliers
+    task: exclude_geom_outliers
+    partial: 
+      df: ${{ workflow.livestock_preds_scase.return }}
+      z_threshold: 3
+
+  - name: Remove invalid points from livestock predation events 
+    id: remove_livestock_invalid_geoms 
+    task: ecoscope-workflows-ext-custom.tasks.transformation.drop_null_geometry 
+    partial: 
+      gdf: ${{ workflow.exclude_livestock_outliers.return }}
+      geometry_column: geometry 
+
+  - name: Apply Colormap to livestock predation events
+    id: apply_livestock_colormap
+    task: apply_color_map
+    partial:
+      input_column_name: livestock_species
+      output_column_name: colors
+      colormap: tab20
+      df: ${{ workflow.remove_livestock_invalid_geoms.return }}
+
+  - name: Generate livestock predation point layers
+    id: generate_livestock_layers
+    task: create_scatterplot_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        get_fill_color: colors
+        get_radius: 7
+        opacity: 0.75
+        stroked: false
+      legend:
+        title: Livestock Species 
+        label_column: livestock_species
+        color_column: colors
+        sort: ascending
+        label_suffix: null
+      geodataframe: ${{ workflow.apply_livestock_colormap.return }}
+
+  - name: Combine styled layers with livestock predation events 
+    id: combine_custom_livestock
+    task: combine_deckgl_map_layers
+    partial:
+      static_layers: 
+        - ${{ workflow.create_conservancy_boundaries.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+        - ${{ workflow.custom_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_livestock_layers.return }}
+
+  - name: Draw livestock predation map
+    id: draw_livestock_map
+    task: draw_map
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 10
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_custom_livestock.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist livestock predation map HTML paths
+    id: persist_livestock_urls
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_livestock_map.return }}
+      filename: livestock_predation_events.html  # -- convert this to png 
+
+  # 2.3 Wildlife incidents 
+  - name: Filter wildlife incident event types
+    id: filter_wildlife_events
+    task: filter_row_values
+    partial:  
+      df: ${{ workflow.filter_event_type_values.return }}
+      column: event_type
+      value: 
+        - snare_rep
+        - fire_rep 
+        - wildlife_injury_rep
+        - wildlife_treatment_rep
+        - wildlife_carcass_rep
+
+  - name: Normalize wildlife events 
+    id: normalize_wildlife_events 
+    task: normalize_json_column
+    partial:  
+      column: event_details 
+      df: ${{ workflow.filter_wildlife_events.return }}
+      skip_if_not_exists: true 
+      sort_columns: true
+
+  - name: Rename wildlife events columns 
+    id: rename_wildlife_cols
+    task: map_columns
+    partial:
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        event_details__wildlifecarcass_species: wildlife_carcass_species
+        event_details__wildlifecarcass_suspectedcause: wildlife_carcass_suspected_cause
+        event_details__wildlifecarcass_visibleinjury: wildlife_carcass_visible_injury
+        event_details__wildlifetreatment_species: wildlife_treatment_species
+        event_details__wildlifetreatment_comments: wildlife_treatment_comments
+        event_details__wildlifetreatment_vetattending: wildlife_treatment_vet_attending
+        event_details__wildlifetreatment_vetprognosis: wildlife_treatment_vet_prognosis
+        event_details__wildlifecarcass_comments: wildlife_carcass_comments
+
+      df: ${{ workflow.normalize_wildlife_events.return }}
+  
+  - name: Persist  wildlife events as csv 
+    id: persist_wildlife_events
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: wildlife_events_recorded
+      df: ${{ workflow.rename_wildlife_cols.return }}
+
+  - name: Persist  wildlife events as gpkg
+    id: persist_wildlife_events
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: gpkg
+      filename: wildlife_events_recorded
+      df: ${{ workflow.rename_wildlife_cols.return }}
+
+  - name: Generate wildlife summary table 
+    id: generate_wild_summary 
+    task: make_wildlife_summary_table
+    partial: 
+      df: ${{ workflow.rename_wildlife_cols.return }}
+      value_map: 
+        fire_rep: Fire
+        snare_rep: Snare 
+        wildlife_carcass_rep: Wildlife carcass 
+        wildlife_injury_rep: Injured wildlife
+        wildlife_treatment_rep: Veterinary treatment
+      max_unique: 6 
+      shorten_width: 300 
+      order: null 
+  
+  - name: Persist wildlife summary 
+    id: persist_wildlife_df
+    task: persist_df 
+    partial:  
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename: wildlife_incidents_summary_table 
+      filetype: csv 
+      df: ${{ workflow.generate_wild_summary.return }}
+
+  - name: Calculate wildlife events recorded by date
+    id: wildlife_events_recorded
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - date
+      summary_params:
+        - display_name: no_of_events
+          aggregator: nunique
+          column: id
+      reset_index: true
+      df: ${{ workflow.rename_wildlife_cols.return }}
+  
+  - name: Add total row on wildlife events recorded
+    id: add_total_wildlife
+    task: add_totals_row
+    partial:
+      label_col:
+        - date 
+      label: Total
+      df: ${{ workflow.wildlife_events_recorded.return }}
+
+  - name: Persist wildlife events by date
+    id: wildlife_events_df
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.add_total_wildlife.return }}
+      filename: wildlife_incidents_recorded_by_date
+
+  # Draw map 
+  - name: Exclude geom outliers from wildlife events 
+    id: exclude_wildlife_events_outliers
+    task: exclude_geom_outliers
+    partial: 
+      df: ${{ workflow.rename_wildlife_cols.return }}
+      z_threshold: 3
+
+  - name: Remove invalid points from wildlife events 
+    id: remove_wildlife_invalid_geoms 
+    task: ecoscope-workflows-ext-custom.tasks.transformation.drop_null_geometry 
+    partial: 
+      gdf: ${{ workflow.exclude_wildlife_events_outliers.return }}
+      geometry_column: geometry 
+
+  - name: Apply Colormap to wildlife predation events
+    id: apply_wildlife_colormap
+    task: apply_color_map
+    partial:
+      input_column_name: event_type
+      output_column_name: colors
+      colormap: tab20
+      df: ${{ workflow.remove_wildlife_invalid_geoms.return }}
+
+  - name: Generate wildlife predation point layers
+    id: generate_wildlife_layers
+    task: create_scatterplot_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        get_fill_color: colors
+        get_radius: 7
+        opacity: 0.75
+        stroked: false
+      legend:
+        title: Wildlife Incidents
+        label_column: event_type
+        color_column: colors
+        sort: ascending
+      geodataframe: ${{ workflow.apply_wildlife_colormap.return }}
+
+  - name: Combine styled layers with wildlife incident events 
+    id: combine_custom_wildlife
+    task: combine_deckgl_map_layers
+    partial:
+      static_layers: 
+        - ${{ workflow.create_conservancy_boundaries.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+        - ${{ workflow.custom_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_wildlife_layers.return }}
+
+  - name: Draw wildlife incident predation map
+    id: draw_wildlife_map
+    task: draw_map
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 15
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_custom_wildlife.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist wildlife predation map HTML paths
+    id: persist_wildlife_urls
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_wildlife_map.return }}
+      filename: wildlife_incidents_map.html  # -- convert this to png 
+
+  # 2.4 Wildlife sighting 
+    # 2.4.1 Elephants 
+  - name: Retrieve elephant events
+    id: retrieve_elephant_events 
+    task: filter_df 
+    partial: 
+      column_name: event_type
+      op: equal 
+      value: elephant_sighting_rep
+      df: ${{ workflow.filter_event_type_values.return }}
+      reset_index: false
+
+  - name: Normalize elephant event details column
+    id: normalize_elephant_values
+    task: normalize_json_column
+    partial:
+      column: event_details
+      df: ${{ workflow.retrieve_elephant_events.return }}
+      skip_if_not_exists: true 
+      sort_columns: true
+
+  - name: Rename elephant events columns 
+    id: rename_elephant_cols
+    task: map_columns
+    partial:
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        event_details__elephantsight_male: elephant_sight_male
+        event_details__elephantsight_female: elephant_sight_female
+        event_details__elephantsight_comments: elephant_sight_comments
+        event_details__elephantsight_herdsize: elephant_sight_herd_size
+        event_details__elephantsight_subadult: elephant_sight_sub_adult
+        event_details__elephantsight_herdcomposition: elephant_sight_herd_composition
+        event_details__elephantsight_underayear: elephant_sight_under_a_year
+
+      df: ${{ workflow.normalize_elephant_values.return }}
+
+  - name: Elephant events summary table 
+    id: elephant_summary
+    task: summarize_df
+    partial:
+      groupby_cols:
+        - event_type
+      summary_params:
+        - display_name: no_of_events
+          aggregator: nunique
+          column: id 
+      reset_index: true
+      df: ${{ workflow.rename_elephant_cols.return }}
+
+  - name: Add totals row in elephant events  summary table
+    id: include_elephant_totals
+    task: add_totals_row
+    partial:
+      label_col: 
+        - event_type
+      label: Total
+      df: ${{ workflow.elephant_summary.return }}
+
+  - name: Persist elephant summary table 
+    id: persist_ele_df
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: elephant_events_recorded
+      df: ${{ workflow.include_elephant_totals.return }}
+
+  - name: Replace elephant sight herd composition  nulls with unspecified
+    id: replace_ele_nulls
+    task: replace_missing_with_label
+    partial:
+      df: ${{ workflow.rename_elephant_cols.return }}
+      columns: 
+        - elephant_sight_herd_composition
+      label: unspecified
+
+  # Draw elephant herd composition map
+  - name: Exclude geom outliers fom elephant events
+    id: exclude_ele_outliers
+    task: exclude_geom_outliers
+    partial: 
+      df: ${{ workflow.replace_ele_nulls.return }}
+      z_threshold: 3
+
+  - name: Remove invalid points from elephant events
+    id: remove_ele_invalid_geoms 
+    task: ecoscope-workflows-ext-custom.tasks.transformation.drop_null_geometry 
+    partial: 
+      gdf: ${{ workflow.exclude_ele_outliers.return }}
+      geometry_column: geometry 
+
+  - name: Rename values in elephant sight herd composition column 
+    id: rename_ele_column 
+    task: map_column_values 
+    partial:  
+      df: ${{ workflow.remove_ele_invalid_geoms.return }}
+      columns :
+        - elephant_sight_herd_composition
+      value_map:
+        bachelor: Bachelor 
+        femalecalf: Female/calf
+        mixed: Mixed 
+        unspecified: Unspecified
+      inplace: true 
+
+  - name: Apply Colormap to elephant events 
+    id: apply_ele_events_colormap
+    task: apply_color_map
+    partial:
+      input_column_name: elephant_sight_herd_composition
+      output_column_name: colors
+      colormap: tab20
+      df: ${{ workflow.rename_ele_column.return }}
+  
+  - name: Generate elephant sighting point layers
+    id: generate_elephant_layers
+    task: create_scatterplot_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        get_fill_color: colors
+        get_radius: 7
+        opacity: 0.75
+        stroked: false
+      legend:
+        title: Herd Types 
+        label_column: elephant_sight_herd_composition
+        color_column: colors
+        sort: ascending
+      geodataframe: ${{ workflow.apply_ele_events_colormap.return }}
+
+  - name: Combine custom loaded map layers and elephant point layers
+    id: combine_custom_ele
+    task: combine_deckgl_map_layers
+    partial:
+      static_layers: 
+        - ${{ workflow.create_conservancy_boundaries.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+        - ${{ workflow.custom_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_elephant_layers.return }}
+
+  - name: Draw elephant pydeck map 
+    id: draw_elephant_map
+    task: draw_map
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 15
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_custom_ele.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist elephant events  map HTML paths
+    id: persist_elephant_urls
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_elephant_map.return }}
+      filename: elephant_sightings_events.html  # -- convert this to png 
+
+  - name: Generate herd composition summary table 
+    id: elephant_herd_summary 
+    task: summarize_df
+    partial: 
+      groupby_cols:
+        - elephant_sight_herd_composition
+      summary_params:
+        - display_name: herd_distribution
+          aggregator: sum 
+          column: elephant_sight_herd_size
+      reset_index: true 
+      df: ${{ workflow.rename_elephant_cols.return }}
+  
+  - name: add totals row on elephant herd size summary table 
+    id: total_ele_composition
+    task: add_totals_row
+    partial: 
+      label_col:
+        - elephant_sight_herd_composition
+      label: Total 
+      df: ${{ workflow.elephant_herd_summary.return }}
+  
+  - name: Persist elephant herd size summary table
+    id: persist_ele_summary
+    task: persist_df 
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv  
+      filename: elephant_herd_size_distribution_table
+      df: ${{ workflow.total_ele_composition.return }}
+
+  - name: Bin elephant herd size columns 
+    id: bin_elephant_herd_col
+    task: bin_columns
+    partial:
+      columns: 
+        - elephant_sight_herd_size
+      bins: 10
+      suffix: bins 
+      inplace: false
+      df: ${{ workflow.replace_ele_nulls.return }}
+  
+  - name: Categorize elephant bins column
+    id: cat_elephant_bins 
+    task: categorize_bins 
+    partial:
+      df: ${{ workflow.bin_elephant_herd_col.return }}
+      col: elephant_sight_herd_sizebins
+
+  - name: Draw elephant herd size bar chart 
+    id: draw_elephant_herd_bar
+    task: draw_bar_chart 
+    partial: 
+      dataframe: ${{ workflow.cat_elephant_bins.return }}
+      category: elephant_sight_herd_sizebins
+      layout_kwargs:
+        font_size: 20
+        font_color: "#222222"
+        plot_bgcolor: "#f5f5f5"
+        title_x: 0.5 
+        xaxis:
+          title: Group size
+        yaxis: 
+          title: Number of records
+        showlegend: false
+        bargap: 0.1
+      bar_chart_configs: 
+        - column: id
+          agg_func: count
+          label: ""
+          style: 
+            marker_color: "lightsteelblue"
+
+  - name: Persist elephant bar chart 
+    id: persist_elephant_bar
+    task: persist_text
+    partial: 
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_elephant_herd_bar.return }}
+      filename: elephant_herd_size_bar_chart.html  # -- convert to png 
+
+  # draw map by bins 
+  - name: Drop null size elephant sight bins 
+    id: drop_null_ele_bins 
+    task: drop_null_values 
+    partial:
+      df: ${{ workflow.cat_elephant_bins.return }}
+      col: elephant_sight_herd_sizebins
+
+  - name: Exclude geom outliers fom elephant sight bins
+    id: exclude_ele_outlier_bins
+    task: exclude_geom_outliers
+    partial: 
+      df: ${{ workflow.drop_null_ele_bins.return }}
+      z_threshold: 3
+
+  - name: Remove invalid points from elephant events
+    id: drop_ele_bins_invalid_geoms 
+    task: ecoscope-workflows-ext-custom.tasks.transformation.drop_null_geometry 
+    partial: 
+      gdf: ${{ workflow.exclude_ele_outlier_bins.return }}
+      geometry_column: geometry 
+
+  - name: Apply elephant bins to plot 
+    id: apply_ele_color_bins 
+    task: apply_color_map 
+    partial:
+      input_column_name: elephant_sight_herd_sizebins 
+      output_column_name: colors
+      colormap: tab20
+      df: ${{ workflow.drop_ele_bins_invalid_geoms.return }}
+
+  - name: Generate elephant herd size point layers
+    id: generate_ele_herd_layers
+    task: create_scatterplot_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        get_fill_color: colors
+        get_radius: elephant_sight_herd_size
+        line_width_min_pixels: 1
+        radius_units: pixels
+        radius_scale: 0.43 
+        opacity: 0.75
+        stroked: false
+      legend:
+        title: Elephant Group Sizes
+        label_column: elephant_sight_herd_sizebins
+        color_column: colors
+        sort: ascending
+      geodataframe: ${{ workflow.apply_ele_color_bins.return }}
+
+  - name: Combine styled layers with elephant events 
+    id: combine_ele_bins
+    task: combine_deckgl_map_layers
+    partial:
+      static_layers: 
+        - ${{ workflow.create_conservancy_boundaries.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+        - ${{ workflow.custom_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_ele_herd_layers.return }}
+
+  - name: Draw elephant herd size map
+    id: draw_ele_herd_map
+    task: draw_map
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 15
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_ele_bins.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist elephant herd  map HTML paths
+    id: persist_ele_herd_urls
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_ele_herd_map.return }}
+      filename: elephant_herd_types_map.html  # -- convert to png 
+
+      # 2.4.2 Buffalo
+
+  - name: MNC event report dashboard
+    id: mnc_events_dashboard
+    task: gather_dashboard
+    partial:
+      details: ${{ workflow.workflow_details.return}}
+      widgets: []
+      time_range: ${{ workflow.time_range.return}}
+      groupers: ${{ workflow.groupers.return }}
+      
