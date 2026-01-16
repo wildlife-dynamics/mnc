@@ -32,6 +32,7 @@ requirements:
     - shapely
     - docxtpl
     - playwright
+    - numpy
 
 about:
   license: BSD-3-Clause

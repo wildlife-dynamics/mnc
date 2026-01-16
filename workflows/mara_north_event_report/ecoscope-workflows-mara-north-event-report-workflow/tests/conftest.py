@@ -40,6 +40,8 @@ TEST_CASES_YAML = ARTIFACTS.parent / "test-cases.yaml"
 MATCHSPEC_OVERRIDE = "ecoscope-workflows-mara-north-event-report-workflow"
 IO_TASKS_IMPORTABLE_REFERENCES = [
     "ecoscope_workflows_ext_ecoscope.tasks.io.get_subjectgroup_observations",
+    "ecoscope_workflows_ext_ecoscope.tasks.io.get_events",
+    "ecoscope_workflows_ext_ecoscope.tasks.io.get_patrol_observations_from_patrols_df",
 ]
 
 yaml = ruamel.yaml.YAML(typ="safe")

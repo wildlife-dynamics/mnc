@@ -1,5 +1,4 @@
 from ._example import add_one_thousand
-from ._mapdeck_utils import create_gdf_from_dict,exclude_geom_outliers
 from ._tabular import (
     map_column_values, 
     add_totals_row,
@@ -9,10 +8,22 @@ from ._tabular import (
     bin_columns,
     order_bins,
     categorize_bins,
-    drop_null_values
-    
+    drop_null_values,
+    remove_substring,
+    remove_brackets_from_column,
+    pivot_df,
+    clean_dataframe_index,
+    map_name_values,
+    filter_non_empty_values,
+    explode_multiple_columns,
+    round_values
 )
+from ._merge import merge_dataframes
 from ._summarize import make_wildlife_summary_table
+from ._inspect import print_output,view_df,view_gdf
+from ._mapdeck_utils import create_gdf_from_dict,exclude_geom_outliers
+from ._patrol_coverage import create_patrol_coverage_grid,compute_occupancy,get_patrol_values
+
 __all__ = [
     "add_one_thousand",
     
@@ -28,6 +39,25 @@ __all__ = [
     "order_bins",
     "categorize_bins",
     "drop_null_values",
+    "remove_substring",
+    "remove_brackets_from_column",
+    "pivot_df",
+    "clean_dataframe_index",
+    "map_name_values",
+    "filter_non_empty_values",
+    "explode_multiple_columns",
+    "round_values",
     
-    "make_wildlife_summary_table"
+    "make_wildlife_summary_table",
+    
+    "create_patrol_coverage_grid",
+    "compute_occupancy",
+    "get_patrol_values",
+    
+    
+    "merge_dataframes",
+    
+    "print_output",
+    "view_df",
+    "view_gdf"
 ]

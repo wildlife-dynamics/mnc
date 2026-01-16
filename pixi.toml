@@ -21,9 +21,9 @@ hatch-vcs="*"
 [feature.compile.dependencies]
 # Include this if you add new tasks and the package has been built
 ecoscope-workflows-ext-mnc = "*"
-ecoscope-workflows-ext-ste = "0.0.3*"
+ecoscope-workflows-ext-ste = "0.0.6*"
 ecoscope-workflows-core = "0.20.4.*"
-ecoscope-workflows-ext-custom = "0.0.12.*"
+ecoscope-workflows-ext-custom = "0.0.17.*"
 
 # Here we don't specify the channel on purpose, as we want to use the local channel if it exists,
 # otherwise we fall back to the remote channel.
