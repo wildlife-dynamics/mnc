@@ -53,9 +53,6 @@ from ecoscope_workflows_ext_custom.tasks.transformation import (
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_events as get_events
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
-    get_patrol_observations_from_patrols_df as get_patrol_observations_from_patrols_df,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.io import (
     get_subjectgroup_observations as get_subjectgroup_observations,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df as persist_df
@@ -94,6 +91,9 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid as create_patrol_coverage_grid,
 )
+from ecoscope_workflows_ext_mnc.tasks import (
+    custom_get_patrol_observations_from_patrols_df as custom_get_patrol_observations_from_patrols_df,
+)
 from ecoscope_workflows_ext_mnc.tasks import drop_null_values as drop_null_values
 from ecoscope_workflows_ext_mnc.tasks import (
     exclude_geom_outliers as exclude_geom_outliers,
@@ -104,6 +104,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import (
     filter_non_empty_values as filter_non_empty_values,
 )
+from ecoscope_workflows_ext_mnc.tasks import generate_mnc_report as generate_mnc_report
 from ecoscope_workflows_ext_mnc.tasks import get_patrol_values as get_patrol_values
 from ecoscope_workflows_ext_mnc.tasks import (
     make_wildlife_summary_table as make_wildlife_summary_table,
@@ -112,7 +113,6 @@ from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_val
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
 from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
-from ecoscope_workflows_ext_mnc.tasks import print_output as print_output
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
 )
@@ -122,7 +122,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 )
 from ecoscope_workflows_ext_mnc.tasks import round_values as round_values
 from ecoscope_workflows_ext_mnc.tasks import to_sentence_case as to_sentence_case
-from ecoscope_workflows_ext_mnc.tasks import view_gdf as view_gdf
+from ecoscope_workflows_ext_mnc.tasks import transform_columns as transform_columns
 from ecoscope_workflows_ext_ste.tasks import (
     annotate_gdf_dict_with_geom_type as annotate_gdf_dict_with_geom_type,
 )
@@ -172,7 +172,6 @@ def main(params: Params):
         "load_mnc_parcels": ["download_mnc_parcels"],
         "assign_mnc_geom": ["load_mnc_parcels"],
         "create_mnc_parcels_layers": ["assign_mnc_geom"],
-        "parcels_text_layer": ["load_mnc_parcels"],
         "subject_observations": ["er_client_name", "time_range"],
         "extract_precipitation": ["subject_observations"],
         "extract_temperature": ["extract_precipitation"],
@@ -200,15 +199,6 @@ def main(params: Params):
         "persist_rel_humidity": ["rel_humidity_chart"],
         "pressure_chart": ["daily_weather"],
         "persist_pressure": ["pressure_chart"],
-        "convert_weather_png": [
-            "persist_precipitation",
-            "persist_temperature",
-            "persist_wind_speed",
-            "persist_wind_gusts",
-            "persist_soil_temp",
-            "persist_rel_humidity",
-            "persist_pressure",
-        ],
         "get_events_data": ["er_client_name", "time_range"],
         "extract_event_date": ["get_events_data"],
         "events_temporal": ["extract_event_date", "groupers"],
@@ -236,7 +226,6 @@ def main(params: Params):
             "create_mnc_styled_layers",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_mb_layers",
         ],
         "draw_mb_map": [
@@ -266,7 +255,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_livestock_layers",
         ],
         "draw_livestock_map": [
@@ -294,7 +282,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_wildlife_layers",
         ],
         "draw_wildlife_map": [
@@ -306,13 +293,12 @@ def main(params: Params):
         "retrieve_elephant_events": ["events_temporal"],
         "normalize_elephant_values": ["retrieve_elephant_events"],
         "rename_elephant_cols": ["normalize_elephant_values"],
-        "rename_ele_column": ["rename_elephant_cols"],
+        "replace_elephant_nulls": ["rename_elephant_cols"],
+        "rename_ele_column": ["replace_elephant_nulls"],
         "elephant_summary": ["rename_ele_column"],
         "include_elephant_totals": ["elephant_summary"],
         "persist_ele_df": ["include_elephant_totals"],
-        "replace_ele_nulls": ["rename_ele_column"],
-        "drop_ele_nulls": ["replace_ele_nulls"],
-        "exclude_ele_outliers": ["drop_ele_nulls"],
+        "exclude_ele_outliers": ["rename_ele_column"],
         "remove_ele_invalid_geoms": ["exclude_ele_outliers"],
         "apply_ele_events_colormap": ["rename_ele_column"],
         "generate_elephant_layers": ["apply_ele_events_colormap"],
@@ -320,7 +306,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_elephant_layers",
         ],
         "draw_elephant_map": [
@@ -332,16 +317,13 @@ def main(params: Params):
         "elephant_herd_summary": ["rename_ele_column"],
         "total_ele_composition": ["elephant_herd_summary"],
         "persist_ele_summary": ["total_ele_composition"],
-        "bin_elephant_herd_col": ["replace_ele_nulls"],
+        "bin_elephant_herd_col": ["rename_ele_column"],
         "cat_elephant_bins": ["bin_elephant_herd_col"],
         "draw_elephant_herd_bar": ["cat_elephant_bins"],
         "persist_elephant_bar": ["draw_elephant_herd_bar"],
         "drop_null_ele_bins": ["cat_elephant_bins"],
         "exclude_ele_outlier_bins": ["drop_null_ele_bins"],
         "drop_ele_bins_invalid_geoms": ["exclude_ele_outlier_bins"],
-        "persist_ele_inv_df": ["drop_ele_bins_invalid_geoms"],
-        "print_ele_vals": ["drop_ele_bins_invalid_geoms"],
-        "print_gdf_outputs": ["drop_ele_bins_invalid_geoms"],
         "clean_ele_column_idx": ["drop_ele_bins_invalid_geoms"],
         "apply_ele_color_bins": ["drop_ele_bins_invalid_geoms"],
         "generate_ele_herd_layers": ["apply_ele_color_bins"],
@@ -349,7 +331,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_ele_herd_layers",
         ],
         "draw_ele_herd_map": [
@@ -374,7 +355,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_buffalo_layers",
         ],
         "draw_buffalo_map": [
@@ -396,7 +376,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_buffalo_herd_layers",
         ],
         "draw_buffalo_herd_map": [
@@ -418,7 +397,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_rhino_layers",
         ],
         "draw_rhino_map": [
@@ -447,7 +425,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_lion_layers",
         ],
         "draw_lion_map": [
@@ -475,7 +452,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_leopard_layers",
         ],
         "draw_leopard_map": [
@@ -502,7 +478,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_cheetah_layers",
         ],
         "draw_cheetah_map": [
@@ -525,7 +500,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_giraffe_layers",
         ],
         "draw_giraffe_map": [
@@ -586,7 +560,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_foot_layers",
         ],
         "draw_foot_map": [
@@ -604,7 +577,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_vehicle_layers",
         ],
         "draw_vehicle_map": [
@@ -622,7 +594,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_motor_layers",
         ],
         "draw_motor_map": [
@@ -630,7 +601,7 @@ def main(params: Params):
             "combine_motor_layers",
             "global_zoom_value",
         ],
-        "persist_motor_urls": ["draw_vehicle_map"],
+        "persist_motor_urls": ["draw_motor_map"],
         "merge_trajs": ["foot_trajs", "vehicle_trajs", "motor_trajs"],
         "rename_combined_trajs": ["merge_trajs"],
         "persist_trajectories_data": ["rename_combined_trajs"],
@@ -646,7 +617,6 @@ def main(params: Params):
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
             "conservancy_text_layer",
-            "parcels_text_layer",
             "generate_grid_layers",
         ],
         "draw_grid_map": [
@@ -654,10 +624,39 @@ def main(params: Params):
             "combine_grid_layers",
             "global_zoom_value",
         ],
-        "persist_grid_urls": ["draw_vehicle_map"],
+        "persist_grid_urls": ["draw_grid_map"],
         "compute_patrol_occupancy": ["patrol_grid_visits", "conservancy_gdf"],
         "round_off_patrol": ["compute_patrol_occupancy"],
         "persist_occupancy_df": ["round_off_patrol"],
+        "convert_chart_html_png": [
+            "persist_precipitation",
+            "persist_temperature",
+            "persist_wind_speed",
+            "persist_wind_gusts",
+            "persist_soil_temp",
+            "persist_rel_humidity",
+            "persist_pressure",
+            "persist_total_events",
+            "persist_elephant_bar",
+            "persist_buffalo_bar",
+        ],
+        "convert_mobile_boma_png": ["persist_mobile_boma_urls"],
+        "convert_livestock_png": ["persist_livestock_urls"],
+        "convert_wildlife_png": ["persist_wildlife_urls"],
+        "convert_elephant_png": ["persist_elephant_urls"],
+        "convert_ele_herd_png": ["persist_ele_herd_urls"],
+        "convert_buffalo_png": ["persist_buffalo_urls"],
+        "convert_buffalo_herd_png": ["persist_buffalo_herd_urls"],
+        "convert_rhino_png": ["persist_rhino_urls"],
+        "convert_lion_png": ["persist_lion_urls"],
+        "convert_leopard_png": ["persist_leopard_urls"],
+        "convert_cheetah_png": ["persist_cheetah_urls"],
+        "convert_giraffe_png": ["persist_giraffe_urls"],
+        "convert_foot_png": ["persist_foot_urls"],
+        "convert_vehicle_png": ["persist_vehicle_urls"],
+        "convert_motor_png": ["persist_motor_urls"],
+        "convert_grid_png": ["persist_grid_urls"],
+        "generate_mnc_word_doc": ["persist_mnc_tpt", "time_range"],
         "mnc_events_dashboard": ["workflow_details", "time_range", "groupers"],
     }
 
@@ -765,7 +764,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "url": "https://www.dropbox.com/scl/fi/zwb5d8nxfwqhjikjybmst/mara_north_template_2.docx?rlkey=it5d7a6382xyzgelh0cuy2xsy&st=zyi1ggdd&dl=0",
+                "url": "https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=dd8nv4q7&dl=0",
                 "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "overwrite_existing": False,
                 "retries": 3,
@@ -1251,52 +1250,6 @@ def main(params: Params):
                 },
             }
             | (params_dict.get("create_mnc_parcels_layers") or {}),
-            method="call",
-        ),
-        "parcels_text_layer": Node(
-            async_task=create_custom_text_layer.validate()
-            .set_task_instance_id("parcels_text_layer")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "geodataframe": DependsOn("load_mnc_parcels"),
-                "layer_style": {
-                    "get_text": "name",
-                    "get_color": [
-                        0,
-                        0,
-                        0,
-                        255,
-                    ],
-                    "get_size": 1500,
-                    "size_units": "meters",
-                    "size_min_pixels": 70,
-                    "size_max_pixels": 100,
-                    "size_scale": 2.25,
-                    "font_family": "Calibri",
-                    "font_weight": "700",
-                    "get_text_anchor": "middle",
-                    "get_alignment_baseline": "center",
-                    "billboard": True,
-                    "background_padding": [
-                        4,
-                        8,
-                    ],
-                    "pickable": True,
-                    "auto_highlight": False,
-                },
-                "use_centroid": True,
-                "legend": None,
-            }
-            | (params_dict.get("parcels_text_layer") or {}),
             method="call",
         ),
         "subject_observations": Node(
@@ -2120,40 +2073,6 @@ def main(params: Params):
             | (params_dict.get("persist_pressure") or {}),
             method="call",
         ),
-        "convert_weather_png": Node(
-            async_task=html_to_png.validate()
-            .set_task_instance_id("convert_weather_png")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "html_path": [
-                    DependsOn("persist_precipitation"),
-                    DependsOn("persist_temperature"),
-                    DependsOn("persist_wind_speed"),
-                    DependsOn("persist_wind_gusts"),
-                    DependsOn("persist_soil_temp"),
-                    DependsOn("persist_rel_humidity"),
-                    DependsOn("persist_pressure"),
-                ],
-                "config": {
-                    "full_page": True,
-                    "device_scale_factor": 2.0,
-                    "wait_for_timeout": 10,
-                    "max_concurrent_pages": 5,
-                },
-            }
-            | (params_dict.get("convert_weather_png") or {}),
-            method="call",
-        ),
         "get_events_data": Node(
             async_task=get_events.validate()
             .set_task_instance_id("get_events_data")
@@ -2180,6 +2099,7 @@ def main(params: Params):
                     "geometry",
                     "created_at",
                     "event_details",
+                    "patrols",
                 ],
                 "raise_on_empty": True,
                 "include_details": True,
@@ -2501,7 +2421,7 @@ def main(params: Params):
             method="call",
         ),
         "rename_mobile_boma": Node(
-            async_task=map_columns.validate()
+            async_task=transform_columns.validate()
             .set_task_instance_id("rename_mobile_boma")
             .handle_errors()
             .with_tracing()
@@ -2517,6 +2437,10 @@ def main(params: Params):
                 "rename_columns": {
                     "event_details__mobile_boma": "boma",
                 },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__mobile_boma",
+                ],
                 "df": DependsOn("normalize_mb_values"),
             }
             | (params_dict.get("rename_mobile_boma") or {}),
@@ -2756,7 +2680,6 @@ def main(params: Params):
                     DependsOn("create_mnc_styled_layers"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_mb_layers"),
             }
@@ -2857,7 +2780,7 @@ def main(params: Params):
             method="call",
         ),
         "rename_livestock_predation": Node(
-            async_task=map_columns.validate()
+            async_task=transform_columns.validate()
             .set_task_instance_id("rename_livestock_predation")
             .handle_errors()
             .with_tracing()
@@ -2892,6 +2815,12 @@ def main(params: Params):
                     "event_details__livestockpredation_bomaheight": "boma_height",
                     "event_details__livestockpredation_bomavisibility": "boma_visibility",
                 },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__livestockpredation_livestockaffected",
+                    "event_details__livestockpredation_livestockspecies",
+                    "event_details__livestockpredation_suspectedpredator",
+                ],
                 "df": DependsOn("normalize_predation_values"),
             }
             | (params_dict.get("rename_livestock_predation") or {}),
@@ -3254,7 +3183,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_livestock_layers"),
             }
@@ -3359,7 +3287,7 @@ def main(params: Params):
             method="call",
         ),
         "rename_wildlife_cols": Node(
-            async_task=map_columns.validate()
+            async_task=transform_columns.validate()
             .set_task_instance_id("rename_wildlife_cols")
             .handle_errors()
             .with_tracing()
@@ -3382,6 +3310,7 @@ def main(params: Params):
                     "event_details__wildlifetreatment_vetprognosis": "wildlife_treatment_vet_prognosis",
                     "event_details__wildlifecarcass_comments": "wildlife_carcass_comments",
                 },
+                "skip_missing_rename": True,
                 "df": DependsOn("normalize_wildlife_events"),
             }
             | (params_dict.get("rename_wildlife_cols") or {}),
@@ -3698,7 +3627,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_wildlife_layers"),
             }
@@ -3799,7 +3727,7 @@ def main(params: Params):
             method="call",
         ),
         "rename_elephant_cols": Node(
-            async_task=map_columns.validate()
+            async_task=transform_columns.validate()
             .set_task_instance_id("rename_elephant_cols")
             .handle_errors()
             .with_tracing()
@@ -3821,9 +3749,36 @@ def main(params: Params):
                     "event_details__elephantsight_herdcomposition": "elephant_sight_herd_composition",
                     "event_details__elephantsight_underayear": "elephant_sight_under_a_year",
                 },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__elephantsight_herdcomposition",
+                ],
                 "df": DependsOn("normalize_elephant_values"),
             }
             | (params_dict.get("rename_elephant_cols") or {}),
+            method="call",
+        ),
+        "replace_elephant_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .set_task_instance_id("replace_elephant_nulls")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_elephant_cols"),
+                "columns": [
+                    "elephant_sight_herd_composition",
+                ],
+                "label": "unspecified",
+            }
+            | (params_dict.get("replace_elephant_nulls") or {}),
             method="call",
         ),
         "rename_ele_column": Node(
@@ -3840,7 +3795,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("rename_elephant_cols"),
+                "df": DependsOn("replace_elephant_nulls"),
                 "columns": [
                     "elephant_sight_herd_composition",
                 ],
@@ -3930,49 +3885,6 @@ def main(params: Params):
             | (params_dict.get("persist_ele_df") or {}),
             method="call",
         ),
-        "replace_ele_nulls": Node(
-            async_task=replace_missing_with_label.validate()
-            .set_task_instance_id("replace_ele_nulls")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("rename_ele_column"),
-                "columns": [
-                    "elephant_sight_herd_composition",
-                ],
-                "label": "Unspecified",
-            }
-            | (params_dict.get("replace_ele_nulls") or {}),
-            method="call",
-        ),
-        "drop_ele_nulls": Node(
-            async_task=drop_null_values.validate()
-            .set_task_instance_id("drop_ele_nulls")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("replace_ele_nulls"),
-                "col": "elephant_sight_herd_composition",
-            }
-            | (params_dict.get("drop_ele_nulls") or {}),
-            method="call",
-        ),
         "exclude_ele_outliers": Node(
             async_task=exclude_geom_outliers.validate()
             .set_task_instance_id("exclude_ele_outliers")
@@ -3987,7 +3899,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("drop_ele_nulls"),
+                "df": DependsOn("rename_ele_column"),
                 "z_threshold": 3,
             }
             | (params_dict.get("exclude_ele_outliers") or {}),
@@ -4084,7 +3996,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_elephant_layers"),
             }
@@ -4234,7 +4145,7 @@ def main(params: Params):
                 "bins": 10,
                 "suffix": "bins",
                 "inplace": False,
-                "df": DependsOn("replace_ele_nulls"),
+                "df": DependsOn("rename_ele_column"),
             }
             | (params_dict.get("bin_elephant_herd_col") or {}),
             method="call",
@@ -4384,67 +4295,6 @@ def main(params: Params):
             | (params_dict.get("drop_ele_bins_invalid_geoms") or {}),
             method="call",
         ),
-        "persist_ele_inv_df": Node(
-            async_task=persist_df.validate()
-            .set_task_instance_id("persist_ele_inv_df")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("drop_ele_bins_invalid_geoms"),
-                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "filetype": "csv",
-                "filename": "ele_bins_invalid",
-            }
-            | (params_dict.get("persist_ele_inv_df") or {}),
-            method="call",
-        ),
-        "print_ele_vals": Node(
-            async_task=print_output.validate()
-            .set_task_instance_id("print_ele_vals")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "value": DependsOn("drop_ele_bins_invalid_geoms"),
-            }
-            | (params_dict.get("print_ele_vals") or {}),
-            method="call",
-        ),
-        "print_gdf_outputs": Node(
-            async_task=view_gdf.validate()
-            .set_task_instance_id("print_gdf_outputs")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("drop_ele_bins_invalid_geoms"),
-                "name": "elephant bins for map",
-            }
-            | (params_dict.get("print_gdf_outputs") or {}),
-            method="call",
-        ),
         "clean_ele_column_idx": Node(
             async_task=clean_dataframe_index.validate()
             .set_task_instance_id("clean_ele_column_idx")
@@ -4484,7 +4334,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "elephant_sight_herd_sizebins_sort",
                 "output_column_name": "colors",
-                "colormap": "tab20",
+                "colormap": "Blues",
                 "df": DependsOn("drop_ele_bins_invalid_geoms"),
             }
             | (params_dict.get("apply_ele_color_bins") or {}),
@@ -4542,7 +4392,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_ele_herd_layers"),
             }
@@ -4904,7 +4753,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_buffalo_layers"),
             }
@@ -5145,7 +4993,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "buffalo_herd_sizebins_sort",
                 "output_column_name": "colors",
-                "colormap": "tab20",
+                "colormap": "Blues",
                 "df": DependsOn("remove_buff_bins_geoms"),
             }
             | (params_dict.get("apply_buffalo_color_bins") or {}),
@@ -5203,7 +5051,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_buffalo_herd_layers"),
             }
@@ -5489,7 +5336,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_rhino_layers"),
             }
@@ -5590,7 +5436,7 @@ def main(params: Params):
             method="call",
         ),
         "rename_lion_cols": Node(
-            async_task=map_columns.validate()
+            async_task=transform_columns.validate()
             .set_task_instance_id("rename_lion_cols")
             .handle_errors()
             .with_tracing()
@@ -5612,6 +5458,11 @@ def main(params: Params):
                     "event_details__lionsightingrep_groupsize": "lion_group_size",
                     "event_details__lionsightingrep_individual_present": "individual_present",
                 },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__lionsightingrep_pride",
+                    "event_details__lionsightingrep_individual_present",
+                ],
                 "df": DependsOn("normalize_lion_values"),
             }
             | (params_dict.get("rename_lion_cols") or {}),
@@ -5954,7 +5805,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_lion_layers"),
             }
@@ -6055,7 +5905,7 @@ def main(params: Params):
             method="call",
         ),
         "rename_leopard_cols": Node(
-            async_task=map_columns.validate()
+            async_task=transform_columns.validate()
             .set_task_instance_id("rename_leopard_cols")
             .handle_errors()
             .with_tracing()
@@ -6076,6 +5926,10 @@ def main(params: Params):
                     "event_details__leopardsightingrep_groupsize": "leopard_group_size",
                     "event_details__leopardsightingrep_individual_present": "individual_present",
                 },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__leopardsightingrep_individual_present",
+                ],
                 "df": DependsOn("normalize_leopard_values"),
             }
             | (params_dict.get("rename_leopard_cols") or {}),
@@ -6385,7 +6239,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_leopard_layers"),
             }
@@ -6435,7 +6288,7 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "text": DependsOn("draw_leopard_map"),
-                "filename": "leopard_sighting_map.html",
+                "filename": "leopard_sightings_map.html",
             }
             | (params_dict.get("persist_leopard_urls") or {}),
             method="call",
@@ -6486,7 +6339,7 @@ def main(params: Params):
             method="call",
         ),
         "rename_cheetah_cols": Node(
-            async_task=map_columns.validate()
+            async_task=transform_columns.validate()
             .set_task_instance_id("rename_cheetah_cols")
             .handle_errors()
             .with_tracing()
@@ -6507,6 +6360,10 @@ def main(params: Params):
                     "event_details__cheetahsightingrep_groupsize": "cheetah_group_size",
                     "event_details__cheetahsightingrep_individual_present": "individual_present",
                 },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__cheetahsightingrep_individual_present",
+                ],
                 "df": DependsOn("normalize_cheetah_values"),
             }
             | (params_dict.get("rename_cheetah_cols") or {}),
@@ -6795,7 +6652,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_cheetah_layers"),
             }
@@ -7107,7 +6963,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_giraffe_layers"),
             }
@@ -7686,7 +7541,7 @@ def main(params: Params):
             method="call",
         ),
         "get_patrol_obs": Node(
-            async_task=get_patrol_observations_from_patrols_df.validate()
+            async_task=custom_get_patrol_observations_from_patrols_df.validate()
             .set_task_instance_id("get_patrol_obs")
             .handle_errors()
             .with_tracing()
@@ -8444,7 +8299,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_foot_layers"),
             }
@@ -8494,7 +8348,7 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "text": DependsOn("draw_foot_map"),
-                "filename": "foot_patrols.html",
+                "filename": "foot_patrols_map.html",
             }
             | (params_dict.get("persist_foot_urls") or {}),
             method="call",
@@ -8671,7 +8525,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_vehicle_layers"),
             }
@@ -8721,7 +8574,7 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "text": DependsOn("draw_vehicle_map"),
-                "filename": "vehicle_patrols.html",
+                "filename": "vehicle_patrols_map.html",
             }
             | (params_dict.get("persist_vehicle_urls") or {}),
             method="call",
@@ -8898,7 +8751,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_motor_layers"),
             }
@@ -8947,8 +8799,8 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "text": DependsOn("draw_vehicle_map"),
-                "filename": "motor_patrols.html",
+                "text": DependsOn("draw_motor_map"),
+                "filename": "motorbike_patrols_map.html",
             }
             | (params_dict.get("persist_motor_urls") or {}),
             method="call",
@@ -9122,7 +8974,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "label_col": [
-                    "patrol_subject_name",
+                    "participants",
                 ],
                 "label": "Total",
                 "df": DependsOn("replace_ranger_nulls"),
@@ -9243,9 +9095,13 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": "density_colors",
+                    "get_line_color": [
+                        0,
+                        0,
+                        0,
+                    ],
                     "opacity": 0.75,
-                    "get_line_width": 1.95,
+                    "get_line_width": 0.85,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -9281,7 +9137,6 @@ def main(params: Params):
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                    DependsOn("parcels_text_layer"),
                 ],
                 "grouped_layers": DependsOn("generate_grid_layers"),
             }
@@ -9330,8 +9185,8 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "text": DependsOn("draw_vehicle_map"),
-                "filename": "patrol_coverage.html",
+                "text": DependsOn("draw_grid_map"),
+                "filename": "patrol_coverage_map.html",
             }
             | (params_dict.get("persist_grid_urls") or {}),
             method="call",
@@ -9398,6 +9253,485 @@ def main(params: Params):
                 "filename": "patrol_coverage",
             }
             | (params_dict.get("persist_occupancy_df") or {}),
+            method="call",
+        ),
+        "convert_chart_html_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_chart_html_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": [
+                    DependsOn("persist_precipitation"),
+                    DependsOn("persist_temperature"),
+                    DependsOn("persist_wind_speed"),
+                    DependsOn("persist_wind_gusts"),
+                    DependsOn("persist_soil_temp"),
+                    DependsOn("persist_rel_humidity"),
+                    DependsOn("persist_pressure"),
+                    DependsOn("persist_total_events"),
+                    DependsOn("persist_elephant_bar"),
+                    DependsOn("persist_buffalo_bar"),
+                ],
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 10,
+                    "max_concurrent_pages": 5,
+                },
+            }
+            | (params_dict.get("convert_chart_html_png") or {}),
+            method="call",
+        ),
+        "convert_mobile_boma_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_mobile_boma_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_mobile_boma_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_mobile_boma_png") or {}),
+            method="call",
+        ),
+        "convert_livestock_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_livestock_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_livestock_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_livestock_png") or {}),
+            method="call",
+        ),
+        "convert_wildlife_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_wildlife_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_wildlife_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_wildlife_png") or {}),
+            method="call",
+        ),
+        "convert_elephant_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_elephant_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_elephant_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_elephant_png") or {}),
+            method="call",
+        ),
+        "convert_ele_herd_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_ele_herd_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_ele_herd_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_ele_herd_png") or {}),
+            method="call",
+        ),
+        "convert_buffalo_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_buffalo_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_buffalo_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_buffalo_png") or {}),
+            method="call",
+        ),
+        "convert_buffalo_herd_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_buffalo_herd_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_buffalo_herd_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_buffalo_herd_png") or {}),
+            method="call",
+        ),
+        "convert_rhino_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_rhino_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_rhino_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_rhino_png") or {}),
+            method="call",
+        ),
+        "convert_lion_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_lion_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_lion_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_lion_png") or {}),
+            method="call",
+        ),
+        "convert_leopard_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_leopard_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_leopard_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_leopard_png") or {}),
+            method="call",
+        ),
+        "convert_cheetah_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_cheetah_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_cheetah_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_cheetah_png") or {}),
+            method="call",
+        ),
+        "convert_giraffe_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_giraffe_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_giraffe_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_giraffe_png") or {}),
+            method="call",
+        ),
+        "convert_foot_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_foot_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_foot_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_foot_png") or {}),
+            method="call",
+        ),
+        "convert_vehicle_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_vehicle_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_vehicle_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 35000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_vehicle_png") or {}),
+            method="call",
+        ),
+        "convert_motor_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_motor_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_motor_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 35000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_motor_png") or {}),
+            method="call",
+        ),
+        "convert_grid_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_grid_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_grid_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_grid_png") or {}),
+            method="call",
+        ),
+        "generate_mnc_word_doc": Node(
+            async_task=generate_mnc_report.validate()
+            .set_task_instance_id("generate_mnc_word_doc")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "template_path": DependsOn("persist_mnc_tpt"),
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "generated_by": "Ecoscope",
+                "validate_images": True,
+                "box_h_cm": 6.9,
+                "box_w_cm": 11.5,
+                "time_period": DependsOn("time_range"),
+                "filename": None,
+            }
+            | (params_dict.get("generate_mnc_word_doc") or {}),
             method="call",
         ),
         "mnc_events_dashboard": Node(

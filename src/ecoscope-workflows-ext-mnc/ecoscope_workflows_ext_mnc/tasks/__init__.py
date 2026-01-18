@@ -23,7 +23,9 @@ from ._summarize import make_wildlife_summary_table
 from ._inspect import print_output,view_df,view_gdf
 from ._mapdeck_utils import create_gdf_from_dict,exclude_geom_outliers
 from ._patrol_coverage import create_patrol_coverage_grid,compute_occupancy,get_patrol_values
-
+from ._aliased import custom_get_patrol_observations_from_patrols_df
+from ._mnc_context import generate_mnc_report
+from ._transform import transform_columns
 __all__ = [
     "add_one_thousand",
     
@@ -54,8 +56,10 @@ __all__ = [
     "compute_occupancy",
     "get_patrol_values",
     
-    
+    "custom_get_patrol_observations_from_patrols_df",
     "merge_dataframes",
+    "generate_mnc_report",
+    "transform_columns",
     
     "print_output",
     "view_df",

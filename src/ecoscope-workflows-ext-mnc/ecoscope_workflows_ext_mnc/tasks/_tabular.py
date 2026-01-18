@@ -297,18 +297,39 @@ def order_bins(df:AnyDataFrame, col:str)->AnyDataFrame:
 #     """
 #     Categorize bins and return clean string column with preserved order.
 #     Uses a helper column to maintain sort order.
+#     Filters out rows where bin values are non-positive or non-numeric.
+    
+#     Handles various bin formats:
+#     - Interval notation: (0, 10], [10, 20), etc.
+#     - Simple ranges: 0-10, 10-20
+#     - Plain numbers: 1, 10, 20
 #     """
 #     def extract_left(x):
-#         match = re.search(r'^\d+', str(x))
-#         return int(match.group()) if match else -1
+#         """Extract the leftmost numeric value from various bin formats."""
+#         if pd.isna(x) or x is None:
+#             return None
+        
+#         s = str(x)
+#         match = re.search(r'-?\d+\.?\d*', s)
+        
+#         if match:
+#             try:
+#                 value = float(match.group())
+#                 # Return None for non-positive values
+#                 return value if value > 0 else None
+#             except ValueError:
+#                 return None
+        
+#         return None
     
 #     df_copy = df.copy()
     
 #     # Create a sort order column based on the left bound
 #     df_copy[f'{col}_sort'] = df_copy[col].apply(extract_left)
-    
-#     # Convert to string (for colormap compatibility)
-#     df_copy[col] = df_copy[col].astype(str)
+#     df_copy = df_copy[df_copy[f'{col}_sort'].notna()].copy()
+#     #df_copy[col] = df_copy[col].astype(str)
+#     sorted_bins = sorted(df[col].dropna().unique(), key=extract_left)
+#     df[col] = pd.Categorical(df[col], categories=sorted_bins, ordered=True)
     
 #     return df_copy
 
@@ -346,13 +367,17 @@ def categorize_bins(df: AnyDataFrame, col: str) -> AnyDataFrame:
     
     # Create a sort order column based on the left bound
     df_copy[f'{col}_sort'] = df_copy[col].apply(extract_left)
+    
+    # Filter out rows where sort value is None (non-positive or invalid)
     df_copy = df_copy[df_copy[f'{col}_sort'].notna()].copy()
-    #df_copy[col] = df_copy[col].astype(str)
-    sorted_bins = sorted(df[col].dropna().unique(), key=extract_left)
-    df[col] = pd.Categorical(df[col], categories=sorted_bins, ordered=True)
+    
+    # Create sorted categories from the filtered data
+    sorted_bins = sorted(df_copy[col].dropna().unique(), key=extract_left)
+    
+    # Apply ordered categorical to the column
+    df_copy[col] = pd.Categorical(df_copy[col], categories=sorted_bins, ordered=True)
     
     return df_copy
-
 
 @task 
 def drop_null_values(df: AnyDataFrame, col: str)->AnyDataFrame:

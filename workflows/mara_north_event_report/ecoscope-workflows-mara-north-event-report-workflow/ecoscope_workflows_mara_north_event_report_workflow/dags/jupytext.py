@@ -62,9 +62,6 @@ from ecoscope_workflows_ext_custom.tasks.transformation import (
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_events as get_events
 from ecoscope_workflows_ext_ecoscope.tasks.io import (
-    get_patrol_observations_from_patrols_df as get_patrol_observations_from_patrols_df,
-)
-from ecoscope_workflows_ext_ecoscope.tasks.io import (
     get_subjectgroup_observations as get_subjectgroup_observations,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df as persist_df
@@ -103,6 +100,9 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import (
     create_patrol_coverage_grid as create_patrol_coverage_grid,
 )
+from ecoscope_workflows_ext_mnc.tasks import (
+    custom_get_patrol_observations_from_patrols_df as custom_get_patrol_observations_from_patrols_df,
+)
 from ecoscope_workflows_ext_mnc.tasks import drop_null_values as drop_null_values
 from ecoscope_workflows_ext_mnc.tasks import (
     exclude_geom_outliers as exclude_geom_outliers,
@@ -113,6 +113,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import (
     filter_non_empty_values as filter_non_empty_values,
 )
+from ecoscope_workflows_ext_mnc.tasks import generate_mnc_report as generate_mnc_report
 from ecoscope_workflows_ext_mnc.tasks import get_patrol_values as get_patrol_values
 from ecoscope_workflows_ext_mnc.tasks import (
     make_wildlife_summary_table as make_wildlife_summary_table,
@@ -121,7 +122,6 @@ from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_val
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
 from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
-from ecoscope_workflows_ext_mnc.tasks import print_output as print_output
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
 )
@@ -131,7 +131,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 )
 from ecoscope_workflows_ext_mnc.tasks import round_values as round_values
 from ecoscope_workflows_ext_mnc.tasks import to_sentence_case as to_sentence_case
-from ecoscope_workflows_ext_mnc.tasks import view_gdf as view_gdf
+from ecoscope_workflows_ext_mnc.tasks import transform_columns as transform_columns
 from ecoscope_workflows_ext_ste.tasks import (
     annotate_gdf_dict_with_geom_type as annotate_gdf_dict_with_geom_type,
 )
@@ -341,7 +341,7 @@ persist_mnc_tpt = (
         unpack_depth=1,
     )
     .partial(
-        url="https://www.dropbox.com/scl/fi/zwb5d8nxfwqhjikjybmst/mara_north_template_2.docx?rlkey=it5d7a6382xyzgelh0cuy2xsy&st=zyi1ggdd&dl=0",
+        url="https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=dd8nv4q7&dl=0",
         output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         overwrite_existing=False,
         retries=3,
@@ -867,56 +867,6 @@ create_mnc_parcels_layers = (
         },
         legend={"title": "", "values": [{"label": "Parcels", "color": "#bdb76b"}]},
         **create_mnc_parcels_layers_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Create mnc parcels text layer
-
-# %%
-# parameters
-
-parcels_text_layer_params = dict()
-
-# %%
-# call the task
-
-
-parcels_text_layer = (
-    create_custom_text_layer.set_task_instance_id("parcels_text_layer")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        geodataframe=load_mnc_parcels,
-        layer_style={
-            "get_text": "name",
-            "get_color": [0, 0, 0, 255],
-            "get_size": 1500,
-            "size_units": "meters",
-            "size_min_pixels": 70,
-            "size_max_pixels": 100,
-            "size_scale": 2.25,
-            "font_family": "Calibri",
-            "font_weight": "700",
-            "get_text_anchor": "middle",
-            "get_alignment_baseline": "center",
-            "billboard": True,
-            "background_padding": [4, 8],
-            "pickable": True,
-            "auto_highlight": False,
-        },
-        use_centroid=True,
-        legend=None,
-        **parcels_text_layer_params,
     )
     .call()
 )
@@ -2040,52 +1990,6 @@ persist_pressure = (
 
 
 # %% [markdown]
-# ## Convert weather html charts to png
-
-# %%
-# parameters
-
-convert_weather_png_params = dict()
-
-# %%
-# call the task
-
-
-convert_weather_png = (
-    html_to_png.set_task_instance_id("convert_weather_png")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        html_path=[
-            persist_precipitation,
-            persist_temperature,
-            persist_wind_speed,
-            persist_wind_gusts,
-            persist_soil_temp,
-            persist_rel_humidity,
-            persist_pressure,
-        ],
-        config={
-            "full_page": True,
-            "device_scale_factor": 2.0,
-            "wait_for_timeout": 10,
-            "max_concurrent_pages": 5,
-        },
-        **convert_weather_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Retrieve all events
 
 # %%
@@ -2121,6 +2025,7 @@ get_events_data = (
             "geometry",
             "created_at",
             "event_details",
+            "patrols",
         ],
         event_types=[],
         raise_on_empty=True,
@@ -2581,7 +2486,7 @@ rename_mobile_boma_params = dict()
 
 
 rename_mobile_boma = (
-    map_columns.set_task_instance_id("rename_mobile_boma")
+    transform_columns.set_task_instance_id("rename_mobile_boma")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -2595,6 +2500,8 @@ rename_mobile_boma = (
         drop_columns=[],
         retain_columns=[],
         rename_columns={"event_details__mobile_boma": "boma"},
+        skip_missing_rename=True,
+        required_columns=["event_details__mobile_boma"],
         df=normalize_mb_values,
         **rename_mobile_boma_params,
     )
@@ -2933,7 +2840,6 @@ combine_custom_mobile_boma = (
             create_mnc_styled_layers,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_mb_layers,
         **combine_custom_mobile_boma_params,
@@ -3098,7 +3004,7 @@ rename_livestock_predation_params = dict()
 
 
 rename_livestock_predation = (
-    map_columns.set_task_instance_id("rename_livestock_predation")
+    transform_columns.set_task_instance_id("rename_livestock_predation")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -3133,6 +3039,12 @@ rename_livestock_predation = (
             "event_details__livestockpredation_bomaheight": "boma_height",
             "event_details__livestockpredation_bomavisibility": "boma_visibility",
         },
+        skip_missing_rename=True,
+        required_columns=[
+            "event_details__livestockpredation_livestockaffected",
+            "event_details__livestockpredation_livestockspecies",
+            "event_details__livestockpredation_suspectedpredator",
+        ],
         df=normalize_predation_values,
         **rename_livestock_predation_params,
     )
@@ -3653,7 +3565,6 @@ combine_custom_livestock = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_livestock_layers,
         **combine_custom_livestock_params,
@@ -3822,7 +3733,7 @@ rename_wildlife_cols_params = dict()
 
 
 rename_wildlife_cols = (
-    map_columns.set_task_instance_id("rename_wildlife_cols")
+    transform_columns.set_task_instance_id("rename_wildlife_cols")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -3845,6 +3756,8 @@ rename_wildlife_cols = (
             "event_details__wildlifetreatment_vetprognosis": "wildlife_treatment_vet_prognosis",
             "event_details__wildlifecarcass_comments": "wildlife_carcass_comments",
         },
+        skip_missing_rename=True,
+        required_columns=[],
         df=normalize_wildlife_events,
         **rename_wildlife_cols_params,
     )
@@ -4307,7 +4220,6 @@ combine_custom_wildlife = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_wildlife_layers,
         **combine_custom_wildlife_params,
@@ -4472,7 +4384,7 @@ rename_elephant_cols_params = dict()
 
 
 rename_elephant_cols = (
-    map_columns.set_task_instance_id("rename_elephant_cols")
+    transform_columns.set_task_instance_id("rename_elephant_cols")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -4494,8 +4406,43 @@ rename_elephant_cols = (
             "event_details__elephantsight_herdcomposition": "elephant_sight_herd_composition",
             "event_details__elephantsight_underayear": "elephant_sight_under_a_year",
         },
+        skip_missing_rename=True,
+        required_columns=["event_details__elephantsight_herdcomposition"],
         df=normalize_elephant_values,
         **rename_elephant_cols_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Replace elephant herds with unspecified
+
+# %%
+# parameters
+
+replace_elephant_nulls_params = dict()
+
+# %%
+# call the task
+
+
+replace_elephant_nulls = (
+    replace_missing_with_label.set_task_instance_id("replace_elephant_nulls")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=rename_elephant_cols,
+        columns=["elephant_sight_herd_composition"],
+        label="unspecified",
+        **replace_elephant_nulls_params,
     )
     .call()
 )
@@ -4525,7 +4472,7 @@ rename_ele_column = (
         unpack_depth=1,
     )
     .partial(
-        df=rename_elephant_cols,
+        df=replace_elephant_nulls,
         columns=["elephant_sight_herd_composition"],
         value_map={
             "bachelor": "Bachelor",
@@ -4644,71 +4591,6 @@ persist_ele_df = (
 
 
 # %% [markdown]
-# ## Replace elephant sight herd composition  nulls with unspecified
-
-# %%
-# parameters
-
-replace_ele_nulls_params = dict()
-
-# %%
-# call the task
-
-
-replace_ele_nulls = (
-    replace_missing_with_label.set_task_instance_id("replace_ele_nulls")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        df=rename_ele_column,
-        columns=["elephant_sight_herd_composition"],
-        label="Unspecified",
-        **replace_ele_nulls_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Drop null values in elephant sighting
-
-# %%
-# parameters
-
-drop_ele_nulls_params = dict()
-
-# %%
-# call the task
-
-
-drop_ele_nulls = (
-    drop_null_values.set_task_instance_id("drop_ele_nulls")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        df=replace_ele_nulls,
-        col="elephant_sight_herd_composition",
-        **drop_ele_nulls_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Exclude geom outliers fom elephant events
 
 # %%
@@ -4731,7 +4613,7 @@ exclude_ele_outliers = (
         ],
         unpack_depth=1,
     )
-    .partial(df=drop_ele_nulls, z_threshold=3, **exclude_ele_outliers_params)
+    .partial(df=rename_ele_column, z_threshold=3, **exclude_ele_outliers_params)
     .call()
 )
 
@@ -4873,7 +4755,6 @@ combine_custom_ele = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_elephant_layers,
         **combine_custom_ele_params,
@@ -5091,7 +4972,7 @@ bin_elephant_herd_col = (
         bins=10,
         suffix="bins",
         inplace=False,
-        df=replace_ele_nulls,
+        df=rename_ele_column,
         **bin_elephant_herd_col_params,
     )
     .call()
@@ -5310,100 +5191,6 @@ drop_ele_bins_invalid_geoms = (
 
 
 # %% [markdown]
-# ## persist ele invalids
-
-# %%
-# parameters
-
-persist_ele_inv_df_params = dict()
-
-# %%
-# call the task
-
-
-persist_ele_inv_df = (
-    persist_df.set_task_instance_id("persist_ele_inv_df")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        df=drop_ele_bins_invalid_geoms,
-        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        filetype="csv",
-        filename="ele_bins_invalid",
-        **persist_ele_inv_df_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## print value for eles
-
-# %%
-# parameters
-
-print_ele_vals_params = dict()
-
-# %%
-# call the task
-
-
-print_ele_vals = (
-    print_output.set_task_instance_id("print_ele_vals")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(value=drop_ele_bins_invalid_geoms, **print_ele_vals_params)
-    .call()
-)
-
-
-# %% [markdown]
-# ## Print gdf outputs
-
-# %%
-# parameters
-
-print_gdf_outputs_params = dict()
-
-# %%
-# call the task
-
-
-print_gdf_outputs = (
-    view_gdf.set_task_instance_id("print_gdf_outputs")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        gdf=drop_ele_bins_invalid_geoms,
-        name="elephant bins for map",
-        **print_gdf_outputs_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## clean elephant df
 
 # %%
@@ -5464,7 +5251,7 @@ apply_ele_color_bins = (
     .partial(
         input_column_name="elephant_sight_herd_sizebins_sort",
         output_column_name="colors",
-        colormap="tab20",
+        colormap="Blues",
         df=drop_ele_bins_invalid_geoms,
         **apply_ele_color_bins_params,
     )
@@ -5546,7 +5333,6 @@ combine_ele_bins = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_ele_herd_layers,
         **combine_ele_bins_params,
@@ -6076,7 +5862,6 @@ combine_buffalo_point = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_buffalo_layers,
         **combine_buffalo_point_params,
@@ -6427,7 +6212,7 @@ apply_buffalo_color_bins = (
     .partial(
         input_column_name="buffalo_herd_sizebins_sort",
         output_column_name="colors",
-        colormap="tab20",
+        colormap="Blues",
         df=remove_buff_bins_geoms,
         **apply_buffalo_color_bins_params,
     )
@@ -6509,7 +6294,6 @@ combine_buffalo_herd_bins = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_buffalo_herd_layers,
         **combine_buffalo_herd_bins_params,
@@ -6929,7 +6713,6 @@ combine_rhino_events = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_rhino_layers,
         **combine_rhino_events_params,
@@ -7094,7 +6877,7 @@ rename_lion_cols_params = dict()
 
 
 rename_lion_cols = (
-    map_columns.set_task_instance_id("rename_lion_cols")
+    transform_columns.set_task_instance_id("rename_lion_cols")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -7116,6 +6899,11 @@ rename_lion_cols = (
             "event_details__lionsightingrep_groupsize": "lion_group_size",
             "event_details__lionsightingrep_individual_present": "individual_present",
         },
+        skip_missing_rename=True,
+        required_columns=[
+            "event_details__lionsightingrep_pride",
+            "event_details__lionsightingrep_individual_present",
+        ],
         df=normalize_lion_values,
         **rename_lion_cols_params,
     )
@@ -7597,7 +7385,6 @@ combine_lion_point = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_lion_layers,
         **combine_lion_point_params,
@@ -7762,7 +7549,7 @@ rename_leopard_cols_params = dict()
 
 
 rename_leopard_cols = (
-    map_columns.set_task_instance_id("rename_leopard_cols")
+    transform_columns.set_task_instance_id("rename_leopard_cols")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -7783,6 +7570,8 @@ rename_leopard_cols = (
             "event_details__leopardsightingrep_groupsize": "leopard_group_size",
             "event_details__leopardsightingrep_individual_present": "individual_present",
         },
+        skip_missing_rename=True,
+        required_columns=["event_details__leopardsightingrep_individual_present"],
         df=normalize_leopard_values,
         **rename_leopard_cols_params,
     )
@@ -8224,7 +8013,6 @@ combine_leopard_events = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_leopard_layers,
         **combine_leopard_events_params,
@@ -8300,7 +8088,7 @@ persist_leopard_urls = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=draw_leopard_map,
-        filename="leopard_sighting_map.html",
+        filename="leopard_sightings_map.html",
         **persist_leopard_urls_params,
     )
     .call()
@@ -8389,7 +8177,7 @@ rename_cheetah_cols_params = dict()
 
 
 rename_cheetah_cols = (
-    map_columns.set_task_instance_id("rename_cheetah_cols")
+    transform_columns.set_task_instance_id("rename_cheetah_cols")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -8410,6 +8198,8 @@ rename_cheetah_cols = (
             "event_details__cheetahsightingrep_groupsize": "cheetah_group_size",
             "event_details__cheetahsightingrep_individual_present": "individual_present",
         },
+        skip_missing_rename=True,
+        required_columns=["event_details__cheetahsightingrep_individual_present"],
         df=normalize_cheetah_values,
         **rename_cheetah_cols_params,
     )
@@ -8818,7 +8608,6 @@ combine_cheetah_point = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_cheetah_layers,
         **combine_cheetah_point_params,
@@ -9278,7 +9067,6 @@ combine_giraffe_events = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_giraffe_layers,
         **combine_giraffe_events_params,
@@ -10126,7 +9914,9 @@ get_patrol_obs_params = dict()
 
 
 get_patrol_obs = (
-    get_patrol_observations_from_patrols_df.set_task_instance_id("get_patrol_obs")
+    custom_get_patrol_observations_from_patrols_df.set_task_instance_id(
+        "get_patrol_obs"
+    )
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -11165,7 +10955,6 @@ combine_foot_layers = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_foot_layers,
         **combine_foot_layers_params,
@@ -11241,7 +11030,7 @@ persist_foot_urls = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=draw_foot_map,
-        filename="foot_patrols.html",
+        filename="foot_patrols_map.html",
         **persist_foot_urls_params,
     )
     .call()
@@ -11486,7 +11275,6 @@ combine_vehicle_layers = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_vehicle_layers,
         **combine_vehicle_layers_params,
@@ -11562,7 +11350,7 @@ persist_vehicle_urls = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         text=draw_vehicle_map,
-        filename="vehicle_patrols.html",
+        filename="vehicle_patrols_map.html",
         **persist_vehicle_urls_params,
     )
     .call()
@@ -11807,7 +11595,6 @@ combine_motor_layers = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_motor_layers,
         **combine_motor_layers_params,
@@ -11882,8 +11669,8 @@ persist_motor_urls = (
     )
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        text=draw_vehicle_map,
-        filename="motor_patrols.html",
+        text=draw_motor_map,
+        filename="motorbike_patrols_map.html",
         **persist_motor_urls_params,
     )
     .call()
@@ -12117,7 +11904,7 @@ add_ranger_metrics_totals = (
         unpack_depth=1,
     )
     .partial(
-        label_col=["patrol_subject_name"],
+        label_col=["participants"],
         label="Total",
         df=replace_ranger_nulls,
         **add_ranger_metrics_totals_params,
@@ -12289,9 +12076,9 @@ generate_grid_layers = (
             "extruded": False,
             "wireframe": False,
             "get_fill_color": "density_colors",
-            "get_line_color": "density_colors",
+            "get_line_color": [0, 0, 0],
             "opacity": 0.75,
-            "get_line_width": 1.95,
+            "get_line_width": 0.85,
             "get_elevation": 0,
             "get_point_radius": 1,
             "line_width_units": "pixels",
@@ -12339,7 +12126,6 @@ combine_grid_layers = (
             create_conservancy_boundaries,
             create_mnc_parcels_layers,
             conservancy_text_layer,
-            parcels_text_layer,
         ],
         grouped_layers=generate_grid_layers,
         **combine_grid_layers_params,
@@ -12414,8 +12200,8 @@ persist_grid_urls = (
     )
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        text=draw_vehicle_map,
-        filename="patrol_coverage.html",
+        text=draw_grid_map,
+        filename="patrol_coverage_map.html",
         **persist_grid_urls_params,
     )
     .call()
@@ -12517,6 +12303,701 @@ persist_occupancy_df = (
         df=round_off_patrol,
         filename="patrol_coverage",
         **persist_occupancy_df_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert chart htmls to png
+
+# %%
+# parameters
+
+convert_chart_html_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_chart_html_png = (
+    html_to_png.set_task_instance_id("convert_chart_html_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=[
+            persist_precipitation,
+            persist_temperature,
+            persist_wind_speed,
+            persist_wind_gusts,
+            persist_soil_temp,
+            persist_rel_humidity,
+            persist_pressure,
+            persist_total_events,
+            persist_elephant_bar,
+            persist_buffalo_bar,
+        ],
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 10,
+            "max_concurrent_pages": 5,
+        },
+        **convert_chart_html_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert mobile boma map to png
+
+# %%
+# parameters
+
+convert_mobile_boma_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_mobile_boma_png = (
+    html_to_png.set_task_instance_id("convert_mobile_boma_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_mobile_boma_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_mobile_boma_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert livestock map to png
+
+# %%
+# parameters
+
+convert_livestock_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_livestock_png = (
+    html_to_png.set_task_instance_id("convert_livestock_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_livestock_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_livestock_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert wildlife map to png
+
+# %%
+# parameters
+
+convert_wildlife_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_wildlife_png = (
+    html_to_png.set_task_instance_id("convert_wildlife_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_wildlife_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_wildlife_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert elephant map to png
+
+# %%
+# parameters
+
+convert_elephant_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_elephant_png = (
+    html_to_png.set_task_instance_id("convert_elephant_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_elephant_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_elephant_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert elephant herd map to png
+
+# %%
+# parameters
+
+convert_ele_herd_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_ele_herd_png = (
+    html_to_png.set_task_instance_id("convert_ele_herd_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_ele_herd_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_ele_herd_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert buffalo map to png
+
+# %%
+# parameters
+
+convert_buffalo_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_buffalo_png = (
+    html_to_png.set_task_instance_id("convert_buffalo_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_buffalo_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_buffalo_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert buffalo herd map to png
+
+# %%
+# parameters
+
+convert_buffalo_herd_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_buffalo_herd_png = (
+    html_to_png.set_task_instance_id("convert_buffalo_herd_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_buffalo_herd_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_buffalo_herd_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert rhino map to png
+
+# %%
+# parameters
+
+convert_rhino_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_rhino_png = (
+    html_to_png.set_task_instance_id("convert_rhino_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_rhino_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_rhino_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert lion map to png
+
+# %%
+# parameters
+
+convert_lion_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_lion_png = (
+    html_to_png.set_task_instance_id("convert_lion_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_lion_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_lion_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert leopard map to png
+
+# %%
+# parameters
+
+convert_leopard_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_leopard_png = (
+    html_to_png.set_task_instance_id("convert_leopard_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_leopard_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_leopard_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert cheetah map to png
+
+# %%
+# parameters
+
+convert_cheetah_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_cheetah_png = (
+    html_to_png.set_task_instance_id("convert_cheetah_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_cheetah_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_cheetah_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert giraffe map to png
+
+# %%
+# parameters
+
+convert_giraffe_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_giraffe_png = (
+    html_to_png.set_task_instance_id("convert_giraffe_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_giraffe_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_giraffe_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert foot patrol map to png
+
+# %%
+# parameters
+
+convert_foot_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_foot_png = (
+    html_to_png.set_task_instance_id("convert_foot_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_foot_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_foot_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert vehicle patrol map to png
+
+# %%
+# parameters
+
+convert_vehicle_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_vehicle_png = (
+    html_to_png.set_task_instance_id("convert_vehicle_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_vehicle_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 35000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_vehicle_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert motor patrol map to png
+
+# %%
+# parameters
+
+convert_motor_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_motor_png = (
+    html_to_png.set_task_instance_id("convert_motor_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_motor_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 35000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_motor_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert grid map to png
+
+# %%
+# parameters
+
+convert_grid_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_grid_png = (
+    html_to_png.set_task_instance_id("convert_grid_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_grid_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_grid_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Generate MNC report
+
+# %%
+# parameters
+
+generate_mnc_word_doc_params = dict()
+
+# %%
+# call the task
+
+
+generate_mnc_word_doc = (
+    generate_mnc_report.set_task_instance_id("generate_mnc_word_doc")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        template_path=persist_mnc_tpt,
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        generated_by="Ecoscope",
+        validate_images=True,
+        box_h_cm=6.9,
+        box_w_cm=11.5,
+        time_period=time_range,
+        filename=None,
+        **generate_mnc_word_doc_params,
     )
     .call()
 )

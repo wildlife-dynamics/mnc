@@ -58,7 +58,7 @@ workflow:
     id: persist_mnc_tpt
     task: fetch_and_persist_file
     partial:
-      url: https://www.dropbox.com/scl/fi/zwb5d8nxfwqhjikjybmst/mara_north_template_2.docx?rlkey=it5d7a6382xyzgelh0cuy2xsy&st=zyi1ggdd&dl=0
+      url: https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=dd8nv4q7&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       overwrite_existing: false
       retries: 3
@@ -278,33 +278,6 @@ workflow:
         values: 
           - label: Parcels
             color: "#bdb76b"
-
-  - name: Create mnc parcels text layer
-    id: parcels_text_layer
-    task: create_custom_text_layer
-    partial: 
-      geodataframe: ${{ workflow.load_mnc_parcels.return }}
-      layer_style: 
-        get_text: name 
-        get_color: [0,0,0,255]
-        
-        get_size: 1500
-        size_units: meters 
-        size_min_pixels: 70 #65 
-        size_max_pixels: 100
-        size_scale: 2.25 
-
-        font_family: Calibri 
-        font_weight: "700" 
-        get_text_anchor: middle 
-        get_alignment_baseline: center
-        billboard: true 
-
-        background_padding: [4,8]
-        pickable: true 
-        auto_highlight: false 
-      use_centroid: true 
-      legend: null 
 
   # 1. --- Weather report --- 
   - name: Retrieve weather observations from GMMF 
@@ -751,26 +724,6 @@ workflow:
       text: ${{ workflow.pressure_chart.return }}
       filename: atmospheric_pressure_readings_over_time.html
 
-  - name: Convert weather html charts to png 
-    id: convert_weather_png 
-    task: html_to_png 
-    partial: 
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      html_path: 
-        - ${{ workflow.persist_precipitation.return }} # precipitation
-        - ${{ workflow.persist_temperature.return }} # temperature 
-        - ${{ workflow.persist_wind_speed.return }} # wind speed
-        - ${{ workflow.persist_wind_gusts.return }} # wind gusts 
-        - ${{ workflow.persist_soil_temp.return }} # soil temperature 
-        - ${{ workflow.persist_rel_humidity.return }} # relative humidity
-        - ${{ workflow.persist_pressure.return }} # atmospheric pressure
-
-      config: 
-        full_page: true 
-        device_scale_factor: 2.0 
-        wait_for_timeout: 10 
-        max_concurrent_pages: 5
-
   # 2. Events 
   - name: Retrieve all events 
     id: get_events_data
@@ -788,6 +741,7 @@ workflow:
         - geometry
         - created_at
         - event_details
+        - patrols
       event_types: []
       raise_on_empty: true
       include_details: true
@@ -940,12 +894,15 @@ workflow:
       
   - name: Rename mobile boma columns 
     id: rename_mobile_boma
-    task: map_columns
+    task: transform_columns
     partial:
       drop_columns: []
       retain_columns: []
       rename_columns:
         event_details__mobile_boma : boma 
+      skip_missing_rename: true 
+      required_columns: 
+        - event_details__mobile_boma
       df: ${{ workflow.normalize_mb_values.return }}
 
   - name: Rename mobile_boma_rep value to Mobile Boma 
@@ -1052,7 +1009,6 @@ workflow:
         - ${{ workflow.create_mnc_styled_layers.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_mb_layers.return }}
 
@@ -1099,7 +1055,7 @@ workflow:
 
   - name: Rename livestock predation columns 
     id: rename_livestock_predation
-    task: map_columns
+    task: transform_columns
     partial:
       drop_columns: []
       retain_columns: []
@@ -1124,6 +1080,11 @@ workflow:
         event_details__livestockpredation_woundedadultmale: wounded_adult_male 
         event_details__livestockpredation_bomaheight: boma_height 
         event_details__livestockpredation_bomavisibility: boma_visibility
+      skip_missing_rename: true 
+      required_columns: 
+        - event_details__livestockpredation_livestockaffected
+        - event_details__livestockpredation_livestockspecies
+        - event_details__livestockpredation_suspectedpredator
 
       df: ${{ workflow.normalize_predation_values.return }}
 
@@ -1284,7 +1245,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_livestock_layers.return }}
 
@@ -1334,7 +1294,7 @@ workflow:
 
   - name: Rename wildlife events columns 
     id: rename_wildlife_cols
-    task: map_columns
+    task: transform_columns
     partial:
       drop_columns: []
       retain_columns: []
@@ -1347,9 +1307,18 @@ workflow:
         event_details__wildlifetreatment_vetattending: wildlife_treatment_vet_attending
         event_details__wildlifetreatment_vetprognosis: wildlife_treatment_vet_prognosis
         event_details__wildlifecarcass_comments: wildlife_carcass_comments
-
+      skip_missing_rename: true 
+      required_columns: []
       df: ${{ workflow.normalize_wildlife_events.return }}
   
+# Existing columns: 
+#Index(['id', 'time', 'event_type', 'event_category', 'reported_by',\n 'serial_number', 'geometry', 'created_at', 
+#'patrols', 'date',\n 'event_details__updates', 
+#'event_details__wildlifecarcass_comments',\n 'event_details__wildlifecarcass_species',
+#\n 'event_details__wildlifecarcass_suspectedcause',\n 'event_details__wildlifecarcass_visibleinjury',\n
+# 'event_details__wildlifeinjuryrep_actiontaken',\n 'event_details__wildlifeinjuryrep_comments',\n 
+#'event_details__wildlifeinjuryrep_injuryage',\n 'event_details__wildlifeinjuryrep_injurytype',\n 
+#'event_details__wildlifeinjuryrep_severity',\n 'event_details__wildlifeinjuryrep_species'],\n dtype='object')"')
   - name: Persist  wildlife events as csv 
     id: persist_wildlife_csv
     task: persist_df 
@@ -1490,8 +1459,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
-
       grouped_layers: ${{ workflow.generate_wildlife_layers.return }}
 
   - name: Draw wildlife incident predation map
@@ -1538,7 +1505,7 @@ workflow:
 
   - name: Rename elephant events columns 
     id: rename_elephant_cols
-    task: map_columns
+    task: transform_columns
     partial:
       drop_columns: []
       retain_columns: []
@@ -1550,14 +1517,25 @@ workflow:
         event_details__elephantsight_subadult: elephant_sight_sub_adult
         event_details__elephantsight_herdcomposition: elephant_sight_herd_composition
         event_details__elephantsight_underayear: elephant_sight_under_a_year
-
+      skip_missing_rename: true 
+      required_columns:
+        - event_details__elephantsight_herdcomposition
       df: ${{ workflow.normalize_elephant_values.return }}
+
+  - name: Replace elephant herds with unspecified 
+    id: replace_elephant_nulls 
+    task: replace_missing_with_label
+    partial: 
+      df: ${{ workflow.rename_elephant_cols.return }}
+      columns: 
+        - elephant_sight_herd_composition 
+      label: unspecified 
 
   - name: Rename values in elephant sight herd composition column 
     id: rename_ele_column 
     task: map_column_values 
     partial:  
-      df: ${{ workflow.rename_elephant_cols.return }}
+      df: ${{ workflow.replace_elephant_nulls.return }}
       columns :
         - elephant_sight_herd_composition
       value_map:
@@ -1598,27 +1576,12 @@ workflow:
       filename: elephant_events_recorded
       df: ${{ workflow.include_elephant_totals.return }}
 
-  - name: Replace elephant sight herd composition  nulls with unspecified
-    id: replace_ele_nulls
-    task: replace_missing_with_label
-    partial:
-      df: ${{ workflow.rename_ele_column.return }}
-      columns: 
-        - elephant_sight_herd_composition
-      label: Unspecified
-  - name: Drop null values in elephant sighting 
-    id: drop_ele_nulls
-    task: drop_null_values
-    partial: 
-      df: ${{ workflow.replace_ele_nulls.return }}
-      col: elephant_sight_herd_composition
-
   # Draw elephant herd composition map
   - name: Exclude geom outliers fom elephant events
     id: exclude_ele_outliers
     task: exclude_geom_outliers
     partial: 
-      df: ${{ workflow.drop_ele_nulls.return }}
+      df: ${{ workflow.rename_ele_column.return }}
       z_threshold: 3
 
   - name: Remove invalid points from elephant events
@@ -1665,7 +1628,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_elephant_layers.return }}
 
@@ -1730,7 +1692,7 @@ workflow:
       bins: 10
       suffix: bins 
       inplace: false
-      df: ${{ workflow.replace_ele_nulls.return }}
+      df: ${{ workflow.rename_ele_column.return }}
   
   - name: Categorize elephant bins column
     id: cat_elephant_bins 
@@ -1793,28 +1755,6 @@ workflow:
       gdf: ${{ workflow.exclude_ele_outlier_bins.return }}
       geometry_column: geometry 
 
-  - name: persist ele invalids 
-    id: persist_ele_inv_df
-    task: persist_df
-    partial: 
-      df: ${{ workflow.drop_ele_bins_invalid_geoms.return }}
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filetype: csv
-      filename: ele_bins_invalid
-
-  - name: print value for eles 
-    id: print_ele_vals 
-    task: print_output 
-    partial: 
-      value: ${{ workflow.drop_ele_bins_invalid_geoms.return }}
-  
-  - name: Print gdf outputs 
-    id: print_gdf_outputs 
-    task: view_gdf 
-    partial: 
-      gdf: ${{ workflow.drop_ele_bins_invalid_geoms.return }}
-      name: elephant bins for map 
-
   - name: clean elephant df 
     id: clean_ele_column_idx
     task: clean_dataframe_index 
@@ -1825,23 +1765,13 @@ workflow:
       rename_unnamed: true 
       unnamed_col_name: idx 
 
- # -- please remember to remove null values here 
-  # - name: persist clean ele invalids 
-  #   id: persist_clean_inv_df
-  #   task: persist_df
-  #   partial: 
-  #     df: ${{ workflow.clean_ele_column_idx.return }}
-  #     root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-  #     filetype: csv
-  #     filename: clean_ele_bins_invalid
-
   - name: Apply elephant bins to plot 
     id: apply_ele_color_bins 
     task: apply_color_map 
     partial:
       input_column_name: elephant_sight_herd_sizebins_sort 
       output_column_name: colors
-      colormap: tab20
+      colormap: Blues #tab20
       df: ${{ workflow.drop_ele_bins_invalid_geoms.return }} #${{ workflow.clean_ele_column_idx.return }}
 
   - name: Generate elephant herd size point layers
@@ -1875,8 +1805,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
-
       grouped_layers: ${{ workflow.generate_ele_herd_layers.return }}
 
   - name: Draw elephant herd size map
@@ -2034,8 +1962,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
-
       grouped_layers: ${{ workflow.generate_buffalo_layers.return }}
 
   - name: Draw buffalo events map 
@@ -2136,7 +2062,7 @@ workflow:
     partial:
       input_column_name: buffalo_herd_sizebins_sort 
       output_column_name: colors
-      colormap: tab20
+      colormap: Blues #tab20
       df: ${{ workflow.remove_buff_bins_geoms.return }}
 
   - name: Generate buffalo herd size point layers
@@ -2166,7 +2092,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_buffalo_herd_layers.return }}
 
@@ -2294,7 +2219,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_rhino_layers.return }}
 
@@ -2341,7 +2265,7 @@ workflow:
 
   - name: Rename lion events column
     id: rename_lion_cols 
-    task: map_columns
+    task: transform_columns
     partial:  
       drop_columns: []
       retain_columns: [] 
@@ -2353,6 +2277,11 @@ workflow:
         event_details__lionsightingrep_behavior : lion_behavior
         event_details__lionsightingrep_groupsize : lion_group_size
         event_details__lionsightingrep_individual_present : individual_present
+      skip_missing_rename: true 
+      required_columns: 
+        - event_details__lionsightingrep_pride
+        - event_details__lionsightingrep_individual_present
+
       df: ${{ workflow.normalize_lion_values.return }}
   
   - name: Lion events summary
@@ -2503,7 +2432,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_lion_layers.return }}
 
@@ -2550,7 +2478,7 @@ workflow:
 
   - name: Rename leopard events column
     id: rename_leopard_cols 
-    task: map_columns
+    task: transform_columns
     partial:  
       drop_columns: []
       retain_columns: [] 
@@ -2561,7 +2489,10 @@ workflow:
         event_details__leopardsightingrep_behavior : leopard_behavior
         event_details__leopardsightingrep_groupsize : leopard_group_size
         event_details__leopardsightingrep_individual_present : individual_present
-
+      skip_missing_rename: true 
+      required_columns:
+        - event_details__leopardsightingrep_individual_present
+      
       df: ${{ workflow.normalize_leopard_values.return }}
 
   - name: Replace leopard individual_present with unknown 
@@ -2694,7 +2625,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_leopard_layers.return }}
 
@@ -2717,7 +2647,7 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_leopard_map.return }}
-      filename: leopard_sighting_map.html  # -- convert to png 
+      filename: leopard_sightings_map.html  # -- convert to png 
 
     # 2.4.6 Cheetah
   - name: Retrieve cheetah sighting events 
@@ -2741,7 +2671,7 @@ workflow:
 
   - name: Rename cheetah events column
     id: rename_cheetah_cols 
-    task: map_columns
+    task: transform_columns
     partial:  
       drop_columns: []
       retain_columns: [] 
@@ -2752,7 +2682,10 @@ workflow:
         event_details__cheetahsightingrep_behavior : cheetah_behavior 
         event_details__cheetahsightingrep_groupsize : cheetah_group_size 
         event_details__cheetahsightingrep_individual_present : individual_present 
-
+      skip_missing_rename: true 
+      required_columns: 
+        - event_details__cheetahsightingrep_individual_present
+      
       df: ${{ workflow.normalize_cheetah_values.return }}
 
   - name: Replace cheetah individual_present with other
@@ -2877,7 +2810,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_cheetah_layers.return }}
 
@@ -3019,7 +2951,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_giraffe_layers.return }}
 
@@ -3186,7 +3117,7 @@ workflow:
       df: ${{ workflow.filter_patrol_info_events.return }}
       skip_if_not_exists: true 
       sort_columns: true 
-  
+
   - name: Rename patrol information columns 
     id: rename_patrol_info
     task: map_columns
@@ -3278,7 +3209,7 @@ workflow:
 
   - name: Get patrol observations from patrol df 
     id: get_patrol_obs 
-    task: get_patrol_observations_from_patrols_df # -- error occurs here 
+    task: custom_get_patrol_observations_from_patrols_df # -- error occurs here 
     partial: 
       client: ${{ workflow.er_client_name.return }}
       patrols_df : ${{ workflow.get_patrols_from_info.return }}
@@ -3664,7 +3595,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_foot_layers.return }}
 
@@ -3687,7 +3617,7 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_foot_map.return }}
-      filename: foot_patrols.html  # -- convert this to png 
+      filename: foot_patrols_map.html  # -- convert this to png 
 
   - name: Summarize vehicle patrol metrics
     id: vehicle_patrol_metrics
@@ -3781,7 +3711,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_vehicle_layers.return }}
 
@@ -3804,7 +3733,7 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_vehicle_map.return }}
-      filename: vehicle_patrols.html  # -- convert this to png 
+      filename: vehicle_patrols_map.html  # -- convert this to png 
 
  # Motorbike patrol metrics and persist
   - name: Summarize motorbike patrol metrics
@@ -3896,7 +3825,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_motor_layers.return }}
 
@@ -3918,8 +3846,8 @@ workflow:
     task: persist_text
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      text: ${{ workflow.draw_vehicle_map.return }}
-      filename: motor_patrols.html  # -- convert this to png 
+      text: ${{ workflow.draw_motor_map.return }}
+      filename: motorbike_patrols_map.html  # -- convert this to png 
 
   - name: Merge motorbike ,vehicle and foot patrol trajectories 
     id: merge_trajs 
@@ -4006,7 +3934,7 @@ workflow:
     task: add_totals_row
     partial: 
       label_col: 
-        - patrol_subject_name
+        - participants
       label: Total 
       df: ${{ workflow.replace_ranger_nulls.return }}
 
@@ -4063,9 +3991,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: density_colors
+        get_line_color: [0, 0, 0]
         opacity: 0.75 
-        get_line_width: 1.95
+        get_line_width: 0.85
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -4087,7 +4015,6 @@ workflow:
         - ${{ workflow.create_conservancy_boundaries.return }}
         - ${{ workflow.create_mnc_parcels_layers.return }}
         - ${{ workflow.conservancy_text_layer.return }}
-        - ${{ workflow.parcels_text_layer.return }}
 
       grouped_layers: ${{ workflow.generate_grid_layers.return }}
 
@@ -4109,8 +4036,8 @@ workflow:
     task: persist_text
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      text: ${{ workflow.draw_vehicle_map.return }}
-      filename: patrol_coverage.html  # -- convert this to png 
+      text: ${{ workflow.draw_grid_map.return }}
+      filename: patrol_coverage_map.html  # -- convert this to png 
 
   - name: Compute patrol occupancy
     id: compute_patrol_occupancy
@@ -4137,7 +4064,266 @@ workflow:
       df: ${{ workflow.round_off_patrol.return }}
       filename: patrol_coverage
 
-  # 4. Create context and persist word doc
+  # 4. Convert all html to images 
+  # 4.1 html charts to png 
+  - name: Convert chart htmls to png 
+    id: convert_chart_html_png 
+    task: html_to_png 
+    partial: 
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: 
+        - ${{ workflow.persist_precipitation.return }} # precipitation
+        - ${{ workflow.persist_temperature.return }} # temperature 
+        - ${{ workflow.persist_wind_speed.return }} # wind speed
+        - ${{ workflow.persist_wind_gusts.return }} # wind gusts 
+        - ${{ workflow.persist_soil_temp.return }} # soil temperature 
+        - ${{ workflow.persist_rel_humidity.return }} # relative humidity
+        - ${{ workflow.persist_pressure.return }} # atmospheric pressure
+        - ${{ workflow.persist_total_events.return }} # total events bar chart 
+        - ${{ workflow.persist_elephant_bar.return }} # elephant group size bar chart 
+        - ${{ workflow.persist_buffalo_bar.return }} # buffalo group size chart 
+
+      config: 
+        full_page: false
+        device_scale_factor: 2.0 
+        wait_for_timeout: 10 
+        max_concurrent_pages: 5
+  
+  # 4.2 html maps to png 
+  # - name: Convert html maps to png 
+  #   id: convert_map_html_png 
+  #   task: html_to_png 
+  #   partial: 
+  #     output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+  #     html_path: 
+  #       - ${{ workflow.persist_mobile_boma_urls.return }}
+  #       - ${{ workflow.persist_livestock_urls.return }}
+  #       - ${{ workflow.persist_wildlife_urls.return }}
+  #       - ${{ workflow.persist_elephant_urls.return }}
+  #       - ${{ workflow.persist_ele_herd_urls.return }}
+  #       - ${{ workflow.persist_buffalo_urls.return }}
+  #       - ${{ workflow.persist_buffalo_herd_urls.return }}
+  #       - ${{ workflow.persist_rhino_urls.return }}
+  #       - ${{ workflow.persist_lion_urls.return }}
+  #       - ${{ workflow.persist_leopard_urls.return }}
+  #       - ${{ workflow.persist_cheetah_urls.return }}
+  #       - ${{ workflow.persist_giraffe_urls.return }}
+  #       - ${{ workflow.persist_foot_urls.return }}
+  #       - ${{ workflow.persist_vehicle_urls.return }}
+  #       - ${{ workflow.persist_motor_urls.return }}
+  #       - ${{ workflow.persist_grid_urls.return }}
+
+  #     config: 
+  #       full_page: false
+  #       device_scale_factor: 2.0 
+  #       wait_for_timeout: 20000
+  #       max_concurrent_pages: 1
+
+  - name: Convert mobile boma map to png
+    id: convert_mobile_boma_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_mobile_boma_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert livestock map to png
+    id: convert_livestock_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_livestock_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert wildlife map to png
+    id: convert_wildlife_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_wildlife_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert elephant map to png
+    id: convert_elephant_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_elephant_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert elephant herd map to png
+    id: convert_ele_herd_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_ele_herd_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert buffalo map to png
+    id: convert_buffalo_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_buffalo_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert buffalo herd map to png
+    id: convert_buffalo_herd_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_buffalo_herd_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert rhino map to png
+    id: convert_rhino_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_rhino_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert lion map to png
+    id: convert_lion_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_lion_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert leopard map to png
+    id: convert_leopard_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_leopard_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert cheetah map to png
+    id: convert_cheetah_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_cheetah_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert giraffe map to png
+    id: convert_giraffe_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_giraffe_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert foot patrol map to png
+    id: convert_foot_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_foot_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  - name: Convert vehicle patrol map to png
+    id: convert_vehicle_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_vehicle_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 35000
+        max_concurrent_pages: 1
+
+  - name: Convert motor patrol map to png
+    id: convert_motor_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_motor_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 35000
+        max_concurrent_pages: 1
+
+  - name: Convert grid map to png
+    id: convert_grid_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_grid_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 20000
+        max_concurrent_pages: 1
+
+  # 5. Create context and persist word doc
+  - name: Generate MNC report 
+    id: generate_mnc_word_doc 
+    task: generate_mnc_report 
+    partial:
+      template_path: ${{ workflow.persist_mnc_tpt.return }}
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      generated_by: Ecoscope 
+      validate_images: true 
+      box_h_cm: 6.9
+      box_w_cm: 11.5 
+      time_period: ${{ workflow.time_range.return }}
+      filename: null
 
   - name: MNC event report dashboard
     id: mnc_events_dashboard

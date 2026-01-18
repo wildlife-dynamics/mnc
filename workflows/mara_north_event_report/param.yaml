@@ -1,6 +1,6 @@
 workflow_details:
-  description: ''
-  name: mara sample event
+  description: 'Report intended to generate mara north report that captures events and patrol efforts'
+  name: mara_north_quarterly_event_report
 groupers:
   groupers: []
 er_client_name:
@@ -14,8 +14,8 @@ configure_base_maps:
       max_zoom: 20
     - url: >-
         https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}
-      opacity: 0.25
+      opacity: 0.05
       max_zoom: 20
 time_range:
-  since: '2025-11-30T21:00:00.000Z'
-  until: '2025-12-12T21:00:00.000Z'
+  since: '2025-10-01T21:00:00.000Z'
+  until: '2025-12-31T21:00:00.000Z'
