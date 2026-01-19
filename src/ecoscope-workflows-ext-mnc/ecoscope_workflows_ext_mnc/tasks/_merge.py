@@ -1,8 +1,8 @@
 import pandas as pd
-from typing import List
+from typing import List, Union
 from ecoscope_workflows_core.decorators import task
 from ecoscope_workflows_core.annotations import AnyDataFrame
-from ecoscope_workflows_core.skip import SKIP_SENTINEL
+from ecoscope_workflows_core.skip import SKIP_SENTINEL, SkipSentinel
 
 
 @task
@@ -33,7 +33,9 @@ def merge_dataframes(
 
 
 @task
-def merge_multiple_df(list_df: List[AnyDataFrame], ignore_index: bool = True, sort: bool = False) -> AnyDataFrame:
+def merge_multiple_df(
+    list_df: List[Union[AnyDataFrame, SkipSentinel]], ignore_index: bool = True, sort: bool = False
+) -> AnyDataFrame:
     """
     Merge multiple dataframes into a single dataframe.
 
