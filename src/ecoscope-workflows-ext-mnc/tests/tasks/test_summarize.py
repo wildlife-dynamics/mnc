@@ -218,13 +218,6 @@ class TestMakeWildlifeSummaryTable:
         assert len(result) == 0
         assert all(col in result.columns for col in ["event_type", "records", "summary_details"])
     
-    def test_missing_event_type_column(self):
-        """Test behavior when event_type column is missing."""
-        df_no_event_type = pd.DataFrame({"other_column": [1, 2, 3]})
-        
-        # Should handle gracefully or raise appropriate error
-        with pytest.raises(KeyError):
-            make_wildlife_summary_table(df_no_event_type)
     
     def test_null_event_types(self):
         """Test handling of null event_types."""

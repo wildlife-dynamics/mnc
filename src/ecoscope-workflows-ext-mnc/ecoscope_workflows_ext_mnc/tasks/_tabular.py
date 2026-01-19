@@ -3,10 +3,7 @@ import ast
 import warnings
 import numpy as np
 import pandas as pd
-import matplotlib as mpl
-from pydantic import Field
-from ecoscope.base.utils import hex_to_rgba
-from typing import Union, List,Dict,Annotated
+from typing import Union, List,Dict
 from ecoscope_workflows_core.decorators import task
 from ecoscope_workflows_core.annotations import AnyDataFrame
 
@@ -46,35 +43,6 @@ def map_column_values(
             warnings.warn(f"Column '{column}' not found in DataFrame. Skipping.")
     
     return df
-
-# @task
-# def replace_missing_with_label(
-#     df: AnyDataFrame, 
-#     columns: str | list[str], 
-#     label: str
-# ) -> AnyDataFrame:
-#     # Convert single column to list for uniform processing
-#     columns = [columns] if isinstance(columns, str) else columns
-    
-#     # Validate all columns exist
-#     missing_cols = [col for col in columns if col not in df.columns]
-#     if missing_cols:
-#         raise ValueError(
-#             f"Column(s) {missing_cols} not found. "
-#             f"Available columns: {list(df.columns)}"
-#         )
-    
-#     df = df.copy()
-    
-#     # Apply replacement to each column
-#     for col in columns:
-#         df[col] = (
-#             df[col]
-#             .replace(["None", "none", "Nan", "nan", "NaN", ""], None)  
-#             .fillna(label)
-#         )
-    
-#     return df
 
 @task
 def replace_missing_with_label(
@@ -278,60 +246,6 @@ def order_bins(df:AnyDataFrame, col:str)->AnyDataFrame:
     sorted_bins = sorted(df[col].dropna().unique(), key=extract_left)
     df[col] = pd.Categorical(df[col], categories=sorted_bins, ordered=True)
     return df
-
-# @task 
-# def categorize_bins(df:AnyDataFrame, col:str)->AnyDataFrame:
-#     def extract_left(x):
-#         return int(re.search(r'^\d+', str(x)).group())
-    
-#     sorted_bins = sorted(df[col].dropna().unique(), key=extract_left)
-#     df[col] = pd.Categorical(df[col], categories=sorted_bins, ordered=True)
-
-#     #convert the categorical col to str 
-#     df[col] = df[col].astype(str)
-    
-#     return df
-
-# @task 
-# def categorize_bins(df: AnyDataFrame, col: str) -> AnyDataFrame:
-#     """
-#     Categorize bins and return clean string column with preserved order.
-#     Uses a helper column to maintain sort order.
-#     Filters out rows where bin values are non-positive or non-numeric.
-    
-#     Handles various bin formats:
-#     - Interval notation: (0, 10], [10, 20), etc.
-#     - Simple ranges: 0-10, 10-20
-#     - Plain numbers: 1, 10, 20
-#     """
-#     def extract_left(x):
-#         """Extract the leftmost numeric value from various bin formats."""
-#         if pd.isna(x) or x is None:
-#             return None
-        
-#         s = str(x)
-#         match = re.search(r'-?\d+\.?\d*', s)
-        
-#         if match:
-#             try:
-#                 value = float(match.group())
-#                 # Return None for non-positive values
-#                 return value if value > 0 else None
-#             except ValueError:
-#                 return None
-        
-#         return None
-    
-#     df_copy = df.copy()
-    
-#     # Create a sort order column based on the left bound
-#     df_copy[f'{col}_sort'] = df_copy[col].apply(extract_left)
-#     df_copy = df_copy[df_copy[f'{col}_sort'].notna()].copy()
-#     #df_copy[col] = df_copy[col].astype(str)
-#     sorted_bins = sorted(df[col].dropna().unique(), key=extract_left)
-#     df[col] = pd.Categorical(df[col], categories=sorted_bins, ordered=True)
-    
-#     return df_copy
 
 @task 
 def categorize_bins(df: AnyDataFrame, col: str) -> AnyDataFrame:
