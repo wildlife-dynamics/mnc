@@ -112,7 +112,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_values
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
-from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df
+from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df_1
 from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
@@ -8673,7 +8673,7 @@ def main(params: Params):
             method="call",
         ),
         "merge_trajs": Node(
-            async_task=merge_multiple_df.validate()
+            async_task=merge_multiple_df_1.validate()
             .set_task_instance_id("merge_trajs")
             .handle_errors()
             .with_tracing()
