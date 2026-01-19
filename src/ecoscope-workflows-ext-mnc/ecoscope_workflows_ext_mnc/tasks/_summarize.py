@@ -1,7 +1,7 @@
 import pandas as pd
 from textwrap import shorten
 from ecoscope_workflows_core.decorators import task
-from typing import  Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 from ecoscope_workflows_core.annotations import AnyDataFrame
 
 
@@ -12,6 +12,7 @@ DEFAULT_VALUE_MAP: Dict[str, str] = {
     "wildlife_injury_rep": "Injured wildlife",
     "wildlife_treatment_rep": "Veterinary treatment",
 }
+
 
 @task
 def make_wildlife_summary_table(
@@ -44,8 +45,9 @@ def make_wildlife_summary_table(
     """
     # defensive copy
     df = df.copy()
+
     def summarize_row(row: pd.Series) -> str:
-        et = row.get("event_type_mapped") 
+        et = row.get("event_type_mapped")
         pieces: List[str] = []
 
         if et == "Fire":
@@ -66,16 +68,24 @@ def make_wildlife_summary_table(
                     pieces.append(str(val))
 
         elif et == "Wildlife carcass":
-            for c in ("wildlife_carcass_species", "wildlife_carcass_suspected_cause",
-                      "event_details__wildlifecarcass_comments", "wildlife_carcass_visible_injury"):
+            for c in (
+                "wildlife_carcass_species",
+                "wildlife_carcass_suspected_cause",
+                "event_details__wildlifecarcass_comments",
+                "wildlife_carcass_visible_injury",
+            ):
                 val = row.get(c)
                 if val and pd.notna(val):
                     pieces.append(str(val))
 
         elif et == "Injured wildlife":
-            for c in ("wildlife_injury_rep_species", "wildlife_injury_rep_age",
-                      "wildlife_injury_rep_injury_type", "wildlife_injury_rep_comments",
-                      "wildlife_injury_rep_severity"):
+            for c in (
+                "wildlife_injury_rep_species",
+                "wildlife_injury_rep_age",
+                "wildlife_injury_rep_injury_type",
+                "wildlife_injury_rep_comments",
+                "wildlife_injury_rep_severity",
+            ):
                 val = row.get(c)
                 if val and pd.notna(val):
                     pieces.append(str(val))
@@ -105,7 +115,7 @@ def make_wildlife_summary_table(
             if len(unique) >= max_unique_local:
                 break
         return "  \n".join(unique)
-    
+
     df["event_type_mapped"] = df.get("event_type").map(value_map).fillna(df.get("event_type"))
     df["row_summary"] = df.apply(summarize_row, axis=1)
 

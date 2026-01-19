@@ -7,6 +7,7 @@ from ecoscope_workflows_core.tasks.transformation._mapping import RenameColumn
 
 logger = logging.getLogger(__name__)
 
+
 @task
 def transform_columns(
     df: AnyDataFrame,
@@ -47,7 +48,7 @@ def transform_columns(
     """
     Maps and transforms the columns of a DataFrame based on the provided parameters. The order of the operations is as
     follows: drop columns, retain/reorder columns, and rename columns.
-    
+
     Args:
         df (AnyDataFrame): The input DataFrame to be transformed.
         drop_columns (list[str]): List of columns to drop from the DataFrame.
@@ -55,10 +56,10 @@ def transform_columns(
         rename_columns (dict[str, str]): Dictionary of columns to rename.
         required_columns (list[str]): List of columns that must be present. Error raised if any are missing.
         skip_missing_rename (bool): If True, skip renaming columns that don't exist. Default is True.
-        
+
     Returns:
         AnyDataFrame: The transformed DataFrame.
-        
+
     Raises:
         KeyError: If any required columns are missing or if rename columns are missing and skip_missing_rename=False.
     """
@@ -67,48 +68,37 @@ def transform_columns(
         missing_required = [col for col in required_columns if col not in df.columns]
         if missing_required:
             raise KeyError(
-                f"Required columns {missing_required} not found in DataFrame. "
-                f"Available columns: {list(df.columns)}"
+                f"Required columns {missing_required} not found in DataFrame. " f"Available columns: {list(df.columns)}"
             )
-    
+
     # Drop columns
     if drop_columns:
         if "geometry" in drop_columns:
-            logger.warning(
-                "'geometry' found in drop_columns, which may affect spatial operations."
-            )
+            logger.warning("'geometry' found in drop_columns, which may affect spatial operations.")
         df = df.drop(columns=drop_columns)
-    
+
     # Retain/reorder columns
     if retain_columns:
         if any(col not in df.columns for col in retain_columns):
             raise KeyError(f"Columns {retain_columns} not all found in DataFrame.")
         df = df.reindex(columns=retain_columns)  # type: ignore[assignment]
-    
+
     # Rename columns
     if rename_columns:
         if isinstance(rename_columns, list):
-            rename_columns = {
-                item.original_name: item.new_name for item in rename_columns
-            }
-        
+            rename_columns = {item.original_name: item.new_name for item in rename_columns}
+
         if "geometry" in rename_columns.keys():
-            logger.warning(
-                "'geometry' found in rename_columns, which may affect spatial operations."
-            )
-        
+            logger.warning("'geometry' found in rename_columns, which may affect spatial operations.")
+
         # Filter rename_columns to only include columns that exist in df
         existing_rename_columns = {
-            old_name: new_name
-            for old_name, new_name in rename_columns.items()
-            if old_name in df.columns
+            old_name: new_name for old_name, new_name in rename_columns.items() if old_name in df.columns
         }
-        
+
         # Check for missing columns
-        missing_rename_columns = [
-            col for col in rename_columns.keys() if col not in df.columns
-        ]
-        
+        missing_rename_columns = [col for col in rename_columns.keys() if col not in df.columns]
+
         if missing_rename_columns:
             if skip_missing_rename:
                 logger.warning(
@@ -117,12 +107,11 @@ def transform_columns(
                 )
             else:
                 raise KeyError(
-                    f"Columns {missing_rename_columns} not found in DataFrame. "
-                    f"Existing columns: {list(df.columns)}"
+                    f"Columns {missing_rename_columns} not found in DataFrame. " f"Existing columns: {list(df.columns)}"
                 )
-        
+
         # Apply rename only for existing columns
         if existing_rename_columns:
             df = df.rename(columns=existing_rename_columns)  # type: ignore[assignment]
-    
+
     return cast(AnyDataFrame, df)

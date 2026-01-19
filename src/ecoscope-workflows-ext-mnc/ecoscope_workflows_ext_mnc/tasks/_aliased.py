@@ -2,12 +2,14 @@ from typing import cast
 from ecoscope_workflows_core.decorators import task
 from ecoscope_workflows_ext_ecoscope.connections import EarthRangerClient
 from ecoscope_workflows_ext_ecoscope.tasks.io._earthranger import (
-    PatrolsDF,EmptyDataFrame,
+    PatrolsDF,
+    EmptyDataFrame,
     PatrolObservationsGDF,
     IncludePatrolDetailsAnnotation,
     RaiseOnEmptyAnnotation,
-    SubPageSizeAnnotation
+    SubPageSizeAnnotation,
 )
+
 
 @task
 def custom_get_patrol_observations_from_patrols_df(
@@ -29,8 +31,6 @@ def custom_get_patrol_observations_from_patrols_df(
         patrol_obs_relocs = patrol_obs_relocs.gdf
 
     if raise_on_empty and patrol_obs_relocs.empty:
-        raise ValueError(
-            "No data returned from EarthRanger for get_patrol_observations_with_patrol_filter"
-        )
+        raise ValueError("No data returned from EarthRanger for get_patrol_observations_with_patrol_filter")
 
     return cast(PatrolObservationsGDF, patrol_obs_relocs)

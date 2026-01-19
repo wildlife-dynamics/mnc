@@ -3,7 +3,9 @@ import pandas as pd
 import pytest
 from pathlib import Path
 from ecoscope_workflows_ext_mnc.tasks._patrol_coverage import create_patrol_coverage_grid, compute_occupancy
+
 TEST_DATA_DIR = Path(__file__).parent.parent / "data"
+
 
 def test_create_patrol_coverage_grid_basic():
     trajs = gpd.read_file(TEST_DATA_DIR / "sample_trajs.gpkg")
@@ -39,6 +41,7 @@ def test_create_patrol_coverage_grid_missing_columns():
     with pytest.raises(ValueError, match="Missing required columns"):
         create_patrol_coverage_grid(trajs)
 
+
 def test_create_patrol_coverage_grid_empty_gdf():
     trajs = gpd.read_file(TEST_DATA_DIR / "sample_trajs.gpkg")
     trajs["patrol_id"] = trajs["id"]
@@ -47,6 +50,7 @@ def test_create_patrol_coverage_grid_empty_gdf():
 
     with pytest.raises(ValueError, match="trajs gdf is empty"):
         create_patrol_coverage_grid(empty)
+
 
 def test_create_patrol_coverage_grid_no_intersections(monkeypatch):
     trajs = gpd.read_file(TEST_DATA_DIR / "sample_trajs.gpkg")
@@ -66,6 +70,7 @@ def test_create_patrol_coverage_grid_no_intersections(monkeypatch):
     assert isinstance(result, gpd.GeoDataFrame)
     assert "grid_id" in result.columns
 
+
 def test_create_patrol_coverage_grid_handles_zero_distance():
     trajs = gpd.read_file(TEST_DATA_DIR / "sample_trajs.gpkg")
     trajs["patrol_id"] = trajs["id"]
@@ -76,12 +81,11 @@ def test_create_patrol_coverage_grid_handles_zero_distance():
 
     assert not result["time_spent_seconds"].isna().any()
 
+
 def test_compute_occupancy_basic():
     trajs = gpd.read_file(TEST_DATA_DIR / "sample_trajs.gpkg")
     trajs["patrol_id"] = trajs["id"]
-    coverage_grid = create_patrol_coverage_grid(
-        trajs
-    )
+    coverage_grid = create_patrol_coverage_grid(trajs)
 
     regions = gpd.read_file(TEST_DATA_DIR / "kenya_pa.gpkg")
 
@@ -123,24 +127,25 @@ def test_compute_occupancy_empty_patrol_coverage():
             crs="EPSG:3857",
         )
 
+
 def test_compute_occupancy_skips_zero_area_region(caplog):
     trajs = gpd.read_file(TEST_DATA_DIR / "sample_trajs.gpkg")
     trajs["patrol_id"] = trajs["id"]
-    coverage_grid = create_patrol_coverage_grid(trajs
-    )
+    coverage_grid = create_patrol_coverage_grid(trajs)
 
     regions = gpd.read_file(TEST_DATA_DIR / "kenya_pa.gpkg")
 
     # Force one region to have zero area
     regions.loc[0, "geometry"] = regions.loc[0, "geometry"].boundary
 
-    result = compute_occupancy(
+    compute_occupancy(
         coverage_grid,
         regions,
         crs="EPSG:3857",
     )
 
     assert "zero area" in caplog.text.lower()
+
 
 def test_compute_occupancy_sorted_descending():
     trajs = gpd.read_file(TEST_DATA_DIR / "sample_trajs.gpkg")
@@ -156,4 +161,3 @@ def test_compute_occupancy_sorted_descending():
     )
 
     assert result["occupancy_percentage"].is_monotonic_decreasing
-
