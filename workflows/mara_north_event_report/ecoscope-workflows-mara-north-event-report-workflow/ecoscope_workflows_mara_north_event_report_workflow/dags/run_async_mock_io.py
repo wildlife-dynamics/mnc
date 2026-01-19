@@ -145,7 +145,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_values
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
-from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df_1
+from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df
 from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
@@ -8691,7 +8691,7 @@ def main(params: Params):
             method="call",
         ),
         "merge_trajs": Node(
-            async_task=merge_multiple_df_1.validate()
+            async_task=merge_multiple_df.validate()
             .set_task_instance_id("merge_trajs")
             .handle_errors()
             .with_tracing()
@@ -8713,6 +8713,13 @@ def main(params: Params):
             .set_task_instance_id("rename_combined_trajs")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "drop_columns": [
@@ -8743,6 +8750,13 @@ def main(params: Params):
             .set_task_instance_id("persist_trajectories_data")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -8758,6 +8772,13 @@ def main(params: Params):
             .set_task_instance_id("ranger_patrol_metrics")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "groupby_cols": [
@@ -8798,6 +8819,13 @@ def main(params: Params):
             .set_task_instance_id("replace_ranger_nulls")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("ranger_patrol_metrics"),
@@ -8814,6 +8842,13 @@ def main(params: Params):
             .set_task_instance_id("add_ranger_metrics_totals")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "label_col": [
@@ -8830,6 +8865,13 @@ def main(params: Params):
             .set_task_instance_id("persist_total_df")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -8845,6 +8887,13 @@ def main(params: Params):
             .set_task_instance_id("patrol_grid_visits")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "grid_cell_size": 1000,
@@ -8858,6 +8907,13 @@ def main(params: Params):
             .set_task_instance_id("apply_classification_grid")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "unique_patrol_count",
@@ -8880,6 +8936,13 @@ def main(params: Params):
             .set_task_instance_id("apply_grid_colormap")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "input_column_name": "density_bins",
@@ -8939,6 +9002,13 @@ def main(params: Params):
             .set_task_instance_id("combine_grid_layers")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "static_layers": [
@@ -8956,6 +9026,13 @@ def main(params: Params):
             .set_task_instance_id("draw_grid_map")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "tile_layers": DependsOn("configure_base_maps"),
@@ -8976,6 +9053,13 @@ def main(params: Params):
             .set_task_instance_id("persist_grid_urls")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -8990,6 +9074,13 @@ def main(params: Params):
             .set_task_instance_id("compute_patrol_occupancy")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "coverage_grid_gdf": DependsOn("patrol_grid_visits"),
@@ -9004,6 +9095,13 @@ def main(params: Params):
             .set_task_instance_id("round_off_patrol")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("compute_patrol_occupancy"),
@@ -9018,6 +9116,13 @@ def main(params: Params):
             .set_task_instance_id("persist_occupancy_df")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9033,6 +9138,13 @@ def main(params: Params):
             .set_task_instance_id("convert_chart_html_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9063,6 +9175,13 @@ def main(params: Params):
             .set_task_instance_id("convert_mobile_boma_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9082,6 +9201,13 @@ def main(params: Params):
             .set_task_instance_id("convert_livestock_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9101,6 +9227,13 @@ def main(params: Params):
             .set_task_instance_id("convert_wildlife_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9120,6 +9253,13 @@ def main(params: Params):
             .set_task_instance_id("convert_elephant_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9139,6 +9279,13 @@ def main(params: Params):
             .set_task_instance_id("convert_ele_herd_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9158,6 +9305,13 @@ def main(params: Params):
             .set_task_instance_id("convert_buffalo_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9177,6 +9331,13 @@ def main(params: Params):
             .set_task_instance_id("convert_buffalo_herd_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9196,6 +9357,13 @@ def main(params: Params):
             .set_task_instance_id("convert_rhino_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9215,6 +9383,13 @@ def main(params: Params):
             .set_task_instance_id("convert_lion_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9234,6 +9409,13 @@ def main(params: Params):
             .set_task_instance_id("convert_leopard_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9253,6 +9435,13 @@ def main(params: Params):
             .set_task_instance_id("convert_cheetah_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9272,6 +9461,13 @@ def main(params: Params):
             .set_task_instance_id("convert_giraffe_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9291,6 +9487,13 @@ def main(params: Params):
             .set_task_instance_id("convert_foot_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9310,6 +9513,13 @@ def main(params: Params):
             .set_task_instance_id("convert_vehicle_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9329,6 +9539,13 @@ def main(params: Params):
             .set_task_instance_id("convert_motor_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
@@ -9348,6 +9565,13 @@ def main(params: Params):
             .set_task_instance_id("convert_grid_png")
             .handle_errors()
             .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],

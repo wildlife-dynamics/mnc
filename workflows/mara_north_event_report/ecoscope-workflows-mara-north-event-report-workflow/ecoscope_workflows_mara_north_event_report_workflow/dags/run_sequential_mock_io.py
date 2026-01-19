@@ -144,7 +144,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_values
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
-from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df_1
+from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df
 from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
@@ -7820,7 +7820,7 @@ def main(params: Params):
     )
 
     merge_trajs = (
-        merge_multiple_df_1.validate()
+        merge_multiple_df.validate()
         .set_task_instance_id("merge_trajs")
         .handle_errors()
         .with_tracing()
@@ -7838,6 +7838,13 @@ def main(params: Params):
         .set_task_instance_id("rename_combined_trajs")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
@@ -7865,6 +7872,13 @@ def main(params: Params):
         .set_task_instance_id("persist_trajectories_data")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="geoparquet",
@@ -7880,6 +7894,13 @@ def main(params: Params):
         .set_task_instance_id("ranger_patrol_metrics")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             groupby_cols=["participants"],
             summary_params=[
@@ -7918,6 +7939,13 @@ def main(params: Params):
         .set_task_instance_id("replace_ranger_nulls")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=ranger_patrol_metrics,
             columns=["participants"],
@@ -7932,6 +7960,13 @@ def main(params: Params):
         .set_task_instance_id("add_ranger_metrics_totals")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             label_col=["participants"],
             label="Total",
@@ -7946,6 +7981,13 @@ def main(params: Params):
         .set_task_instance_id("persist_total_df")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -7961,6 +8003,13 @@ def main(params: Params):
         .set_task_instance_id("patrol_grid_visits")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             grid_cell_size=1000,
             trajs=rename_combined_trajs,
@@ -7974,6 +8023,13 @@ def main(params: Params):
         .set_task_instance_id("apply_classification_grid")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="unique_patrol_count",
             output_column_name="density_bins",
@@ -7990,6 +8046,13 @@ def main(params: Params):
         .set_task_instance_id("apply_grid_colormap")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             input_column_name="density_bins",
             colormap="RdYlGn_r",
@@ -8045,6 +8108,13 @@ def main(params: Params):
         .set_task_instance_id("combine_grid_layers")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             static_layers=[
                 create_conservancy_boundaries,
@@ -8062,6 +8132,13 @@ def main(params: Params):
         .set_task_instance_id("draw_grid_map")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             tile_layers=configure_base_maps,
             static=False,
@@ -8080,6 +8157,13 @@ def main(params: Params):
         .set_task_instance_id("persist_grid_urls")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             text=draw_grid_map,
@@ -8094,6 +8178,13 @@ def main(params: Params):
         .set_task_instance_id("compute_patrol_occupancy")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             coverage_grid_gdf=patrol_grid_visits,
             regions_gdf=conservancy_gdf,
@@ -8108,6 +8199,13 @@ def main(params: Params):
         .set_task_instance_id("round_off_patrol")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             df=compute_patrol_occupancy,
             column="occupancy_percentage",
@@ -8122,6 +8220,13 @@ def main(params: Params):
         .set_task_instance_id("persist_occupancy_df")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
@@ -8137,6 +8242,13 @@ def main(params: Params):
         .set_task_instance_id("convert_chart_html_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=[
@@ -8167,6 +8279,13 @@ def main(params: Params):
         .set_task_instance_id("convert_mobile_boma_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_mobile_boma_urls,
@@ -8186,6 +8305,13 @@ def main(params: Params):
         .set_task_instance_id("convert_livestock_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_livestock_urls,
@@ -8205,6 +8331,13 @@ def main(params: Params):
         .set_task_instance_id("convert_wildlife_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_wildlife_urls,
@@ -8224,6 +8357,13 @@ def main(params: Params):
         .set_task_instance_id("convert_elephant_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_elephant_urls,
@@ -8243,6 +8383,13 @@ def main(params: Params):
         .set_task_instance_id("convert_ele_herd_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_ele_herd_urls,
@@ -8262,6 +8409,13 @@ def main(params: Params):
         .set_task_instance_id("convert_buffalo_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_buffalo_urls,
@@ -8281,6 +8435,13 @@ def main(params: Params):
         .set_task_instance_id("convert_buffalo_herd_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_buffalo_herd_urls,
@@ -8300,6 +8461,13 @@ def main(params: Params):
         .set_task_instance_id("convert_rhino_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_rhino_urls,
@@ -8319,6 +8487,13 @@ def main(params: Params):
         .set_task_instance_id("convert_lion_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_lion_urls,
@@ -8338,6 +8513,13 @@ def main(params: Params):
         .set_task_instance_id("convert_leopard_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_leopard_urls,
@@ -8357,6 +8539,13 @@ def main(params: Params):
         .set_task_instance_id("convert_cheetah_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_cheetah_urls,
@@ -8376,6 +8565,13 @@ def main(params: Params):
         .set_task_instance_id("convert_giraffe_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_giraffe_urls,
@@ -8395,6 +8591,13 @@ def main(params: Params):
         .set_task_instance_id("convert_foot_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_foot_urls,
@@ -8414,6 +8617,13 @@ def main(params: Params):
         .set_task_instance_id("convert_vehicle_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_vehicle_urls,
@@ -8433,6 +8643,13 @@ def main(params: Params):
         .set_task_instance_id("convert_motor_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_motor_urls,
@@ -8452,6 +8669,13 @@ def main(params: Params):
         .set_task_instance_id("convert_grid_png")
         .handle_errors()
         .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
         .partial(
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             html_path=persist_grid_urls,
