@@ -42,7 +42,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry_1,
+    drop_null_geometry as drop_null_geometry,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     exclude_row_values as exclude_row_values,
@@ -2435,7 +2435,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_mb_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_mb_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -2959,7 +2959,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_livestock_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_livestock_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -3374,7 +3374,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_wildlife_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_wildlife_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -3773,7 +3773,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_ele_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_ele_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -4143,7 +4143,7 @@ def main(params: Params):
             method="call",
         ),
         "drop_ele_bins_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("drop_ele_bins_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -4529,7 +4529,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_buffalo_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_buffalo_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -4825,7 +4825,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_buff_bins_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_buff_bins_geoms")
             .handle_errors()
             .with_tracing()
@@ -5113,7 +5113,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_rhino_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_rhino_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -5581,7 +5581,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_lion_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_lion_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -6016,7 +6016,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_leopard_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_leopard_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -6429,7 +6429,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_cheetah_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_cheetah_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -6740,7 +6740,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_giraffe_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_giraffe_invalid_geoms")
             .handle_errors()
             .with_tracing()

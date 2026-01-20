@@ -1,4 +1,3 @@
-from ._example import add_one_thousand
 from ._tabular import (
     map_column_values,
     add_totals_row,

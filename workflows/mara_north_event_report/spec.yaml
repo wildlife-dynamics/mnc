@@ -9,7 +9,7 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.17.*"
+    version: "0.0.20.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
@@ -4203,6 +4203,7 @@ workflow:
       on: patrol_id 
       how: left 
       preserve_left_index: true 
+
 
   - name: Transform observations to relocations
     id: obs_relocs
