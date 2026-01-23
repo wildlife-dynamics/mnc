@@ -16,6 +16,7 @@ from ._tabular import (
     filter_non_empty_values,
     explode_multiple_columns,
     round_values,
+    filter_columns,
 )
 from ._merge import merge_dataframes, merge_multiple_df
 from ._summarize import make_wildlife_summary_table
@@ -26,7 +27,7 @@ from ._mnc_context import generate_mnc_report
 from ._transform import transform_columns
 
 __all__ = [
-    "add_one_thousand",
+    "filter_columns",
     "create_gdf_from_dict",
     "exclude_geom_outliers",
     "map_column_values",

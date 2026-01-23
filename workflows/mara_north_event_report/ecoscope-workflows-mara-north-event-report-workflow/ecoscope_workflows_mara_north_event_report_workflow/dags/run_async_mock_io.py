@@ -134,6 +134,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import (
     explode_multiple_columns as explode_multiple_columns,
 )
+from ecoscope_workflows_ext_mnc.tasks import filter_columns as filter_columns
 from ecoscope_workflows_ext_mnc.tasks import (
     filter_non_empty_values as filter_non_empty_values,
 )
@@ -525,8 +526,15 @@ def main(params: Params):
             "combine_giraffe_events",
             "global_zoom_value",
         ],
-        "persist_giraffe_urls": ["draw_rhino_map"],
+        "persist_giraffe_urls": ["draw_giraffe_map"],
         "filter_balloon_events": ["events_temporal"],
+        "normalize_balloon_values": ["filter_balloon_events"],
+        "rename_balloon_boma": ["normalize_balloon_values"],
+        "remove_balloon_brackets": ["rename_balloon_boma"],
+        "replace_lodge_nulls": ["remove_balloon_brackets"],
+        "convert_passengers_int": ["replace_lodge_nulls"],
+        "generate_balloon_table": ["convert_passengers_int"],
+        "persist_balloon_summary": ["generate_balloon_table"],
         "filter_airstrip_events": ["events_temporal"],
         "normalize_airstrip_values": ["filter_airstrip_events"],
         "rename_airstrip": ["normalize_airstrip_values"],
@@ -537,6 +545,11 @@ def main(params: Params):
         "airstrip_summary_table": ["lodge_scase"],
         "pivot_airstrip_table": ["airstrip_summary_table"],
         "persist_airstrip_summary": ["pivot_airstrip_table"],
+        "filter_am_events": ["events_temporal"],
+        "normalize_am_values": ["filter_am_events"],
+        "rename_am": ["normalize_am_values"],
+        "filter_cols": ["rename_am"],
+        "persist_air_maintenance": ["filter_cols"],
         "filter_patrol_info_events": ["events_temporal"],
         "normalize_pi_values": ["filter_patrol_info_events"],
         "rename_patrol_info": ["normalize_pi_values"],
@@ -573,7 +586,8 @@ def main(params: Params):
         "add_fp_metrics_totals": ["foot_patrol_metrics"],
         "persist_foot_df": ["add_fp_metrics_totals"],
         "apply_footp_colormap": ["rename_foot_trajs"],
-        "generate_foot_layers": ["apply_footp_colormap"],
+        "filter_foot_patrol_cols": ["apply_footp_colormap"],
+        "generate_foot_layers": ["filter_foot_patrol_cols"],
         "combine_foot_layers": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -590,7 +604,8 @@ def main(params: Params):
         "add_vh_metrics_totals": ["vehicle_patrol_metrics"],
         "persist_vehicle_df": ["add_vh_metrics_totals"],
         "apply_vehicle_colormap": ["rename_vehicle_trajs"],
-        "generate_vehicle_layers": ["apply_vehicle_colormap"],
+        "filter_vehicle_patrol_cols": ["apply_vehicle_colormap"],
+        "generate_vehicle_layers": ["filter_vehicle_patrol_cols"],
         "combine_vehicle_layers": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -607,7 +622,8 @@ def main(params: Params):
         "add_mb_metrics_totals": ["motor_patrol_metrics"],
         "persist_motor_df": ["add_mb_metrics_totals"],
         "apply_motor_colormap": ["rename_motor_trajs"],
-        "generate_motor_layers": ["apply_motor_colormap"],
+        "filter_motor_patrol_cols": ["apply_motor_colormap"],
+        "generate_motor_layers": ["filter_motor_patrol_cols"],
         "combine_motor_layers": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -740,7 +756,7 @@ def main(params: Params):
             .with_tracing()
             .set_executor("lithops"),
             partial={
-                "url": "https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=dd8nv4q7&dl=0",
+                "url": "https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0",
                 "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "overwrite_existing": False,
                 "retries": 3,
@@ -2060,6 +2076,7 @@ def main(params: Params):
                 "values": [
                     "distancecountwildlife_rep",
                     "distancecountpatrol_rep",
+                    "airstrip_operations",
                 ],
             }
             | (params_dict.get("filter_events") or {}),
@@ -3144,6 +3161,7 @@ def main(params: Params):
                     "wildlife_injury_rep",
                     "wildlife_treatment_rep",
                     "wildlife_carcass_rep",
+                    "illegal_grazing_rep",
                 ],
             }
             | (params_dict.get("filter_wildlife_events") or {}),
@@ -3266,6 +3284,7 @@ def main(params: Params):
                     "wildlife_carcass_rep": "Wildlife carcass",
                     "wildlife_injury_rep": "Injured wildlife",
                     "wildlife_treatment_rep": "Veterinary treatment",
+                    "illegal_grazing_rep": "Illegal grazing",
                 },
                 "max_unique": 6,
                 "shorten_width": 300,
@@ -3457,6 +3476,7 @@ def main(params: Params):
                     "wildlife_carcass_rep": "Wildlife carcass",
                     "wildlife_injury_rep": "Injured wildlife",
                     "wildlife_treatment_rep": "Veterinary treatment",
+                    "illegal_grazing_rep": "Illegal grazing",
                 },
                 "inplace": True,
             }
@@ -6752,7 +6772,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("rename_giraffe_cols"),
-                "z_threshold": 2,
+                "z_threshold": 3,
             }
             | (params_dict.get("exclude_giraffe_outliers") or {}),
             method="call",
@@ -6896,7 +6916,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "text": DependsOn("draw_rhino_map"),
+                "text": DependsOn("draw_giraffe_map"),
                 "filename": "giraffe_sighting_map.html",
             }
             | (params_dict.get("persist_giraffe_urls") or {}),
@@ -6918,11 +6938,189 @@ def main(params: Params):
             partial={
                 "column_name": "event_type",
                 "op": "equal",
-                "value": "balloon_sighting_rep",
+                "value": "balloon_landing",
                 "df": DependsOn("events_temporal"),
                 "reset_index": False,
             }
             | (params_dict.get("filter_balloon_events") or {}),
+            method="call",
+        ),
+        "normalize_balloon_values": Node(
+            async_task=normalize_json_column.validate()
+            .set_task_instance_id("normalize_balloon_values")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("filter_balloon_events"),
+                "skip_if_not_exists": True,
+                "sort_columns": True,
+            }
+            | (params_dict.get("normalize_balloon_values") or {}),
+            method="call",
+        ),
+        "rename_balloon_boma": Node(
+            async_task=transform_columns.validate()
+            .set_task_instance_id("rename_balloon_boma")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "rename_columns": {
+                    "event_details__of_passengers": "no_of_passengers",
+                    "event_details__balloon_company": "balloon_company",
+                    "event_details__where_are_clients_staying": "lodge",
+                },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__of_passengers",
+                    "event_details__balloon_company",
+                    "date",
+                    "event_details__where_are_clients_staying",
+                ],
+                "df": DependsOn("normalize_balloon_values"),
+            }
+            | (params_dict.get("rename_balloon_boma") or {}),
+            method="call",
+        ),
+        "remove_balloon_brackets": Node(
+            async_task=remove_brackets_from_column.validate()
+            .set_task_instance_id("remove_balloon_brackets")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_balloon_boma"),
+                "columns": [
+                    "lodge",
+                    "balloon_company",
+                ],
+            }
+            | (params_dict.get("remove_balloon_brackets") or {}),
+            method="call",
+        ),
+        "replace_lodge_nulls": Node(
+            async_task=replace_missing_with_label.validate()
+            .set_task_instance_id("replace_lodge_nulls")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("remove_balloon_brackets"),
+                "columns": [
+                    "lodge",
+                ],
+                "label": "other",
+            }
+            | (params_dict.get("replace_lodge_nulls") or {}),
+            method="call",
+        ),
+        "convert_passengers_int": Node(
+            async_task=convert_to_int.validate()
+            .set_task_instance_id("convert_passengers_int")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("replace_lodge_nulls"),
+                "columns": [
+                    "no_of_passengers",
+                ],
+                "errors": "coerce",
+                "fill_value": 0,
+                "inplace": False,
+            }
+            | (params_dict.get("convert_passengers_int") or {}),
+            method="call",
+        ),
+        "generate_balloon_table": Node(
+            async_task=summarize_df.validate()
+            .set_task_instance_id("generate_balloon_table")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": [
+                    "date",
+                    "balloon_company",
+                    "lodge",
+                ],
+                "summary_params": [
+                    {
+                        "display_name": "no_of_passengers",
+                        "aggregator": "sum",
+                        "column": "no_of_passengers",
+                    },
+                ],
+                "reset_index": True,
+                "df": DependsOn("convert_passengers_int"),
+            }
+            | (params_dict.get("generate_balloon_table") or {}),
+            method="call",
+        ),
+        "persist_balloon_summary": Node(
+            async_task=persist_df.validate()
+            .set_task_instance_id("persist_balloon_summary")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("generate_balloon_table"),
+                "filename": "balloon_landing_by_date",
+            }
+            | (params_dict.get("persist_balloon_summary") or {}),
             method="call",
         ),
         "filter_airstrip_events": Node(
@@ -7168,6 +7366,122 @@ def main(params: Params):
                 "filename": "airstrip_arrivals_and_departure",
             }
             | (params_dict.get("persist_airstrip_summary") or {}),
+            method="call",
+        ),
+        "filter_am_events": Node(
+            async_task=filter_df.validate()
+            .set_task_instance_id("filter_am_events")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "airstrip_maintenance",
+                "df": DependsOn("events_temporal"),
+                "reset_index": False,
+            }
+            | (params_dict.get("filter_am_events") or {}),
+            method="call",
+        ),
+        "normalize_am_values": Node(
+            async_task=normalize_json_column.validate()
+            .set_task_instance_id("normalize_am_values")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("filter_am_events"),
+                "skip_if_not_exists": True,
+                "sort_columns": True,
+            }
+            | (params_dict.get("normalize_am_values") or {}),
+            method="call",
+        ),
+        "rename_am": Node(
+            async_task=transform_columns.validate()
+            .set_task_instance_id("rename_am")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "rename_columns": {
+                    "event_details__maintenance_type": "activity",
+                },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__maintenance_type",
+                ],
+                "df": DependsOn("normalize_am_values"),
+            }
+            | (params_dict.get("rename_am") or {}),
+            method="call",
+        ),
+        "filter_cols": Node(
+            async_task=filter_columns.validate()
+            .set_task_instance_id("filter_cols")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("rename_am"),
+                "columns": [
+                    "date",
+                    "activity",
+                ],
+            }
+            | (params_dict.get("filter_cols") or {}),
+            method="call",
+        ),
+        "persist_air_maintenance": Node(
+            async_task=persist_df.validate()
+            .set_task_instance_id("persist_air_maintenance")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("filter_cols"),
+                "filename": "airstrip_maintenance_table",
+            }
+            | (params_dict.get("persist_air_maintenance") or {}),
             method="call",
         ),
         "filter_patrol_info_events": Node(
@@ -8128,6 +8442,32 @@ def main(params: Params):
             | (params_dict.get("apply_footp_colormap") or {}),
             method="call",
         ),
+        "filter_foot_patrol_cols": Node(
+            async_task=filter_columns.validate()
+            .set_task_instance_id("filter_foot_patrol_cols")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("apply_footp_colormap"),
+                "columns": [
+                    "timespan_seconds",
+                    "dist_meters",
+                    "geometry",
+                    "patrol_type_value",
+                    "foot_patrol_colors",
+                ],
+            }
+            | (params_dict.get("filter_foot_patrol_cols") or {}),
+            method="call",
+        ),
         "generate_foot_layers": Node(
             async_task=create_path_layer.validate()
             .set_task_instance_id("generate_foot_layers")
@@ -8161,7 +8501,7 @@ def main(params: Params):
                     "color_column": "foot_patrol_colors",
                     "sort": "ascending",
                 },
-                "geodataframe": DependsOn("apply_footp_colormap"),
+                "geodataframe": DependsOn("filter_foot_patrol_cols"),
             }
             | (params_dict.get("generate_foot_layers") or {}),
             method="call",
@@ -8354,6 +8694,32 @@ def main(params: Params):
             | (params_dict.get("apply_vehicle_colormap") or {}),
             method="call",
         ),
+        "filter_vehicle_patrol_cols": Node(
+            async_task=filter_columns.validate()
+            .set_task_instance_id("filter_vehicle_patrol_cols")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("apply_vehicle_colormap"),
+                "columns": [
+                    "timespan_seconds",
+                    "dist_meters",
+                    "geometry",
+                    "patrol_type_value",
+                    "colors",
+                ],
+            }
+            | (params_dict.get("filter_vehicle_patrol_cols") or {}),
+            method="call",
+        ),
         "generate_vehicle_layers": Node(
             async_task=create_path_layer.validate()
             .set_task_instance_id("generate_vehicle_layers")
@@ -8387,7 +8753,7 @@ def main(params: Params):
                     "color_column": "colors",
                     "sort": "ascending",
                 },
-                "geodataframe": DependsOn("apply_vehicle_colormap"),
+                "geodataframe": DependsOn("filter_vehicle_patrol_cols"),
             }
             | (params_dict.get("generate_vehicle_layers") or {}),
             method="call",
@@ -8580,6 +8946,32 @@ def main(params: Params):
             | (params_dict.get("apply_motor_colormap") or {}),
             method="call",
         ),
+        "filter_motor_patrol_cols": Node(
+            async_task=filter_columns.validate()
+            .set_task_instance_id("filter_motor_patrol_cols")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("apply_motor_colormap"),
+                "columns": [
+                    "timespan_seconds",
+                    "dist_meters",
+                    "geometry",
+                    "patrol_type_value",
+                    "colors",
+                ],
+            }
+            | (params_dict.get("filter_motor_patrol_cols") or {}),
+            method="call",
+        ),
         "generate_motor_layers": Node(
             async_task=create_path_layer.validate()
             .set_task_instance_id("generate_motor_layers")
@@ -8613,7 +9005,7 @@ def main(params: Params):
                     "color_column": "colors",
                     "sort": "ascending",
                 },
-                "geodataframe": DependsOn("apply_motor_colormap"),
+                "geodataframe": DependsOn("filter_motor_patrol_cols"),
             }
             | (params_dict.get("generate_motor_layers") or {}),
             method="call",

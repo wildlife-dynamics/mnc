@@ -117,7 +117,7 @@ def generate_mnc_report(
 
     # 4. Wildlife monitoring images
     wildlife_images = {
-        "wildlife_incidents_events_ecomap": "wildlife_incidents_map",
+        "wildlife_incident_events_ecomap": "wildlife_incidents_map",
         "elephant_events_distribution": "elephant_herd_size_bar_chart",
         "elephant_sighting_ecomap": "elephant_sightings_events",
         "elephant_herd_types_ecomap": "elephant_herd_types_map",
@@ -128,6 +128,7 @@ def generate_mnc_report(
         "lion_sightings_ecomap": "lion_sightings_map",
         "leopard_sightings_ecomap": "leopard_sightings_map",
         "cheetah_sightings_ecomap": "cheetah_sightings_map",
+        "giraffe_events_sightings": "giraffe_sighting_map",
     }
 
     # Combine all image mappings
@@ -169,6 +170,8 @@ def generate_mnc_report(
         "cheetah_observations": "individual_cheetah_summary",
         # Logistics tables
         "airstrip_observations": "airstrip_arrivals_and_departure",
+        "balloon_observations": "balloon_landing_by_date",
+        "airstrip_maintenance_observations": "airstrip_maintenance_table",
     }
 
     # Add tables to context
