@@ -3,7 +3,7 @@ import ast
 import warnings
 import numpy as np
 import pandas as pd
-from typing import Union, List, Dict
+from typing import Union, List, Dict, Optional
 from ecoscope_workflows_core.decorators import task
 from ecoscope_workflows_core.annotations import AnyDataFrame
 
@@ -311,7 +311,10 @@ def remove_brackets_from_column(df: AnyDataFrame, columns: List) -> AnyDataFrame
         columns = [columns]
 
     for col in columns:
-        df[col] = df[col].apply(lambda x: x[0] if isinstance(x, list) and len(x) > 0 else None)
+        if col in df.columns:
+            df[col] = df[col].apply(
+                lambda x: x[0] if isinstance(x, list) and len(x) > 0 else (None if isinstance(x, list) else x)
+            )
     return df
 
 
@@ -485,5 +488,36 @@ def round_values(df: AnyDataFrame, column: str, decimals) -> AnyDataFrame:
 
     df = df.copy()
     df[column] = df[column].round(decimals)
+
+    return df
+
+
+@task
+def filter_columns(
+    df: AnyDataFrame, columns: Optional[List[str]] = None, exclude: Optional[List[str]] = None
+) -> AnyDataFrame:
+    """
+    Filter DataFrame columns by various criteria.
+
+    Parameters:
+    -----------
+    df : AnyDataFrame
+        Input DataFrame
+    columns : list of str, optional
+        Specific column names to keep
+    exclude : list of str, optional
+        Column names to exclude
+
+    Returns:
+    --------
+    AnyDataFrame
+        DataFrame with filtered columns
+    """
+    if columns is not None:
+        return df[columns]
+
+    if exclude is not None:
+        cols = [c for c in df.columns if c not in exclude]
+        return df[cols]
 
     return df
