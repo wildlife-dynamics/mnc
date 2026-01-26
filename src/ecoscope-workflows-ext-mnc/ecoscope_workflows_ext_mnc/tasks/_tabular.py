@@ -388,6 +388,24 @@ def map_name_values(df: AnyDataFrame, column: str) -> AnyDataFrame:
 
 
 @task
+def capitalize_text(df: AnyDataFrame, column: str) -> AnyDataFrame:
+    """
+    Convert strings like 'ab_cd' to 'Ab cd' in a given dataframe column.
+    """
+    if column not in df.columns:
+        raise ValueError(f"Column '{column}' not found in DataFrame")
+
+    df[column] = (
+        df[column]
+        .astype(str)  # ensure string
+        .str.replace("_", " ")  # swap underscores
+        .str.lower()  # make all lower
+        .str.capitalize()  # capitalize first letter only
+    )
+    return df
+
+
+@task
 def filter_non_empty_values(df: AnyDataFrame, column: str) -> AnyDataFrame:
     """
     Filter dataframe to keep only rows where the specified column has non-empty values.
