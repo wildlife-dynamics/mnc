@@ -1537,7 +1537,7 @@ workflow:
       view_state: #${{ workflow.global_zoom_value.return }}  # this needs to be zoomed out 
         longitude: 35.2092935880001
         latitude: -1.257840580999955
-        zoom: 11.75
+        zoom: 9.75
         pitch: 0 
         bearing: 0 
 
