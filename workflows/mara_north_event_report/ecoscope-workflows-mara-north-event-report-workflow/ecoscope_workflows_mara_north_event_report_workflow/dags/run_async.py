@@ -79,6 +79,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
 )
 from ecoscope_workflows_ext_mnc.tasks import add_totals_row as add_totals_row
 from ecoscope_workflows_ext_mnc.tasks import bin_columns as bin_columns
+from ecoscope_workflows_ext_mnc.tasks import capitalize_text as capitalize_text
 from ecoscope_workflows_ext_mnc.tasks import categorize_bins as categorize_bins
 from ecoscope_workflows_ext_mnc.tasks import (
     clean_dataframe_index as clean_dataframe_index,
@@ -113,7 +114,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_values
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
-from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df_1
+from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df
 from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
@@ -258,11 +259,7 @@ def main(params: Params):
             "conservancy_text_layer",
             "generate_livestock_layers",
         ],
-        "draw_livestock_map": [
-            "configure_base_maps",
-            "combine_custom_livestock",
-            "global_zoom_value",
-        ],
+        "draw_livestock_map": ["configure_base_maps", "combine_custom_livestock"],
         "persist_livestock_urls": ["draw_livestock_map"],
         "filter_wildlife_events": ["events_temporal"],
         "normalize_wildlife_events": ["filter_wildlife_events"],
@@ -509,6 +506,24 @@ def main(params: Params):
             "global_zoom_value",
         ],
         "persist_giraffe_urls": ["draw_giraffe_map"],
+        "filter_hb_events": ["events_temporal"],
+        "normalize_hb_values": ["filter_hb_events"],
+        "exclude_hb_outliers": ["normalize_hb_values"],
+        "remove_hb_invalid_geoms": ["exclude_hb_outliers"],
+        "apply_hb_colormap": ["remove_hb_invalid_geoms"],
+        "generate_hb_layers": ["apply_hb_colormap"],
+        "combine_hb_events": [
+            "create_conservancy_boundaries",
+            "create_mnc_parcels_layers",
+            "conservancy_text_layer",
+            "generate_hb_layers",
+        ],
+        "draw_hb_map": [
+            "configure_base_maps",
+            "combine_hb_events",
+            "global_zoom_value",
+        ],
+        "persist_hb_urls": ["draw_hb_map"],
         "filter_balloon_events": ["events_temporal"],
         "normalize_balloon_values": ["filter_balloon_events"],
         "rename_balloon_boma": ["normalize_balloon_values"],
@@ -516,7 +531,9 @@ def main(params: Params):
         "replace_lodge_nulls": ["remove_balloon_brackets"],
         "convert_passengers_int": ["replace_lodge_nulls"],
         "generate_balloon_table": ["convert_passengers_int"],
-        "persist_balloon_summary": ["generate_balloon_table"],
+        "capitalize_balloon_co": ["generate_balloon_table"],
+        "capitalize_lodge": ["capitalize_balloon_co"],
+        "persist_balloon_summary": ["capitalize_lodge"],
         "filter_airstrip_events": ["events_temporal"],
         "normalize_airstrip_values": ["filter_airstrip_events"],
         "rename_airstrip": ["normalize_airstrip_values"],
@@ -531,12 +548,14 @@ def main(params: Params):
         "normalize_am_values": ["filter_am_events"],
         "rename_am": ["normalize_am_values"],
         "filter_cols": ["rename_am"],
-        "persist_air_maintenance": ["filter_cols"],
+        "capitalize_activity_col": ["filter_cols"],
+        "persist_air_maintenance": ["capitalize_activity_col"],
         "filter_patrol_info_events": ["events_temporal"],
         "normalize_pi_values": ["filter_patrol_info_events"],
         "rename_patrol_info": ["normalize_pi_values"],
         "patrol_info_summary": ["rename_patrol_info"],
-        "include_pat_totals": ["patrol_info_summary"],
+        "capitalize_patrol_text": ["patrol_info_summary"],
+        "include_pat_totals": ["capitalize_patrol_text"],
         "persist_patrol_df": ["include_pat_totals"],
         "rename_participants": ["rename_patrol_info"],
         "filter_null_patrols": ["rename_participants"],
@@ -668,6 +687,7 @@ def main(params: Params):
         "convert_leopard_png": ["persist_leopard_urls"],
         "convert_cheetah_png": ["persist_cheetah_urls"],
         "convert_giraffe_png": ["persist_giraffe_urls"],
+        "convert_hb_png": ["persist_hb_urls"],
         "convert_foot_png": ["persist_foot_urls"],
         "convert_vehicle_png": ["persist_vehicle_urls"],
         "convert_motor_png": ["persist_motor_urls"],
@@ -3095,7 +3115,13 @@ def main(params: Params):
                     "placement": "bottom-right",
                 },
                 "geo_layers": DependsOn("combine_custom_livestock"),
-                "view_state": DependsOn("global_zoom_value"),
+                "view_state": {
+                    "longitude": 35.2092935880001,
+                    "latitude": -1.257840580999955,
+                    "zoom": 11.75,
+                    "pitch": 0,
+                    "bearing": 0,
+                },
             }
             | (params_dict.get("draw_livestock_map") or {}),
             method="call",
@@ -6904,6 +6930,216 @@ def main(params: Params):
             | (params_dict.get("persist_giraffe_urls") or {}),
             method="call",
         ),
+        "filter_hb_events": Node(
+            async_task=filter_df.validate()
+            .set_task_instance_id("filter_hb_events")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "hartebeest_sighting",
+                "df": DependsOn("events_temporal"),
+                "reset_index": False,
+            }
+            | (params_dict.get("filter_hb_events") or {}),
+            method="call",
+        ),
+        "normalize_hb_values": Node(
+            async_task=normalize_json_column.validate()
+            .set_task_instance_id("normalize_hb_values")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("filter_hb_events"),
+                "skip_if_not_exists": True,
+                "sort_columns": True,
+            }
+            | (params_dict.get("normalize_hb_values") or {}),
+            method="call",
+        ),
+        "exclude_hb_outliers": Node(
+            async_task=exclude_geom_outliers.validate()
+            .set_task_instance_id("exclude_hb_outliers")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("normalize_hb_values"),
+                "z_threshold": 3,
+            }
+            | (params_dict.get("exclude_hb_outliers") or {}),
+            method="call",
+        ),
+        "remove_hb_invalid_geoms": Node(
+            async_task=drop_null_geometry.validate()
+            .set_task_instance_id("remove_hb_invalid_geoms")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "gdf": DependsOn("exclude_hb_outliers"),
+                "geometry_column": "geometry",
+            }
+            | (params_dict.get("remove_hb_invalid_geoms") or {}),
+            method="call",
+        ),
+        "apply_hb_colormap": Node(
+            async_task=apply_color_map.validate()
+            .set_task_instance_id("apply_hb_colormap")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "input_column_name": "event_type",
+                "output_column_name": "colors",
+                "colormap": "tab20",
+                "df": DependsOn("remove_hb_invalid_geoms"),
+            }
+            | (params_dict.get("apply_hb_colormap") or {}),
+            method="call",
+        ),
+        "generate_hb_layers": Node(
+            async_task=create_scatterplot_layer.validate()
+            .set_task_instance_id("generate_hb_layers")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "layer_style": {
+                    "get_fill_color": "colors",
+                    "get_radius": 5,
+                    "opacity": 0.75,
+                    "stroked": False,
+                },
+                "legend": {
+                    "title": "Hartebeest Sightings",
+                    "label_column": "event_type",
+                    "color_column": "colors",
+                    "sort": "ascending",
+                },
+                "geodataframe": DependsOn("apply_hb_colormap"),
+            }
+            | (params_dict.get("generate_hb_layers") or {}),
+            method="call",
+        ),
+        "combine_hb_events": Node(
+            async_task=combine_deckgl_map_layers.validate()
+            .set_task_instance_id("combine_hb_events")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "static_layers": [
+                    DependsOn("create_conservancy_boundaries"),
+                    DependsOn("create_mnc_parcels_layers"),
+                    DependsOn("conservancy_text_layer"),
+                ],
+                "grouped_layers": DependsOn("generate_hb_layers"),
+            }
+            | (params_dict.get("combine_hb_events") or {}),
+            method="call",
+        ),
+        "draw_hb_map": Node(
+            async_task=draw_map.validate()
+            .set_task_instance_id("draw_hb_map")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "tile_layers": DependsOn("configure_base_maps"),
+                "static": False,
+                "title": None,
+                "max_zoom": 15,
+                "legend_style": {
+                    "placement": "bottom-right",
+                },
+                "geo_layers": DependsOn("combine_hb_events"),
+                "view_state": DependsOn("global_zoom_value"),
+            }
+            | (params_dict.get("draw_hb_map") or {}),
+            method="call",
+        ),
+        "persist_hb_urls": Node(
+            async_task=persist_text.validate()
+            .set_task_instance_id("persist_hb_urls")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "text": DependsOn("draw_hb_map"),
+                "filename": "hartebeest_sighting_map.html",
+            }
+            | (params_dict.get("persist_hb_urls") or {}),
+            method="call",
+        ),
         "filter_balloon_events": Node(
             async_task=filter_df.validate()
             .set_task_instance_id("filter_balloon_events")
@@ -7083,6 +7319,46 @@ def main(params: Params):
             | (params_dict.get("generate_balloon_table") or {}),
             method="call",
         ),
+        "capitalize_balloon_co": Node(
+            async_task=capitalize_text.validate()
+            .set_task_instance_id("capitalize_balloon_co")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("generate_balloon_table"),
+                "column": "balloon_company",
+            }
+            | (params_dict.get("capitalize_balloon_co") or {}),
+            method="call",
+        ),
+        "capitalize_lodge": Node(
+            async_task=capitalize_text.validate()
+            .set_task_instance_id("capitalize_lodge")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("capitalize_balloon_co"),
+                "column": "lodge",
+            }
+            | (params_dict.get("capitalize_lodge") or {}),
+            method="call",
+        ),
         "persist_balloon_summary": Node(
             async_task=persist_df.validate()
             .set_task_instance_id("persist_balloon_summary")
@@ -7099,7 +7375,7 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
-                "df": DependsOn("generate_balloon_table"),
+                "df": DependsOn("capitalize_lodge"),
                 "filename": "balloon_landing_by_date",
             }
             | (params_dict.get("persist_balloon_summary") or {}),
@@ -7252,7 +7528,7 @@ def main(params: Params):
             method="call",
         ),
         "lodge_scase": Node(
-            async_task=to_sentence_case.validate()
+            async_task=capitalize_text.validate()
             .set_task_instance_id("lodge_scase")
             .handle_errors()
             .with_tracing()
@@ -7266,9 +7542,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_clients_int"),
-                "columns": [
-                    "camp_lodge",
-                ],
+                "column": "camp_lodge",
             }
             | (params_dict.get("lodge_scase") or {}),
             method="call",
@@ -7444,6 +7718,26 @@ def main(params: Params):
             | (params_dict.get("filter_cols") or {}),
             method="call",
         ),
+        "capitalize_activity_col": Node(
+            async_task=capitalize_text.validate()
+            .set_task_instance_id("capitalize_activity_col")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("filter_cols"),
+                "column": "activity",
+            }
+            | (params_dict.get("capitalize_activity_col") or {}),
+            method="call",
+        ),
         "persist_air_maintenance": Node(
             async_task=persist_df.validate()
             .set_task_instance_id("persist_air_maintenance")
@@ -7460,7 +7754,7 @@ def main(params: Params):
             partial={
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
-                "df": DependsOn("filter_cols"),
+                "df": DependsOn("capitalize_activity_col"),
                 "filename": "airstrip_maintenance_table",
             }
             | (params_dict.get("persist_air_maintenance") or {}),
@@ -7567,6 +7861,26 @@ def main(params: Params):
             | (params_dict.get("patrol_info_summary") or {}),
             method="call",
         ),
+        "capitalize_patrol_text": Node(
+            async_task=capitalize_text.validate()
+            .set_task_instance_id("capitalize_patrol_text")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("patrol_info_summary"),
+                "column": "purpose",
+            }
+            | (params_dict.get("capitalize_patrol_text") or {}),
+            method="call",
+        ),
         "include_pat_totals": Node(
             async_task=add_totals_row.validate()
             .set_task_instance_id("include_pat_totals")
@@ -7585,7 +7899,7 @@ def main(params: Params):
                     "purpose",
                 ],
                 "label": "Total",
-                "df": DependsOn("patrol_info_summary"),
+                "df": DependsOn("capitalize_patrol_text"),
             }
             | (params_dict.get("include_pat_totals") or {}),
             method="call",
@@ -8478,7 +8792,7 @@ def main(params: Params):
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Foot Patrols",
+                    "title": "Patrol Type",
                     "label_column": "patrol_type_value",
                     "color_column": "foot_patrol_colors",
                     "sort": "ascending",
@@ -8730,7 +9044,7 @@ def main(params: Params):
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Vehicle Patrols",
+                    "title": "Patrol Type",
                     "label_column": "patrol_type_value",
                     "color_column": "colors",
                     "sort": "ascending",
@@ -8982,7 +9296,7 @@ def main(params: Params):
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Motorbike Patrols",
+                    "title": "Patrol Type",
                     "label_column": "patrol_type_value",
                     "color_column": "colors",
                     "sort": "ascending",
@@ -9065,7 +9379,7 @@ def main(params: Params):
             method="call",
         ),
         "merge_trajs": Node(
-            async_task=merge_multiple_df_1.validate()
+            async_task=merge_multiple_df.validate()
             .set_task_instance_id("merge_trajs")
             .handle_errors()
             .with_tracing()
@@ -9854,6 +10168,32 @@ def main(params: Params):
                 },
             }
             | (params_dict.get("convert_giraffe_png") or {}),
+            method="call",
+        ),
+        "convert_hb_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_hb_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_hb_urls"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 20000,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_hb_png") or {}),
             method="call",
         ),
         "convert_foot_png": Node(

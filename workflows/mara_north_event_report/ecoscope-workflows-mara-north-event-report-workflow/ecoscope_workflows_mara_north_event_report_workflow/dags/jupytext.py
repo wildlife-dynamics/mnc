@@ -88,6 +88,7 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
 )
 from ecoscope_workflows_ext_mnc.tasks import add_totals_row as add_totals_row
 from ecoscope_workflows_ext_mnc.tasks import bin_columns as bin_columns
+from ecoscope_workflows_ext_mnc.tasks import capitalize_text as capitalize_text
 from ecoscope_workflows_ext_mnc.tasks import categorize_bins as categorize_bins
 from ecoscope_workflows_ext_mnc.tasks import (
     clean_dataframe_index as clean_dataframe_index,
@@ -122,7 +123,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_values
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
-from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df_1
+from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df
 from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
@@ -3477,7 +3478,13 @@ draw_livestock_map = (
         max_zoom=10,
         legend_style={"placement": "bottom-right"},
         geo_layers=combine_custom_livestock,
-        view_state=global_zoom_value,
+        view_state={
+            "longitude": 35.2092935880001,
+            "latitude": -1.257840580999955,
+            "zoom": 11.75,
+            "pitch": 0,
+            "bearing": 0,
+        },
         **draw_livestock_map_params,
     )
     .call()
@@ -9025,6 +9032,322 @@ persist_giraffe_urls = (
 
 
 # %% [markdown]
+# ## Retrieve hartebeest events
+
+# %%
+# parameters
+
+filter_hb_events_params = dict()
+
+# %%
+# call the task
+
+
+filter_hb_events = (
+    filter_df.set_task_instance_id("filter_hb_events")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        column_name="event_type",
+        op="equal",
+        value="hartebeest_sighting",
+        df=events_temporal,
+        reset_index=False,
+        **filter_hb_events_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Normalize event details columns
+
+# %%
+# parameters
+
+normalize_hb_values_params = dict()
+
+# %%
+# call the task
+
+
+normalize_hb_values = (
+    normalize_json_column.set_task_instance_id("normalize_hb_values")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        column="event_details",
+        df=filter_hb_events,
+        skip_if_not_exists=True,
+        sort_columns=True,
+        **normalize_hb_values_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Exclude geom outliers from hartebeest events
+
+# %%
+# parameters
+
+exclude_hb_outliers_params = dict()
+
+# %%
+# call the task
+
+
+exclude_hb_outliers = (
+    exclude_geom_outliers.set_task_instance_id("exclude_hb_outliers")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(df=normalize_hb_values, z_threshold=3, **exclude_hb_outliers_params)
+    .call()
+)
+
+
+# %% [markdown]
+# ## Remove invalid points from hartebeest events
+
+# %%
+# parameters
+
+remove_hb_invalid_geoms_params = dict()
+
+# %%
+# call the task
+
+
+remove_hb_invalid_geoms = (
+    drop_null_geometry.set_task_instance_id("remove_hb_invalid_geoms")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        gdf=exclude_hb_outliers,
+        geometry_column="geometry",
+        **remove_hb_invalid_geoms_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Apply colormap to hartebeest events
+
+# %%
+# parameters
+
+apply_hb_colormap_params = dict()
+
+# %%
+# call the task
+
+
+apply_hb_colormap = (
+    apply_color_map.set_task_instance_id("apply_hb_colormap")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        input_column_name="event_type",
+        output_column_name="colors",
+        colormap="tab20",
+        df=remove_hb_invalid_geoms,
+        **apply_hb_colormap_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Generate hartebeest sighting point layers
+
+# %%
+# parameters
+
+generate_hb_layers_params = dict()
+
+# %%
+# call the task
+
+
+generate_hb_layers = (
+    create_scatterplot_layer.set_task_instance_id("generate_hb_layers")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        layer_style={
+            "get_fill_color": "colors",
+            "get_radius": 5,
+            "opacity": 0.75,
+            "stroked": False,
+        },
+        legend={
+            "title": "Hartebeest Sightings",
+            "label_column": "event_type",
+            "color_column": "colors",
+            "sort": "ascending",
+        },
+        geodataframe=apply_hb_colormap,
+        **generate_hb_layers_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Combine styled layers with hartebeest events
+
+# %%
+# parameters
+
+combine_hb_events_params = dict()
+
+# %%
+# call the task
+
+
+combine_hb_events = (
+    combine_deckgl_map_layers.set_task_instance_id("combine_hb_events")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        static_layers=[
+            create_conservancy_boundaries,
+            create_mnc_parcels_layers,
+            conservancy_text_layer,
+        ],
+        grouped_layers=generate_hb_layers,
+        **combine_hb_events_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Draw hartebeest events sighting map
+
+# %%
+# parameters
+
+draw_hb_map_params = dict(
+    widget_id=...,
+)
+
+# %%
+# call the task
+
+
+draw_hb_map = (
+    draw_map.set_task_instance_id("draw_hb_map")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        tile_layers=configure_base_maps,
+        static=False,
+        title=None,
+        max_zoom=15,
+        legend_style={"placement": "bottom-right"},
+        geo_layers=combine_hb_events,
+        view_state=global_zoom_value,
+        **draw_hb_map_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Persist hartebeest events map HTML paths
+
+# %%
+# parameters
+
+persist_hb_urls_params = dict(
+    filename_suffix=...,
+)
+
+# %%
+# call the task
+
+
+persist_hb_urls = (
+    persist_text.set_task_instance_id("persist_hb_urls")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        text=draw_hb_map,
+        filename="hartebeest_sighting_map.html",
+        **persist_hb_urls_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Filter events and get balloon sighting records
 
 # %%
@@ -9279,6 +9602,66 @@ generate_balloon_table = (
 
 
 # %% [markdown]
+# ## Capitalize balloon co
+
+# %%
+# parameters
+
+capitalize_balloon_co_params = dict()
+
+# %%
+# call the task
+
+
+capitalize_balloon_co = (
+    capitalize_text.set_task_instance_id("capitalize_balloon_co")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=generate_balloon_table,
+        column="balloon_company",
+        **capitalize_balloon_co_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Capitalize lodge
+
+# %%
+# parameters
+
+capitalize_lodge_params = dict()
+
+# %%
+# call the task
+
+
+capitalize_lodge = (
+    capitalize_text.set_task_instance_id("capitalize_lodge")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(df=capitalize_balloon_co, column="lodge", **capitalize_lodge_params)
+    .call()
+)
+
+
+# %% [markdown]
 # ## Persist balloon summary table
 
 # %%
@@ -9304,7 +9687,7 @@ persist_balloon_summary = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
-        df=generate_balloon_table,
+        df=capitalize_lodge,
         filename="balloon_landing_by_date",
         **persist_balloon_summary_params,
     )
@@ -9536,7 +9919,7 @@ lodge_scase_params = dict()
 
 
 lodge_scase = (
-    to_sentence_case.set_task_instance_id("lodge_scase")
+    capitalize_text.set_task_instance_id("lodge_scase")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -9546,7 +9929,7 @@ lodge_scase = (
         ],
         unpack_depth=1,
     )
-    .partial(df=convert_clients_int, columns=["camp_lodge"], **lodge_scase_params)
+    .partial(df=convert_clients_int, column="camp_lodge", **lodge_scase_params)
     .call()
 )
 
@@ -9797,6 +10180,34 @@ filter_cols = (
 
 
 # %% [markdown]
+# ## Capitalize activity column
+
+# %%
+# parameters
+
+capitalize_activity_col_params = dict()
+
+# %%
+# call the task
+
+
+capitalize_activity_col = (
+    capitalize_text.set_task_instance_id("capitalize_activity_col")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(df=filter_cols, column="activity", **capitalize_activity_col_params)
+    .call()
+)
+
+
+# %% [markdown]
 # ## Persist airstrip maintenance table
 
 # %%
@@ -9822,7 +10233,7 @@ persist_air_maintenance = (
     .partial(
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
-        df=filter_cols,
+        df=capitalize_activity_col,
         filename="airstrip_maintenance_table",
         **persist_air_maintenance_params,
     )
@@ -9976,6 +10387,34 @@ patrol_info_summary = (
 
 
 # %% [markdown]
+# ## Capitalize patrol text
+
+# %%
+# parameters
+
+capitalize_patrol_text_params = dict()
+
+# %%
+# call the task
+
+
+capitalize_patrol_text = (
+    capitalize_text.set_task_instance_id("capitalize_patrol_text")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(df=patrol_info_summary, column="purpose", **capitalize_patrol_text_params)
+    .call()
+)
+
+
+# %% [markdown]
 # ## Add totals row in patrol info summary table
 
 # %%
@@ -10001,7 +10440,7 @@ include_pat_totals = (
     .partial(
         label_col=["purpose"],
         label="Total",
-        df=patrol_info_summary,
+        df=capitalize_patrol_text,
         **include_pat_totals_params,
     )
     .call()
@@ -11251,7 +11690,7 @@ generate_foot_layers = (
             "stroked": True,
         },
         legend={
-            "title": "Foot Patrols",
+            "title": "Patrol Type",
             "label_column": "patrol_type_value",
             "color_column": "foot_patrol_colors",
             "sort": "ascending",
@@ -11610,7 +12049,7 @@ generate_vehicle_layers = (
             "stroked": True,
         },
         legend={
-            "title": "Vehicle Patrols",
+            "title": "Patrol Type",
             "label_column": "patrol_type_value",
             "color_column": "colors",
             "sort": "ascending",
@@ -11969,7 +12408,7 @@ generate_motor_layers = (
             "stroked": True,
         },
         legend={
-            "title": "Motorbike Patrols",
+            "title": "Patrol Type",
             "label_column": "patrol_type_value",
             "color_column": "colors",
             "sort": "ascending",
@@ -12104,7 +12543,7 @@ merge_trajs_params = dict()
 
 
 merge_trajs = (
-    merge_multiple_df_1.set_task_instance_id("merge_trajs")
+    merge_multiple_df.set_task_instance_id("merge_trajs")
     .handle_errors()
     .with_tracing()
     .partial(
@@ -13215,6 +13654,44 @@ convert_giraffe_png = (
             "max_concurrent_pages": 1,
         },
         **convert_giraffe_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert hartebeest map to png
+
+# %%
+# parameters
+
+convert_hb_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_hb_png = (
+    html_to_png.set_task_instance_id("convert_hb_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_hb_urls,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 20000,
+            "max_concurrent_pages": 1,
+        },
+        **convert_hb_png_params,
     )
     .call()
 )

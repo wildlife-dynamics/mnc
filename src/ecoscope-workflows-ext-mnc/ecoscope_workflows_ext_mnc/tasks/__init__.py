@@ -13,6 +13,7 @@ from ._tabular import (
     pivot_df,
     clean_dataframe_index,
     map_name_values,
+    capitalize_text,
     filter_non_empty_values,
     explode_multiple_columns,
     round_values,
@@ -27,6 +28,7 @@ from ._mnc_context import generate_mnc_report
 from ._transform import transform_columns
 
 __all__ = [
+    "capitalize_text",
     "filter_columns",
     "create_gdf_from_dict",
     "exclude_geom_outliers",

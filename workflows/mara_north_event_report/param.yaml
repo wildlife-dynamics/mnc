@@ -1,6 +1,6 @@
 workflow_details:
-  description: 'Report intended to generate mara north report that captures events and patrol efforts'
-  name: mara_north_quarterly_event_report
+  description: ''
+  name: custom_report
 groupers:
   groupers: []
 er_client_name:
@@ -9,13 +9,13 @@ er_client_name:
 configure_base_maps:
   base_maps:
     - url: >-
-        https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}
-      opacity: 0.95
-      max_zoom: 10
+        https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}
+      opacity: 1
+      max_zoom: 20
     - url: >-
         https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}
-      opacity: 0.10
-      max_zoom: 10
+      opacity: 0.1
+      max_zoom: 20
 time_range:
-  since: '2025-09-01T21:00:00.000Z'
-  until: '2026-01-21T21:00:00.000Z'
+  since: '2025-11-30T21:00:00.000Z'
+  until: '2026-01-25T21:00:00.000Z'

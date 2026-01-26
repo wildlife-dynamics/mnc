@@ -129,6 +129,7 @@ def generate_mnc_report(
         "leopard_sightings_ecomap": "leopard_sightings_map",
         "cheetah_sightings_ecomap": "cheetah_sightings_map",
         "giraffe_events_sightings": "giraffe_sighting_map",
+        "hartebeest_events_sightings": "hartebeest_sighting_map",
     }
 
     # Combine all image mappings
