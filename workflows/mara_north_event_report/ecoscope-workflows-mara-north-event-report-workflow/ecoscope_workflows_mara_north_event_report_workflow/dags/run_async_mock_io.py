@@ -231,12 +231,14 @@ def main(params: Params):
         "draw_events_chart": ["total_events_recorded"],
         "persist_total_events": ["draw_events_chart"],
         "filter_mobile_boma": ["events_temporal"],
+        "filter_cattle_count": ["events_temporal"],
         "normalize_mb_values": ["filter_mobile_boma"],
+        "normalize_cc_values": ["filter_cattle_count"],
         "rename_mobile_boma": ["normalize_mb_values"],
+        "rename_cattle_count": ["normalize_cc_values"],
         "rename_boma_values": ["rename_mobile_boma"],
-        "mobile_boma_summary": ["rename_boma_values"],
-        "include_mb_totals": ["mobile_boma_summary"],
-        "persist_mobile_df": ["include_mb_totals"],
+        "filter_cattle_cols": ["rename_cattle_count"],
+        "persist_cattle_count_df": ["filter_cattle_cols"],
         "exclude_mb_outliers": ["rename_boma_values"],
         "remove_mb_invalid_geoms": ["exclude_mb_outliers"],
         "apply_mb_colormap": ["remove_mb_invalid_geoms"],
@@ -748,7 +750,7 @@ def main(params: Params):
             .handle_errors()
             .with_tracing()
             .set_executor("lithops"),
-            partial=(params_dict.get("groupers") or {}),
+            partial={} | (params_dict.get("groupers") or {}),
             method="call",
         ),
         "er_client_name": Node(
@@ -766,7 +768,16 @@ def main(params: Params):
             .handle_errors()
             .with_tracing()
             .set_executor("lithops"),
-            partial=(params_dict.get("configure_base_maps") or {}),
+            partial={
+                "base_maps": [
+                    {
+                        "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+                        "opacity": 1,
+                        "max_zoom": 20,
+                    },
+                ],
+            }
+            | (params_dict.get("configure_base_maps") or {}),
             method="call",
         ),
         "persist_mnc_tpt": Node(
@@ -2320,6 +2331,29 @@ def main(params: Params):
             | (params_dict.get("filter_mobile_boma") or {}),
             method="call",
         ),
+        "filter_cattle_count": Node(
+            async_task=filter_df.validate()
+            .set_task_instance_id("filter_cattle_count")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column_name": "event_type",
+                "op": "equal",
+                "value": "cattle_count",
+                "df": DependsOn("events_temporal"),
+                "reset_index": False,
+            }
+            | (params_dict.get("filter_cattle_count") or {}),
+            method="call",
+        ),
         "normalize_mb_values": Node(
             async_task=normalize_json_column.validate()
             .set_task_instance_id("normalize_mb_values")
@@ -2340,6 +2374,28 @@ def main(params: Params):
                 "sort_columns": True,
             }
             | (params_dict.get("normalize_mb_values") or {}),
+            method="call",
+        ),
+        "normalize_cc_values": Node(
+            async_task=normalize_json_column.validate()
+            .set_task_instance_id("normalize_cc_values")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "column": "event_details",
+                "df": DependsOn("filter_cattle_count"),
+                "skip_if_not_exists": True,
+                "sort_columns": True,
+            }
+            | (params_dict.get("normalize_cc_values") or {}),
             method="call",
         ),
         "rename_mobile_boma": Node(
@@ -2368,6 +2424,35 @@ def main(params: Params):
             | (params_dict.get("rename_mobile_boma") or {}),
             method="call",
         ),
+        "rename_cattle_count": Node(
+            async_task=transform_columns.validate()
+            .set_task_instance_id("rename_cattle_count")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "rename_columns": {
+                    "event_details__cattle_in_zone_4": "zone_4",
+                    "event_details__cattle_in_zone_1_outside_mobile_boma": "zone_1",
+                    "event_details__cattle_in_zone_23_outside_mobile_boma": "zone_2_3",
+                    "event_details__total_cattle_counted_from_all_zones": "total_count",
+                },
+                "skip_missing_rename": True,
+                "required_columns": [
+                    "event_details__total_cattle_counted_from_all_zones",
+                ],
+                "df": DependsOn("normalize_cc_values"),
+            }
+            | (params_dict.get("rename_cattle_count") or {}),
+            method="call",
+        ),
         "rename_boma_values": Node(
             async_task=map_column_values.validate()
             .set_task_instance_id("rename_boma_values")
@@ -2394,9 +2479,9 @@ def main(params: Params):
             | (params_dict.get("rename_boma_values") or {}),
             method="call",
         ),
-        "mobile_boma_summary": Node(
-            async_task=summarize_df.validate()
-            .set_task_instance_id("mobile_boma_summary")
+        "filter_cattle_cols": Node(
+            async_task=filter_columns.validate()
+            .set_task_instance_id("filter_cattle_cols")
             .handle_errors()
             .with_tracing()
             .skipif(
@@ -2408,48 +2493,21 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "groupby_cols": [
-                    "boma",
+                "df": DependsOn("rename_cattle_count"),
+                "columns": [
+                    "date",
+                    "zone_1",
+                    "zone_2_3",
+                    "zone_4",
+                    "total_count",
                 ],
-                "summary_params": [
-                    {
-                        "display_name": "total_count",
-                        "aggregator": "nunique",
-                        "column": "id",
-                    },
-                ],
-                "reset_index": True,
-                "df": DependsOn("rename_boma_values"),
             }
-            | (params_dict.get("mobile_boma_summary") or {}),
+            | (params_dict.get("filter_cattle_cols") or {}),
             method="call",
         ),
-        "include_mb_totals": Node(
-            async_task=add_totals_row.validate()
-            .set_task_instance_id("include_mb_totals")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "label_col": [
-                    "boma",
-                ],
-                "label": "Total",
-                "df": DependsOn("mobile_boma_summary"),
-            }
-            | (params_dict.get("include_mb_totals") or {}),
-            method="call",
-        ),
-        "persist_mobile_df": Node(
+        "persist_cattle_count_df": Node(
             async_task=persist_df.validate()
-            .set_task_instance_id("persist_mobile_df")
+            .set_task_instance_id("persist_cattle_count_df")
             .handle_errors()
             .with_tracing()
             .skipif(
@@ -2464,9 +2522,9 @@ def main(params: Params):
                 "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "filetype": "csv",
                 "filename": "mobile_boma_summary_table",
-                "df": DependsOn("include_mb_totals"),
+                "df": DependsOn("filter_cattle_cols"),
             }
-            | (params_dict.get("persist_mobile_df") or {}),
+            | (params_dict.get("persist_cattle_count_df") or {}),
             method="call",
         ),
         "exclude_mb_outliers": Node(
@@ -10259,7 +10317,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 35000,
+                    "wait_for_timeout": 40000,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -10285,7 +10343,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 35000,
+                    "wait_for_timeout": 40000,
                     "max_concurrent_pages": 1,
                 },
             }

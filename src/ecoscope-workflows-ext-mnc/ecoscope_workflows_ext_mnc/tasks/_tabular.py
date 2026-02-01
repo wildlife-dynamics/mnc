@@ -512,7 +512,9 @@ def round_values(df: AnyDataFrame, column: str, decimals) -> AnyDataFrame:
 
 @task
 def filter_columns(
-    df: AnyDataFrame, columns: Optional[List[str]] = None, exclude: Optional[List[str]] = None
+    df: AnyDataFrame,
+    columns: Optional[List[str]] = None,
+    exclude: Optional[List[str]] = None,
 ) -> AnyDataFrame:
     """
     Filter DataFrame columns by various criteria.
@@ -532,10 +534,22 @@ def filter_columns(
         DataFrame with filtered columns
     """
     if columns is not None:
-        return df[columns]
+        valid_columns = []
+        for col in columns:
+            if col not in df.columns:
+                print(f"{col} is not present in the df.")
+            else:
+                valid_columns.append(col)
+        return df[valid_columns]
 
     if exclude is not None:
-        cols = [c for c in df.columns if c not in exclude]
+        valid_exclude = []
+        for col in exclude:
+            if col not in df.columns:
+                print(f"{col} is not present in the df, skipping exclusion.")
+            else:
+                valid_exclude.append(col)
+        cols = [c for c in df.columns if c not in valid_exclude]
         return df[cols]
 
     return df

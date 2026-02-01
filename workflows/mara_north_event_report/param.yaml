@@ -1,21 +1,9 @@
 workflow_details:
-  description: ''
-  name: custom_report
-groupers:
-  groupers: []
+  description: sample mnc test workflow
+  name: sample_mnc_workflow
 er_client_name:
   data_source:
     name: mnc
-configure_base_maps:
-  base_maps:
-    - url: >-
-        https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}
-      opacity: 1
-      max_zoom: 20
-    - url: >-
-        https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}
-      opacity: 0.1
-      max_zoom: 20
 time_range:
-  since: '2025-11-30T21:00:00.000Z'
-  until: '2026-01-25T21:00:00.000Z'
+  since: '2025-12-31T21:00:00.000Z'
+  until: '2026-02-01T09:00:00.000Z'

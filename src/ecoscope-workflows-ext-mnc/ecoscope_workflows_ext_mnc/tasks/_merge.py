@@ -69,7 +69,8 @@ def merge_multiple_df(
 
     # Check if we have any valid dataframes after filtering
     if not valid_dfs:
-        raise ValueError("No valid dataframes to merge. All items in list_df are SkipSentinel values.")
+        print("All dataframes were skipped; returning empty DataFrame.")
+        return pd.DataFrame()
 
     # Merge the valid dataframes
     merged_df = pd.concat(valid_dfs, ignore_index=ignore_index, sort=sort)
