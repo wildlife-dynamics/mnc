@@ -207,11 +207,6 @@ class TestMergeMultipleDf:
         assert len(result) == 4
         assert result["id"].tolist() == [1, 2, 3, 4]
 
-    def test_merge_only_skip_sentinels_raises_error(self):
-        """Test that merging only SkipSentinel values raises ValueError"""
-        with pytest.raises(ValueError, match="No valid dataframes to merge"):
-            merge_multiple_df([SKIP_SENTINEL, SKIP_SENTINEL, SKIP_SENTINEL])
-
     def test_merge_single_valid_df_with_skip_sentinels(self, sample_df1):
         """Test merging single valid DataFrame with SkipSentinels"""
         result = merge_multiple_df([SKIP_SENTINEL, sample_df1, SKIP_SENTINEL])

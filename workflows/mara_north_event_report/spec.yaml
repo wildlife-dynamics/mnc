@@ -17,8 +17,8 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
-    version: "0.0.2.*"
-    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+    version: "*"
+    channel: file:///tmp/ecoscope-workflows-custom/release/artifacts/
     
 workflow:
   - name: Set workflow details
@@ -39,6 +39,8 @@ workflow:
   - name: Set groupers
     id: groupers
     task: set_groupers
+    partial: 
+      groupers: []
 
   - name: Connect to ER 
     id: er_client_name
@@ -47,6 +49,12 @@ workflow:
   - name: Configure base map layers
     id: configure_base_maps
     task: set_base_maps_pydeck
+    partial:
+      base_maps:
+        - url: >-
+            https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}
+          opacity: 1
+          max_zoom: 20
 
   - name: Download MNC template and persist
     id: persist_mnc_tpt
@@ -1034,6 +1042,20 @@ workflow:
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
 
+  - name: Retrieve cattle_count
+    id: filter_cattle_count 
+    task: filter_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      column_name: event_type	
+      op: equal
+      value: cattle_count
+      df: ${{ workflow.events_temporal.return }}
+      reset_index: false
+
   - name: Normalize event details columns 
     id: normalize_mb_values
     task: normalize_json_column
@@ -1046,7 +1068,20 @@ workflow:
       df: ${{ workflow.filter_mobile_boma.return }}
       skip_if_not_exists: true 
       sort_columns: true 
-      
+
+  - name: Normalize event details columns 
+    id: normalize_cc_values
+    task: normalize_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      column: event_details
+      df: ${{ workflow.filter_cattle_count.return }}
+      skip_if_not_exists: true 
+      sort_columns: true 
+
   - name: Rename mobile boma columns 
     id: rename_mobile_boma
     task: transform_columns
@@ -1064,6 +1099,26 @@ workflow:
         - event_details__mobile_boma
       df: ${{ workflow.normalize_mb_values.return }}
 
+  - name: Rename cattle count columns 
+    id: rename_cattle_count
+    task: transform_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        event_details__cattle_in_zone_4: zone_4
+        event_details__cattle_in_zone_1_outside_mobile_boma: zone_1
+        event_details__cattle_in_zone_23_outside_mobile_boma: zone_2_3
+        event_details__total_cattle_counted_from_all_zones: total_count
+      skip_missing_rename: true 
+      required_columns: 
+        - event_details__total_cattle_counted_from_all_zones
+      df: ${{ workflow.normalize_cc_values.return }}
+
   - name: Rename mobile_boma_rep value to Mobile Boma 
     id: rename_boma_values
     task: map_column_values
@@ -1079,38 +1134,25 @@ workflow:
         mobile_boma_rep: Mobile boma
       inplace: false
 
-  - name: Mobile boma summary table
-    id: mobile_boma_summary
-    task: summarize_df
+  - name: Cattle count summary table
+    id: filter_cattle_cols 
+    task: filter_columns 
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
-    partial:
-      groupby_cols:
-        - boma
-      summary_params:
-        - display_name: total_count
-          aggregator: nunique
-          column: id 
-      reset_index: true
-      df: ${{ workflow.rename_boma_values.return }}
+    partial: 
+      df: ${{ workflow.rename_cattle_count.return }}
+      columns: 
+        - date 
+        - zone_1
+        - zone_2_3
+        - zone_4 
+        - total_count 
+      exclude: []
 
-  - name: Add totals row in mobile boma summary table
-    id: include_mb_totals
-    task: add_totals_row
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      label_col: 
-        - boma
-      label: Total
-      df: ${{ workflow.mobile_boma_summary.return }}
-
-  - name: Persist mobile boma summary table 
-    id: persist_mobile_df
+  - name: Persist cattle count summary table
+    id: persist_cattle_count_df
     task: persist_df 
     skipif:
       conditions:
@@ -1120,7 +1162,7 @@ workflow:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       filename: mobile_boma_summary_table
-      df: ${{ workflow.include_mb_totals.return }}
+      df: ${{ workflow.filter_cattle_cols.return }}
 
   # draw mobile boma map
   - name: Exclude geom outliers from mobile_boma_rep events
@@ -5921,7 +5963,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 35000
+        wait_for_timeout: 40000
         max_concurrent_pages: 1
 
   - name: Convert motor patrol map to png
@@ -5937,7 +5979,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 35000
+        wait_for_timeout: 40000
         max_concurrent_pages: 1
 
   - name: Convert grid map to png

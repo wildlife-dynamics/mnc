@@ -221,9 +221,7 @@ time_range = (
 # %%
 # parameters
 
-groupers_params = dict(
-    groupers=...,
-)
+groupers_params = dict()
 
 # %%
 # call the task
@@ -233,7 +231,7 @@ groupers = (
     set_groupers.set_task_instance_id("groupers")
     .handle_errors()
     .with_tracing()
-    .partial(**groupers_params)
+    .partial(groupers=[], **groupers_params)
     .call()
 )
 
@@ -267,9 +265,7 @@ er_client_name = (
 # %%
 # parameters
 
-configure_base_maps_params = dict(
-    base_maps=...,
-)
+configure_base_maps_params = dict()
 
 # %%
 # call the task
@@ -279,7 +275,16 @@ configure_base_maps = (
     set_base_maps_pydeck.set_task_instance_id("configure_base_maps")
     .handle_errors()
     .with_tracing()
-    .partial(**configure_base_maps_params)
+    .partial(
+        base_maps=[
+            {
+                "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+                "opacity": 1,
+                "max_zoom": 20,
+            }
+        ],
+        **configure_base_maps_params,
+    )
     .call()
 )
 
@@ -2313,6 +2318,41 @@ filter_mobile_boma = (
 
 
 # %% [markdown]
+# ## Retrieve cattle_count
+
+# %%
+# parameters
+
+filter_cattle_count_params = dict()
+
+# %%
+# call the task
+
+
+filter_cattle_count = (
+    filter_df.set_task_instance_id("filter_cattle_count")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        column_name="event_type",
+        op="equal",
+        value="cattle_count",
+        df=events_temporal,
+        reset_index=False,
+        **filter_cattle_count_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Normalize event details columns
 
 # %%
@@ -2341,6 +2381,40 @@ normalize_mb_values = (
         skip_if_not_exists=True,
         sort_columns=True,
         **normalize_mb_values_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Normalize event details columns
+
+# %%
+# parameters
+
+normalize_cc_values_params = dict()
+
+# %%
+# call the task
+
+
+normalize_cc_values = (
+    normalize_json_column.set_task_instance_id("normalize_cc_values")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        column="event_details",
+        df=filter_cattle_count,
+        skip_if_not_exists=True,
+        sort_columns=True,
+        **normalize_cc_values_params,
     )
     .call()
 )
@@ -2383,6 +2457,47 @@ rename_mobile_boma = (
 
 
 # %% [markdown]
+# ## Rename cattle count columns
+
+# %%
+# parameters
+
+rename_cattle_count_params = dict()
+
+# %%
+# call the task
+
+
+rename_cattle_count = (
+    transform_columns.set_task_instance_id("rename_cattle_count")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        drop_columns=[],
+        retain_columns=[],
+        rename_columns={
+            "event_details__cattle_in_zone_4": "zone_4",
+            "event_details__cattle_in_zone_1_outside_mobile_boma": "zone_1",
+            "event_details__cattle_in_zone_23_outside_mobile_boma": "zone_2_3",
+            "event_details__total_cattle_counted_from_all_zones": "total_count",
+        },
+        skip_missing_rename=True,
+        required_columns=["event_details__total_cattle_counted_from_all_zones"],
+        df=normalize_cc_values,
+        **rename_cattle_count_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Rename mobile_boma_rep value to Mobile Boma
 
 # %%
@@ -2417,19 +2532,19 @@ rename_boma_values = (
 
 
 # %% [markdown]
-# ## Mobile boma summary table
+# ## Cattle count summary table
 
 # %%
 # parameters
 
-mobile_boma_summary_params = dict()
+filter_cattle_cols_params = dict()
 
 # %%
 # call the task
 
 
-mobile_boma_summary = (
-    summarize_df.set_task_instance_id("mobile_boma_summary")
+filter_cattle_cols = (
+    filter_columns.set_task_instance_id("filter_cattle_cols")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -2440,65 +2555,29 @@ mobile_boma_summary = (
         unpack_depth=1,
     )
     .partial(
-        groupby_cols=["boma"],
-        summary_params=[
-            {"display_name": "total_count", "aggregator": "nunique", "column": "id"}
-        ],
-        reset_index=True,
-        df=rename_boma_values,
-        **mobile_boma_summary_params,
+        df=rename_cattle_count,
+        columns=["date", "zone_1", "zone_2_3", "zone_4", "total_count"],
+        exclude=[],
+        **filter_cattle_cols_params,
     )
     .call()
 )
 
 
 # %% [markdown]
-# ## Add totals row in mobile boma summary table
+# ## Persist cattle count summary table
 
 # %%
 # parameters
 
-include_mb_totals_params = dict()
+persist_cattle_count_df_params = dict()
 
 # %%
 # call the task
 
 
-include_mb_totals = (
-    add_totals_row.set_task_instance_id("include_mb_totals")
-    .handle_errors()
-    .with_tracing()
-    .skipif(
-        conditions=[
-            any_is_empty_df,
-            any_dependency_skipped,
-        ],
-        unpack_depth=1,
-    )
-    .partial(
-        label_col=["boma"],
-        label="Total",
-        df=mobile_boma_summary,
-        **include_mb_totals_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Persist mobile boma summary table
-
-# %%
-# parameters
-
-persist_mobile_df_params = dict()
-
-# %%
-# call the task
-
-
-persist_mobile_df = (
-    persist_df.set_task_instance_id("persist_mobile_df")
+persist_cattle_count_df = (
+    persist_df.set_task_instance_id("persist_cattle_count_df")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -2512,8 +2591,8 @@ persist_mobile_df = (
         root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
         filetype="csv",
         filename="mobile_boma_summary_table",
-        df=include_mb_totals,
-        **persist_mobile_df_params,
+        df=filter_cattle_cols,
+        **persist_cattle_count_df_params,
     )
     .call()
 )
@@ -13764,7 +13843,7 @@ convert_vehicle_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 35000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_vehicle_png_params,
@@ -13802,7 +13881,7 @@ convert_motor_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 35000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_motor_png_params,

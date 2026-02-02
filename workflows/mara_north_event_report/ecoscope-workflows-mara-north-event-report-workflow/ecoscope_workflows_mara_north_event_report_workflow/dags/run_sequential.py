@@ -185,7 +185,7 @@ def main(params: Params):
         .set_task_instance_id("groupers")
         .handle_errors()
         .with_tracing()
-        .partial(**(params_dict.get("groupers") or {}))
+        .partial(groupers=[], **(params_dict.get("groupers") or {}))
         .call()
     )
 
@@ -203,7 +203,16 @@ def main(params: Params):
         .set_task_instance_id("configure_base_maps")
         .handle_errors()
         .with_tracing()
-        .partial(**(params_dict.get("configure_base_maps") or {}))
+        .partial(
+            base_maps=[
+                {
+                    "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+                    "opacity": 1,
+                    "max_zoom": 20,
+                }
+            ],
+            **(params_dict.get("configure_base_maps") or {}),
+        )
         .call()
     )
 
@@ -1588,6 +1597,29 @@ def main(params: Params):
         .call()
     )
 
+    filter_cattle_count = (
+        filter_df.validate()
+        .set_task_instance_id("filter_cattle_count")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="cattle_count",
+            df=events_temporal,
+            reset_index=False,
+            **(params_dict.get("filter_cattle_count") or {}),
+        )
+        .call()
+    )
+
     normalize_mb_values = (
         normalize_json_column.validate()
         .set_task_instance_id("normalize_mb_values")
@@ -1606,6 +1638,28 @@ def main(params: Params):
             skip_if_not_exists=True,
             sort_columns=True,
             **(params_dict.get("normalize_mb_values") or {}),
+        )
+        .call()
+    )
+
+    normalize_cc_values = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_cc_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=filter_cattle_count,
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_cc_values") or {}),
         )
         .call()
     )
@@ -1634,6 +1688,35 @@ def main(params: Params):
         .call()
     )
 
+    rename_cattle_count = (
+        transform_columns.validate()
+        .set_task_instance_id("rename_cattle_count")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__cattle_in_zone_4": "zone_4",
+                "event_details__cattle_in_zone_1_outside_mobile_boma": "zone_1",
+                "event_details__cattle_in_zone_23_outside_mobile_boma": "zone_2_3",
+                "event_details__total_cattle_counted_from_all_zones": "total_count",
+            },
+            skip_missing_rename=True,
+            required_columns=["event_details__total_cattle_counted_from_all_zones"],
+            df=normalize_cc_values,
+            **(params_dict.get("rename_cattle_count") or {}),
+        )
+        .call()
+    )
+
     rename_boma_values = (
         map_column_values.validate()
         .set_task_instance_id("rename_boma_values")
@@ -1656,9 +1739,9 @@ def main(params: Params):
         .call()
     )
 
-    mobile_boma_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("mobile_boma_summary")
+    filter_cattle_cols = (
+        filter_columns.validate()
+        .set_task_instance_id("filter_cattle_cols")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -1669,41 +1752,17 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            groupby_cols=["boma"],
-            summary_params=[
-                {"display_name": "total_count", "aggregator": "nunique", "column": "id"}
-            ],
-            reset_index=True,
-            df=rename_boma_values,
-            **(params_dict.get("mobile_boma_summary") or {}),
+            df=rename_cattle_count,
+            columns=["date", "zone_1", "zone_2_3", "zone_4", "total_count"],
+            exclude=[],
+            **(params_dict.get("filter_cattle_cols") or {}),
         )
         .call()
     )
 
-    include_mb_totals = (
-        add_totals_row.validate()
-        .set_task_instance_id("include_mb_totals")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["boma"],
-            label="Total",
-            df=mobile_boma_summary,
-            **(params_dict.get("include_mb_totals") or {}),
-        )
-        .call()
-    )
-
-    persist_mobile_df = (
+    persist_cattle_count_df = (
         persist_df.validate()
-        .set_task_instance_id("persist_mobile_df")
+        .set_task_instance_id("persist_cattle_count_df")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -1717,8 +1776,8 @@ def main(params: Params):
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
             filename="mobile_boma_summary_table",
-            df=include_mb_totals,
-            **(params_dict.get("persist_mobile_df") or {}),
+            df=filter_cattle_cols,
+            **(params_dict.get("persist_cattle_count_df") or {}),
         )
         .call()
     )
@@ -9303,7 +9362,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 35000,
+                "wait_for_timeout": 40000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_vehicle_png") or {}),
@@ -9329,7 +9388,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 35000,
+                "wait_for_timeout": 40000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_motor_png") or {}),
