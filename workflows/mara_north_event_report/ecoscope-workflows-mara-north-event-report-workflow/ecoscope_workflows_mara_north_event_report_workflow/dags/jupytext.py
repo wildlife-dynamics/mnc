@@ -191,6 +191,8 @@ workflow_details = (
 time_range_params = dict(
     since=...,
     until=...,
+    timezone=...,
+    time_format=...,
 )
 
 # %%
@@ -201,16 +203,7 @@ time_range = (
     set_time_range.set_task_instance_id("time_range")
     .handle_errors()
     .with_tracing()
-    .partial(
-        time_format="%d %b %Y %H:%M:%S %Z",
-        timezone={
-            "label": "UTC",
-            "tzCode": "UTC",
-            "name": "UTC",
-            "utc_offset": "+00:00",
-        },
-        **time_range_params,
-    )
+    .partial(**time_range_params)
     .call()
 )
 
