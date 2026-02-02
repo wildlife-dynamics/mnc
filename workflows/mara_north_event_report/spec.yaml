@@ -1,24 +1,24 @@
 id: mara_north_event_report
 requirements:
   - name: ecoscope-workflows-core
-    version: "0.20.4.*"
+    version: "0.21.4.*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-ecoscope
-    version: "0.20.4.*"
+    version: "0.21.4.*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.20.*"
+    version: "0.0.22.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.6.*"
+    version: "0.0.7.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
-    version: "*"
-    channel: file:///tmp/ecoscope-workflows-custom/release/artifacts/
+    version: "0.0.3.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
     
 workflow:
   - name: Set workflow details
@@ -28,14 +28,7 @@ workflow:
   - name: Time range
     id: time_range
     task: set_time_range
-    partial:
-      time_format: "%d %b %Y %H:%M:%S %Z"
-      timezone: 
-        label: UTC 
-        tzCode: UTC 
-        name: UTC 
-        utc_offset: "+00:00"
-  
+      
   - name: Set groupers
     id: groupers
     task: set_groupers

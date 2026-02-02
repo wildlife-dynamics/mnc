@@ -15,16 +15,27 @@ class WorkflowDetails(BaseModel):
     description: str | None = Field("", title="Workflow Description")
 
 
+class TimezoneInfo(BaseModel):
+    label: str = Field(..., title="Label")
+    tzCode: str = Field(..., title="Tzcode")
+    name: str = Field(..., title="Name")
+    utc: str = Field(..., title="Utc")
+
+
+class EarthRangerConnection(BaseModel):
+    name: str = Field(..., title="Data Source")
+
+
 class TimeRange(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
     )
     since: datetime = Field(..., description="The start time", title="Since")
     until: datetime = Field(..., description="The end time", title="Until")
-
-
-class EarthRangerConnection(BaseModel):
-    name: str = Field(..., title="Data Source")
+    timezone: TimezoneInfo | None = Field(None, title="Timezone")
+    time_format: str | None = Field(
+        "%d %b %Y %H:%M:%S", description="The time format", title="Time Format"
+    )
 
 
 class ErClientName(BaseModel):
