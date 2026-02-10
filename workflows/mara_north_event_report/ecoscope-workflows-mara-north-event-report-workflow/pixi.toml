@@ -3,6 +3,7 @@
 [workspace]
 name = "ecoscope-workflows-mara-north-event-report-workflow"
 channels = [
+    "file:///tmp/ecoscope-workflows-custom/release/artifacts/",
     "https://repo.prefix.dev/ecoscope-workflows-custom/",
     "https://repo.prefix.dev/ecoscope-workflows/",
     "conda-forge",
@@ -32,12 +33,12 @@ version = "0.0.22.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
 
 [dependencies.ecoscope-workflows-ext-ste]
-version = "0.0.7.*"
+version = "0.0.10.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
 
 [dependencies.ecoscope-workflows-ext-mnc]
-version = "0.0.3.*"
-channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
+version = "*"
+channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/"
 
 [feature.runner.dependencies.ecoscope-workflows-runner]
 version = "0.21.4.*"
@@ -133,5 +134,5 @@ solve-group = "test"
 no-default-feature = true
 
 [tasks]
-docker-build = "docker buildx build -t ecoscope-workflows-mara-north-event-report-workflow ."
+docker-build = "mkdir -p .tmp/ecoscope-workflows/release/artifacts/\n&& cp -r /tmp/ecoscope-workflows/release/artifacts/* .tmp/ecoscope-workflows/release/artifacts/\n&& docker buildx build -t ecoscope-workflows-mara-north-event-report-workflow .\n"
 ecoscope-workflows-mara-north-event-report-workflow = "python -m ecoscope_workflows_mara_north_event_report_workflow.cli"
