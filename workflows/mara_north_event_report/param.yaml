@@ -1,9 +1,15 @@
 workflow_details:
-  description: sample mnc test workflow
-  name: sample_mnc_workflow
+  description: mara north conservancy report
+  name: mara_north_event_report
 er_client_name:
   data_source:
     name: mnc
 time_range:
-  since: '2025-12-31T21:00:00.000Z'
-  until: '2026-02-01T09:00:00.000Z'
+  since: '2026-01-01T21:00:00.000Z'
+  until: '2026-02-09T09:00:00.000Z'
+  timezone:
+    utc: '+03:00'
+    name: UTC
+    tzCode: UTC
+    label: UTC
+  time_format: '%d %b %Y %H:%M:%S'
