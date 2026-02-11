@@ -33,7 +33,7 @@ version = "0.0.22.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
 
 [dependencies.ecoscope-workflows-ext-ste]
-version = "0.0.10.*"
+version = "0.0.11.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
 
 [dependencies.ecoscope-workflows-ext-mnc]
