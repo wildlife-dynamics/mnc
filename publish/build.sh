@@ -1,67 +1,25 @@
 #!/bin/bash
-set -e
-set -u
 
-# Configuration
 RECIPES=(
     "release/ecoscope-workflows-ext-mnc"
 )
-PROJECT_ROOT="$(pwd)/src/ecoscope-workflows-ext-mnc"
-OUTPUT_DIR="/tmp/ecoscope-workflows-custom/release/artifacts"
-RECIPE_DIR="$(pwd)/publish/recipes"
+project_root=$(pwd)/src/ecoscope-workflows-ext-mnc
+export HATCH_VCS_VERSION=$(cd $project_root && hatch version)
+echo "HATCH_VCS_VERSION=$HATCH_VCS_VERSION"
 
-echo ""
-echo "=== Conda Package Build ==="
-echo ""
 
-# Set version
-echo "→ Detecting version..."
-export HATCH_VCS_VERSION=$(cd "$PROJECT_ROOT" && hatch version)
-echo "  Version: $HATCH_VCS_VERSION"
-echo ""
+echo "Building recipes: ${RECIPES[@]}"
 
-# Clean cache
-echo "→ Cleaning Pixi cache..."
 pixi clean cache --yes
-echo ""
 
-# Prepare directory
-echo "→ Preparing output directory..."
-rm -rf "$OUTPUT_DIR"
-mkdir -p "$OUTPUT_DIR"
-echo "  Output: $OUTPUT_DIR"
-echo ""
+rm -rf /tmp/ecoscope-workflows-custom/release/artifacts
+mkdir -p /tmp/ecoscope-workflows-custom/release/artifacts
 
-# Build recipes
-echo "→ Building ${#RECIPES[@]} recipe(s)..."
-echo ""
-
-build_count=0
 for rec in "${RECIPES[@]}"; do
-    ((build_count++))
-    recipe_file="${RECIPE_DIR}/${rec}.yaml"
-    
-    echo "  [$build_count/${#RECIPES[@]}] $rec"
-    
-    if [ ! -f "$recipe_file" ]; then
-        echo "  ✗ Recipe not found: $recipe_file"
-        exit 1
-    fi
-    
+    echo "Building $rec"
     rattler-build build \
-        --recipe "$recipe_file" \
-        --output-dir "$OUTPUT_DIR" \
-        --channel https://prefix.dev/ecoscope-workflows \
-        --channel conda-forge
-    
-    echo "  ✓ Built successfully"
-    echo ""
+    --recipe $(pwd)/publish/recipes/${rec}.yaml \
+    --output-dir /tmp/ecoscope-workflows-custom/release/artifacts \
+    --channel https://prefix.dev/ecoscope-workflows \
+    --channel conda-forge
 done
-
-# Summary
-echo "=== Build Complete ==="
-echo ""
-artifact_count=$(find "$OUTPUT_DIR" -type f \( -name "*.conda" -o -name "*.tar.bz2" \) | wc -l)
-echo "  Artifacts: $artifact_count"
-echo "  Location: $OUTPUT_DIR"
-echo ""
