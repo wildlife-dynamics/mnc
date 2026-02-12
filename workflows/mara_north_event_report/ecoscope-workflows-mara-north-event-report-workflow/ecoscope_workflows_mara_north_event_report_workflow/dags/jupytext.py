@@ -123,7 +123,7 @@ from ecoscope_workflows_ext_mnc.tasks import (
 from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_values
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
-from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df_1
+from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df
 from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
@@ -10339,7 +10339,7 @@ filter_patrol_info_events = (
     .partial(
         column_name="event_type",
         op="equal",
-        value="patrol_information",
+        value="patrol_info",
         df=events_temporal,
         reset_index=False,
         **filter_patrol_info_events_params,
@@ -10409,10 +10409,10 @@ rename_patrol_info = (
         drop_columns=[],
         retain_columns=[],
         rename_columns={
-            "event_details__participants": "participants",
-            "event_details__patrol_purpose": "purpose",
-            "event_details__person_who_authorized": "authorized_by",
-            "event_details__transport_type": "transport_type",
+            "event_details__patrolinfomation_participants": "participants",
+            "event_details__patrolinfomation_patrolpurpose": "purpose",
+            "event_details__patrolinfomation_personwhoauthorised": "authorized_by",
+            "event_details__patrolinfomation_transporttype": "transport_type",
             "patrols": "patrol_id",
         },
         df=normalize_pi_values,
@@ -12615,7 +12615,7 @@ merge_trajs_params = dict()
 
 
 merge_trajs = (
-    merge_multiple_df_1.set_task_instance_id("merge_trajs")
+    merge_multiple_df.set_task_instance_id("merge_trajs")
     .handle_errors()
     .with_tracing()
     .partial(

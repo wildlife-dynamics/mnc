@@ -13,7 +13,7 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.11.*"
+    version: "0.0.12.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
@@ -4398,9 +4398,16 @@ workflow:
     partial:
       column_name: event_type
       op: equal
-      value: patrol_information
+      value: patrol_info
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
+
+  # - name: view patrol information 
+  #   id: view_patrol_information
+  #   task: view_df
+  #   partial: 
+  #     gdf: ${{ workflow.filter_patrol_info_events.return }}
+  #     name: patrol information events 
 
   - name: Normalize event details columns 
     id: normalize_pi_values
@@ -4415,6 +4422,13 @@ workflow:
       skip_if_not_exists: true 
       sort_columns: true 
 
+  # - name: view patrol information 
+  #   id: view_patrol_informationw
+  #   task: view_df
+  #   partial: 
+  #     gdf: ${{ workflow.normalize_pi_values.return }}
+  #     name: normalized patrol information values 
+
   - name: Rename patrol information columns 
     id: rename_patrol_info
     task: map_columns
@@ -4426,10 +4440,10 @@ workflow:
       drop_columns: []
       retain_columns: []
       rename_columns:
-        event_details__participants: participants
-        event_details__patrol_purpose: purpose
-        event_details__person_who_authorized: authorized_by
-        event_details__transport_type: transport_type 
+        event_details__patrolinfomation_participants: participants
+        event_details__patrolinfomation_patrolpurpose: purpose
+        event_details__patrolinfomation_personwhoauthorised: authorized_by
+        event_details__patrolinfomation_transporttype: transport_type 
         patrols: patrol_id
 
       df: ${{ workflow.normalize_pi_values.return }}
