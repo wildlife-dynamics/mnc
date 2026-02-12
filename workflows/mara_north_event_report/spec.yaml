@@ -13,7 +13,7 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.11.*"
+    version: "0.0.12.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
@@ -4398,7 +4398,7 @@ workflow:
     partial:
       column_name: event_type
       op: equal
-      value: patrol_information
+      value: patrol_info
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
 
@@ -4426,10 +4426,10 @@ workflow:
       drop_columns: []
       retain_columns: []
       rename_columns:
-        event_details__participants: participants
-        event_details__patrol_purpose: purpose
-        event_details__person_who_authorized: authorized_by
-        event_details__transport_type: transport_type 
+        event_details__patrolinfomation_participants: participants
+        event_details__patrolinfomation_patrolpurpose: purpose
+        event_details__patrolinfomation_personwhoauthorised: authorized_by
+        event_details__patrolinfomation_transporttype: transport_type 
         patrols: patrol_id
 
       df: ${{ workflow.normalize_pi_values.return }}
