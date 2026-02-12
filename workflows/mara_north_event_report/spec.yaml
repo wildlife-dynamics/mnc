@@ -4402,6 +4402,13 @@ workflow:
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
 
+  # - name: view patrol information 
+  #   id: view_patrol_information
+  #   task: view_df
+  #   partial: 
+  #     gdf: ${{ workflow.filter_patrol_info_events.return }}
+  #     name: patrol information events 
+
   - name: Normalize event details columns 
     id: normalize_pi_values
     task: normalize_json_column
@@ -4414,6 +4421,13 @@ workflow:
       df: ${{ workflow.filter_patrol_info_events.return }}
       skip_if_not_exists: true 
       sort_columns: true 
+
+  # - name: view patrol information 
+  #   id: view_patrol_informationw
+  #   task: view_df
+  #   partial: 
+  #     gdf: ${{ workflow.normalize_pi_values.return }}
+  #     name: normalized patrol information values 
 
   - name: Rename patrol information columns 
     id: rename_patrol_info
