@@ -10290,7 +10290,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 30000,
                     "max_concurrent_pages": 1,
                 },
             }
