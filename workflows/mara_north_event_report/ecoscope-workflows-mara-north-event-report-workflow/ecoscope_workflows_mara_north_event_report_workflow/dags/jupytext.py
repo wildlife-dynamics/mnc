@@ -13304,7 +13304,7 @@ convert_mobile_boma_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_mobile_boma_png_params,
@@ -13342,7 +13342,7 @@ convert_livestock_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_livestock_png_params,
@@ -13380,7 +13380,7 @@ convert_wildlife_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_wildlife_png_params,
@@ -13418,7 +13418,7 @@ convert_elephant_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_elephant_png_params,
@@ -13456,7 +13456,7 @@ convert_ele_herd_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_ele_herd_png_params,
@@ -13494,7 +13494,7 @@ convert_buffalo_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_buffalo_png_params,
@@ -13532,7 +13532,7 @@ convert_buffalo_herd_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_buffalo_herd_png_params,
@@ -13570,7 +13570,7 @@ convert_rhino_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_rhino_png_params,
@@ -13608,7 +13608,7 @@ convert_lion_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_lion_png_params,
@@ -13646,7 +13646,7 @@ convert_leopard_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_leopard_png_params,
@@ -13684,7 +13684,7 @@ convert_cheetah_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_cheetah_png_params,
@@ -13722,7 +13722,7 @@ convert_giraffe_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_giraffe_png_params,
@@ -13760,7 +13760,7 @@ convert_hb_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_hb_png_params,
@@ -13798,7 +13798,7 @@ convert_foot_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_foot_png_params,
@@ -13836,7 +13836,7 @@ convert_vehicle_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 30000,
             "max_concurrent_pages": 1,
         },
         **convert_vehicle_png_params,
@@ -13912,7 +13912,7 @@ convert_grid_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_grid_png_params,
