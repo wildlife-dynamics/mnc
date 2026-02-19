@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -15,6 +17,146 @@ class WorkflowDetails(BaseModel):
     description: str | None = Field("", title="Workflow Description")
 
 
+class Filter(str, Enum):
+    none = "none"
+    clean = "clean"
+    manually_filtered = "manually_filtered"
+    automatically_filtered = "automatically_filtered"
+    manually_and_automatically_filtered = "manually_and_automatically_filtered"
+
+
+class SubjectObservations(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    filter: Filter | None = Field(
+        "clean",
+        description="Filter observations based on exclusion flags.",
+        title="Filter",
+    )
+
+
+class RenameGrouperColumns(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenameBuffaloColumns(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenameGiraffeCols(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenameAirstrip(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenamePatrolInfo(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class DropValuesPatrolInfo(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenameFootTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenameVehicleTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenameMotorTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenameUnspecifiedTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
+class RenameCombinedTrajs(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    raise_if_not_found: bool | None = Field(
+        True,
+        description="Whether or not to raise if var is not in value_map.",
+        title="Raise If Not Found",
+    )
+
+
 class TimezoneInfo(BaseModel):
     label: str = Field(..., title="Label")
     tzCode: str = Field(..., title="Tzcode")
@@ -24,6 +166,38 @@ class TimezoneInfo(BaseModel):
 
 class EarthRangerConnection(BaseModel):
     name: str = Field(..., title="Data Source")
+
+
+class Method(str, Enum):
+    spline = "spline"
+
+
+class SmoothingConfig(BaseModel):
+    method: Literal["spline"] = Field(
+        "spline",
+        description="The smoothing method to apply. Currently supports 'spline'.",
+        title="Method",
+    )
+    y_min: float | None = Field(
+        None,
+        description="The minimum value to clamp smoothed values to. Useful for data like precipitation where values should not go below zero.",
+        title="Y Min",
+    )
+    y_max: float | None = Field(
+        None,
+        description="The maximum value to clamp smoothed values to.",
+        title="Y Max",
+    )
+    resolution: int | None = Field(
+        10,
+        description="The resolution multiplier for interpolation points. The number of output points will be len(x) * resolution.",
+        title="Resolution",
+    )
+    degree: int | None = Field(
+        3,
+        description="The degree of the spline. 1: Linear, 2: Quadratic, 3: Cubic (recommended), 4-5: Higher degree.",
+        title="Degree",
+    )
 
 
 class TimeRange(BaseModel):
@@ -47,6 +221,94 @@ class ErClientName(BaseModel):
     )
 
 
+class PrecipitationChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    smoothing: SmoothingConfig | None = Field(
+        None,
+        description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+        title="Smoothing",
+    )
+
+
+class TemperatureChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    smoothing: SmoothingConfig | None = Field(
+        None,
+        description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+        title="Smoothing",
+    )
+
+
+class WindSpeedChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    smoothing: SmoothingConfig | None = Field(
+        None,
+        description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+        title="Smoothing",
+    )
+
+
+class WindGustsChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    smoothing: SmoothingConfig | None = Field(
+        None,
+        description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+        title="Smoothing",
+    )
+
+
+class SoilTempChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    smoothing: SmoothingConfig | None = Field(
+        None,
+        description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+        title="Smoothing",
+    )
+
+
+class RelHumidityChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    smoothing: SmoothingConfig | None = Field(
+        None,
+        description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+        title="Smoothing",
+    )
+
+
+class PressureChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    smoothing: SmoothingConfig | None = Field(
+        None,
+        description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+        title="Smoothing",
+    )
+
+
+class DrawEventsChart(BaseModel):
+    model_config = ConfigDict(
+        extra="forbid",
+    )
+    smoothing: SmoothingConfig | None = Field(
+        None,
+        description="Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+        title="Smoothing",
+    )
+
+
 class FormData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -60,3 +322,59 @@ class FormData(BaseModel):
         None, description="Choose the period of time to analyze.", title="Time range"
     )
     er_client_name: ErClientName | None = Field(None, title="Connect to ER")
+    subject_observations: SubjectObservations | None = Field(
+        None, title="Retrieve weather observations from GMMF"
+    )
+    rename_grouper_columns: RenameGrouperColumns | None = Field(
+        None, title="Rename value grouper columns"
+    )
+    precipitation_chart: PrecipitationChart | None = Field(
+        None, title="Draw precipitation chart"
+    )
+    temperature_chart: TemperatureChart | None = Field(
+        None, title="Draw temperature chart"
+    )
+    wind_speed_chart: WindSpeedChart | None = Field(None, title="Draw wind speed chart")
+    wind_gusts_chart: WindGustsChart | None = Field(None, title="Draw wind gusts chart")
+    soil_temp_chart: SoilTempChart | None = Field(
+        None, title="Draw soil temperature chart"
+    )
+    rel_humidity_chart: RelHumidityChart | None = Field(
+        None, title="Draw relative humidity chart"
+    )
+    pressure_chart: PressureChart | None = Field(
+        None, title="Draw atmospheric pressure chart"
+    )
+    draw_events_chart: DrawEventsChart | None = Field(
+        None, title="Draw total events line chart"
+    )
+    rename_buffalo_columns: RenameBuffaloColumns | None = Field(
+        None, title="Rename buffalo events column"
+    )
+    rename_giraffe_cols: RenameGiraffeCols | None = Field(
+        None, title="Rename giraffe events column"
+    )
+    rename_airstrip: RenameAirstrip | None = Field(
+        None, title="Rename airstrip information columns"
+    )
+    rename_patrol_info: RenamePatrolInfo | None = Field(
+        None, title="Rename patrol information columns"
+    )
+    drop_values_patrol_info: DropValuesPatrolInfo | None = Field(
+        None, title="Drop values from patrol information df"
+    )
+    rename_foot_trajs: RenameFootTrajs | None = Field(
+        None, title="Rename foot traj columns"
+    )
+    rename_vehicle_trajs: RenameVehicleTrajs | None = Field(
+        None, title="Rename vehicle traj columns"
+    )
+    rename_motor_trajs: RenameMotorTrajs | None = Field(
+        None, title="Rename motor traj columns"
+    )
+    rename_unspecified_trajs: RenameUnspecifiedTrajs | None = Field(
+        None, title="Rename unspecified traj columns"
+    )
+    rename_combined_trajs: RenameCombinedTrajs | None = Field(
+        None, title="Rename merged trajectory columns"
+    )
