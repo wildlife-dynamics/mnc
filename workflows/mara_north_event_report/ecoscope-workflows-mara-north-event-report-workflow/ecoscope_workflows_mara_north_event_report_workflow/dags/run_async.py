@@ -1171,6 +1171,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "filter": "clean",
                 "client": DependsOn("er_client_name"),
                 "time_range": DependsOn("time_range"),
                 "raise_on_empty": False,
@@ -1392,6 +1393,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "df": DependsOn("extract_date"),
                 "rename_columns": {
                     "extra__subject__name": "weather_station",
@@ -1520,6 +1522,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "smoothing": {
+                    "method": "spline",
+                    "y_min": None,
+                    "y_max": None,
+                    "resolution": 10,
+                    "degree": 3,
+                },
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "precipitation",
@@ -1590,6 +1599,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "smoothing": {
+                    "method": "spline",
+                    "y_min": None,
+                    "y_max": None,
+                    "resolution": 10,
+                    "degree": 3,
+                },
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "temperature",
@@ -1657,6 +1673,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "smoothing": {
+                    "method": "spline",
+                    "y_min": None,
+                    "y_max": None,
+                    "resolution": 10,
+                    "degree": 3,
+                },
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "wind_speed",
@@ -1724,6 +1747,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "smoothing": {
+                    "method": "spline",
+                    "y_min": None,
+                    "y_max": None,
+                    "resolution": 10,
+                    "degree": 3,
+                },
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "wind_gusts",
@@ -1791,6 +1821,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "smoothing": {
+                    "method": "spline",
+                    "y_min": None,
+                    "y_max": None,
+                    "resolution": 10,
+                    "degree": 3,
+                },
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "soil_temperature",
@@ -1858,6 +1895,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "smoothing": {
+                    "method": "spline",
+                    "y_min": None,
+                    "y_max": None,
+                    "resolution": 10,
+                    "degree": 3,
+                },
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "relative_humidity",
@@ -1925,6 +1969,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "smoothing": {
+                    "method": "spline",
+                    "y_min": None,
+                    "y_max": None,
+                    "resolution": 10,
+                    "degree": 3,
+                },
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "atmospheric_pressure",
@@ -2228,6 +2279,13 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "smoothing": {
+                    "method": "spline",
+                    "y_min": None,
+                    "y_max": None,
+                    "resolution": 10,
+                    "degree": 3,
+                },
                 "dataframe": DependsOn("total_events_recorded"),
                 "x_column": "date",
                 "y_column": "no_of_events",
@@ -4467,6 +4525,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "rename_columns": {
                     "event_details__buffalosightingrep_herdsize": "buffalo_herd_size",
                     "event_details__buffalosightingrep_herd": "buffalo_herd",
@@ -6727,6 +6786,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "rename_columns": {
                     "event_details__total_count": "total_count",
                     "event_details__number_of_adults": "number_of_adults",
@@ -7489,6 +7549,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "rename_columns": {
                     "event_details__guide": "guide",
                     "event_details__airline": "airline",
@@ -7868,6 +7929,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "rename_columns": {
                     "event_details__patrolinfomation_participants": "participants",
                     "event_details__patrolinfomation_patrolpurpose": "purpose",
@@ -8121,6 +8183,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "drop_columns": [
                     "geometry",
                     "reported_by",
@@ -8541,6 +8604,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -8577,6 +8641,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -8613,6 +8678,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -8649,6 +8715,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -9459,6 +9526,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
+                "raise_if_not_found": True,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -10264,7 +10332,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 20000,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -10290,7 +10358,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 30000,
+                    "wait_for_timeout": 25000,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -10316,7 +10384,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 25000,
                     "max_concurrent_pages": 1,
                 },
             }

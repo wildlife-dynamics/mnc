@@ -745,9 +745,7 @@ create_mnc_parcels_layers = (
 # %%
 # parameters
 
-subject_observations_params = dict(
-    filter=...,
-)
+subject_observations_params = dict()
 
 # %%
 # call the task
@@ -765,6 +763,7 @@ subject_observations = (
         unpack_depth=1,
     )
     .partial(
+        filter="clean",
         client=er_client_name,
         time_range=time_range,
         raise_on_empty=False,
@@ -1062,9 +1061,7 @@ extract_date = (
 # %%
 # parameters
 
-rename_grouper_columns_params = dict(
-    raise_if_not_found=...,
-)
+rename_grouper_columns_params = dict()
 
 # %%
 # call the task
@@ -1082,6 +1079,7 @@ rename_grouper_columns = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         df=extract_date,
         drop_columns=[],
         retain_columns=[],
@@ -1234,7 +1232,6 @@ persist_weather_summary = (
 # parameters
 
 precipitation_chart_params = dict(
-    smoothing=...,
     widget_id=...,
 )
 
@@ -1254,6 +1251,13 @@ precipitation_chart = (
         unpack_depth=1,
     )
     .partial(
+        smoothing={
+            "method": "spline",
+            "y_min": None,
+            "y_max": None,
+            "resolution": 10,
+            "degree": 3,
+        },
         dataframe=daily_weather,
         x_column="date",
         y_column="precipitation",
@@ -1328,7 +1332,6 @@ persist_precipitation = (
 # parameters
 
 temperature_chart_params = dict(
-    smoothing=...,
     widget_id=...,
 )
 
@@ -1348,6 +1351,13 @@ temperature_chart = (
         unpack_depth=1,
     )
     .partial(
+        smoothing={
+            "method": "spline",
+            "y_min": None,
+            "y_max": None,
+            "resolution": 10,
+            "degree": 3,
+        },
         dataframe=daily_weather,
         x_column="date",
         y_column="temperature",
@@ -1419,7 +1429,6 @@ persist_temperature = (
 # parameters
 
 wind_speed_chart_params = dict(
-    smoothing=...,
     widget_id=...,
 )
 
@@ -1439,6 +1448,13 @@ wind_speed_chart = (
         unpack_depth=1,
     )
     .partial(
+        smoothing={
+            "method": "spline",
+            "y_min": None,
+            "y_max": None,
+            "resolution": 10,
+            "degree": 3,
+        },
         dataframe=daily_weather,
         x_column="date",
         y_column="wind_speed",
@@ -1510,7 +1526,6 @@ persist_wind_speed = (
 # parameters
 
 wind_gusts_chart_params = dict(
-    smoothing=...,
     widget_id=...,
 )
 
@@ -1530,6 +1545,13 @@ wind_gusts_chart = (
         unpack_depth=1,
     )
     .partial(
+        smoothing={
+            "method": "spline",
+            "y_min": None,
+            "y_max": None,
+            "resolution": 10,
+            "degree": 3,
+        },
         dataframe=daily_weather,
         x_column="date",
         y_column="wind_gusts",
@@ -1601,7 +1623,6 @@ persist_wind_gusts = (
 # parameters
 
 soil_temp_chart_params = dict(
-    smoothing=...,
     widget_id=...,
 )
 
@@ -1621,6 +1642,13 @@ soil_temp_chart = (
         unpack_depth=1,
     )
     .partial(
+        smoothing={
+            "method": "spline",
+            "y_min": None,
+            "y_max": None,
+            "resolution": 10,
+            "degree": 3,
+        },
         dataframe=daily_weather,
         x_column="date",
         y_column="soil_temperature",
@@ -1692,7 +1720,6 @@ persist_soil_temp = (
 # parameters
 
 rel_humidity_chart_params = dict(
-    smoothing=...,
     widget_id=...,
 )
 
@@ -1712,6 +1739,13 @@ rel_humidity_chart = (
         unpack_depth=1,
     )
     .partial(
+        smoothing={
+            "method": "spline",
+            "y_min": None,
+            "y_max": None,
+            "resolution": 10,
+            "degree": 3,
+        },
         dataframe=daily_weather,
         x_column="date",
         y_column="relative_humidity",
@@ -1783,7 +1817,6 @@ persist_rel_humidity = (
 # parameters
 
 pressure_chart_params = dict(
-    smoothing=...,
     widget_id=...,
 )
 
@@ -1803,6 +1836,13 @@ pressure_chart = (
         unpack_depth=1,
     )
     .partial(
+        smoothing={
+            "method": "spline",
+            "y_min": None,
+            "y_max": None,
+            "resolution": 10,
+            "degree": 3,
+        },
         dataframe=daily_weather,
         x_column="date",
         y_column="atmospheric_pressure",
@@ -2204,7 +2244,6 @@ persist_summary_event_type = (
 # parameters
 
 draw_events_chart_params = dict(
-    smoothing=...,
     widget_id=...,
 )
 
@@ -2224,6 +2263,13 @@ draw_events_chart = (
         unpack_depth=1,
     )
     .partial(
+        smoothing={
+            "method": "spline",
+            "y_min": None,
+            "y_max": None,
+            "resolution": 10,
+            "degree": 3,
+        },
         dataframe=total_events_recorded,
         x_column="date",
         y_column="no_of_events",
@@ -5456,9 +5502,7 @@ normalize_buffalo_values = (
 # %%
 # parameters
 
-rename_buffalo_columns_params = dict(
-    raise_if_not_found=...,
-)
+rename_buffalo_columns_params = dict()
 
 # %%
 # call the task
@@ -5476,6 +5520,7 @@ rename_buffalo_columns = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=[],
         retain_columns=[],
         rename_columns={
@@ -8733,9 +8778,7 @@ normalize_giraffe_values = (
 # %%
 # parameters
 
-rename_giraffe_cols_params = dict(
-    raise_if_not_found=...,
-)
+rename_giraffe_cols_params = dict()
 
 # %%
 # call the task
@@ -8753,6 +8796,7 @@ rename_giraffe_cols = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=[],
         retain_columns=[],
         rename_columns={
@@ -9858,9 +9902,7 @@ normalize_airstrip_values = (
 # %%
 # parameters
 
-rename_airstrip_params = dict(
-    raise_if_not_found=...,
-)
+rename_airstrip_params = dict()
 
 # %%
 # call the task
@@ -9878,6 +9920,7 @@ rename_airstrip = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=[],
         retain_columns=[],
         rename_columns={
@@ -10406,9 +10449,7 @@ normalize_pi_values = (
 # %%
 # parameters
 
-rename_patrol_info_params = dict(
-    raise_if_not_found=...,
-)
+rename_patrol_info_params = dict()
 
 # %%
 # call the task
@@ -10426,6 +10467,7 @@ rename_patrol_info = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=[],
         retain_columns=[],
         rename_columns={
@@ -10772,9 +10814,7 @@ get_patrol_obs = (
 # %%
 # parameters
 
-drop_values_patrol_info_params = dict(
-    raise_if_not_found=...,
-)
+drop_values_patrol_info_params = dict()
 
 # %%
 # call the task
@@ -10792,6 +10832,7 @@ drop_values_patrol_info = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=["geometry", "reported_by", "index", "serial_number"],
         retain_columns=[],
         rename_columns={
@@ -11373,9 +11414,7 @@ temporal_unspecified_traj = (
 # %%
 # parameters
 
-rename_foot_trajs_params = dict(
-    raise_if_not_found=...,
-)
+rename_foot_trajs_params = dict()
 
 # %%
 # call the task
@@ -11393,6 +11432,7 @@ rename_foot_trajs = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=["heading", "extra__created_at", "extra__id"],
         retain_columns=[],
         rename_columns={
@@ -11420,9 +11460,7 @@ rename_foot_trajs = (
 # %%
 # parameters
 
-rename_vehicle_trajs_params = dict(
-    raise_if_not_found=...,
-)
+rename_vehicle_trajs_params = dict()
 
 # %%
 # call the task
@@ -11440,6 +11478,7 @@ rename_vehicle_trajs = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=["heading", "extra__created_at", "extra__id"],
         retain_columns=[],
         rename_columns={
@@ -11467,9 +11506,7 @@ rename_vehicle_trajs = (
 # %%
 # parameters
 
-rename_motor_trajs_params = dict(
-    raise_if_not_found=...,
-)
+rename_motor_trajs_params = dict()
 
 # %%
 # call the task
@@ -11487,6 +11524,7 @@ rename_motor_trajs = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=["heading", "extra__created_at", "extra__id"],
         retain_columns=[],
         rename_columns={
@@ -11514,9 +11552,7 @@ rename_motor_trajs = (
 # %%
 # parameters
 
-rename_unspecified_trajs_params = dict(
-    raise_if_not_found=...,
-)
+rename_unspecified_trajs_params = dict()
 
 # %%
 # call the task
@@ -11534,6 +11570,7 @@ rename_unspecified_trajs = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=["heading", "extra__created_at", "extra__id"],
         retain_columns=[],
         rename_columns={
@@ -12664,9 +12701,7 @@ merge_trajs = (
 # %%
 # parameters
 
-rename_combined_trajs_params = dict(
-    raise_if_not_found=...,
-)
+rename_combined_trajs_params = dict()
 
 # %%
 # call the task
@@ -12684,6 +12719,7 @@ rename_combined_trajs = (
         unpack_depth=1,
     )
     .partial(
+        raise_if_not_found=True,
         drop_columns=["heading", "extra__created_at", "extra__id"],
         retain_columns=[],
         rename_columns={
@@ -13830,7 +13866,7 @@ convert_foot_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 20000,
             "max_concurrent_pages": 1,
         },
         **convert_foot_png_params,
@@ -13868,7 +13904,7 @@ convert_vehicle_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 30000,
+            "wait_for_timeout": 25000,
             "max_concurrent_pages": 1,
         },
         **convert_vehicle_png_params,
@@ -13906,7 +13942,7 @@ convert_motor_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 25000,
             "max_concurrent_pages": 1,
         },
         **convert_motor_png_params,
