@@ -536,6 +536,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            filter="clean",
             client=er_client_name,
             time_range=time_range,
             raise_on_empty=False,
@@ -743,6 +744,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             df=extract_date,
             drop_columns=[],
             retain_columns=[],
@@ -868,6 +870,13 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            smoothing={
+                "method": "spline",
+                "y_min": None,
+                "y_max": None,
+                "resolution": 10,
+                "degree": 3,
+            },
             dataframe=daily_weather,
             x_column="date",
             y_column="precipitation",
@@ -933,6 +942,13 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            smoothing={
+                "method": "spline",
+                "y_min": None,
+                "y_max": None,
+                "resolution": 10,
+                "degree": 3,
+            },
             dataframe=daily_weather,
             x_column="date",
             y_column="temperature",
@@ -995,6 +1011,13 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            smoothing={
+                "method": "spline",
+                "y_min": None,
+                "y_max": None,
+                "resolution": 10,
+                "degree": 3,
+            },
             dataframe=daily_weather,
             x_column="date",
             y_column="wind_speed",
@@ -1057,6 +1080,13 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            smoothing={
+                "method": "spline",
+                "y_min": None,
+                "y_max": None,
+                "resolution": 10,
+                "degree": 3,
+            },
             dataframe=daily_weather,
             x_column="date",
             y_column="wind_gusts",
@@ -1119,6 +1149,13 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            smoothing={
+                "method": "spline",
+                "y_min": None,
+                "y_max": None,
+                "resolution": 10,
+                "degree": 3,
+            },
             dataframe=daily_weather,
             x_column="date",
             y_column="soil_temperature",
@@ -1181,6 +1218,13 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            smoothing={
+                "method": "spline",
+                "y_min": None,
+                "y_max": None,
+                "resolution": 10,
+                "degree": 3,
+            },
             dataframe=daily_weather,
             x_column="date",
             y_column="relative_humidity",
@@ -1243,6 +1287,13 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            smoothing={
+                "method": "spline",
+                "y_min": None,
+                "y_max": None,
+                "resolution": 10,
+                "degree": 3,
+            },
             dataframe=daily_weather,
             x_column="date",
             y_column="atmospheric_pressure",
@@ -1535,6 +1586,13 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            smoothing={
+                "method": "spline",
+                "y_min": None,
+                "y_max": None,
+                "resolution": 10,
+                "degree": 3,
+            },
             dataframe=total_events_recorded,
             x_column="date",
             y_column="no_of_events",
@@ -3710,6 +3768,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=[],
             retain_columns=[],
             rename_columns={
@@ -5909,6 +5968,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=[],
             retain_columns=[],
             rename_columns={
@@ -6656,6 +6716,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=[],
             retain_columns=[],
             rename_columns={
@@ -7021,6 +7082,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=[],
             retain_columns=[],
             rename_columns={
@@ -7267,6 +7329,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=["geometry", "reported_by", "index", "serial_number"],
             retain_columns=[],
             rename_columns={
@@ -7674,6 +7737,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -7707,6 +7771,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -7740,6 +7805,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -7773,6 +7839,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -8561,6 +8628,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
+            raise_if_not_found=True,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -9345,7 +9413,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
+                "wait_for_timeout": 20000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_foot_png") or {}),
@@ -9371,7 +9439,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 30000,
+                "wait_for_timeout": 25000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_vehicle_png") or {}),
@@ -9397,7 +9465,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
+                "wait_for_timeout": 25000,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_motor_png") or {}),
