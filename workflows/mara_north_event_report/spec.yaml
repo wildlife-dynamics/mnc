@@ -283,6 +283,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      filter: clean
       client: ${{ workflow.er_client_name.return }}
       time_range: ${{ workflow.time_range.return }}
       raise_on_empty: false
@@ -425,6 +426,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      raise_if_not_found: true
       df: ${{ workflow.extract_date.return }}
       drop_columns: []
       retain_columns: []
@@ -511,6 +513,12 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      smoothing: 
+        method: spline 
+        y_min: null
+        y_max: null 
+        resolution: 10 
+        degree: 3
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: precipitation
@@ -560,6 +568,12 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      smoothing: 
+        method: spline 
+        y_min: null
+        y_max: null 
+        resolution: 10 
+        degree: 3
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: temperature
@@ -606,6 +620,12 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      smoothing: 
+        method: spline 
+        y_min: null
+        y_max: null 
+        resolution: 10 
+        degree: 3
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: wind_speed
@@ -652,6 +672,12 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      smoothing: 
+        method: spline 
+        y_min: null
+        y_max: null 
+        resolution: 10 
+        degree: 3
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: wind_gusts
@@ -698,6 +724,12 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      smoothing: 
+        method: spline 
+        y_min: null
+        y_max: null 
+        resolution: 10 
+        degree: 3
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: soil_temperature
@@ -744,6 +776,12 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      smoothing: 
+        method: spline 
+        y_min: null
+        y_max: null 
+        resolution: 10 
+        degree: 3
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: relative_humidity
@@ -790,6 +828,12 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      smoothing: 
+        method: spline 
+        y_min: null
+        y_max: null 
+        resolution: 10 
+        degree: 3
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: atmospheric_pressure
@@ -982,6 +1026,12 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      smoothing: 
+        method: spline 
+        y_min: null
+        y_max: null 
+        resolution: 10 
+        degree: 3
       dataframe: ${{ workflow.total_events_recorded.return }}
       x_column: date 
       y_column: no_of_events
@@ -2362,6 +2412,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:  
+      raise_if_not_found: true
       drop_columns: []
       retain_columns: [] 
       rename_columns: 
@@ -3724,6 +3775,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:  
+      raise_if_not_found: true
       drop_columns: []
       retain_columns: [] 
       rename_columns: 
@@ -4187,6 +4239,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      raise_if_not_found: true
       drop_columns: []
       retain_columns: []
       rename_columns:
@@ -4422,13 +4475,6 @@ workflow:
       skip_if_not_exists: true 
       sort_columns: true 
 
-  # - name: view patrol information 
-  #   id: view_patrol_informationw
-  #   task: view_df
-  #   partial: 
-  #     gdf: ${{ workflow.normalize_pi_values.return }}
-  #     name: normalized patrol information values 
-
   - name: Rename patrol information columns 
     id: rename_patrol_info
     task: map_columns
@@ -4437,6 +4483,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      raise_if_not_found: true
       drop_columns: []
       retain_columns: []
       rename_columns:
@@ -4587,6 +4634,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
+      raise_if_not_found: true
       drop_columns: 
         - geometry 
         - reported_by
@@ -4852,6 +4900,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      raise_if_not_found: true
       drop_columns:
         - heading
         - extra__created_at
@@ -4878,6 +4927,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      raise_if_not_found: true
       drop_columns:
         - heading
         - extra__created_at
@@ -4904,6 +4954,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      raise_if_not_found: true
       drop_columns:
         - heading
         - extra__created_at
@@ -4930,6 +4981,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      raise_if_not_found: true
       drop_columns:
         - heading
         - extra__created_at
@@ -5448,6 +5500,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
+      raise_if_not_found: true
       drop_columns:
         - heading
         - extra__created_at
@@ -5954,7 +6007,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 20000
         max_concurrent_pages: 1
 
   - name: Convert vehicle patrol map to png
@@ -5970,7 +6023,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 30000
+        wait_for_timeout: 25000
         max_concurrent_pages: 1
 
   - name: Convert motor patrol map to png
@@ -5986,7 +6039,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 25000
         max_concurrent_pages: 1
 
   - name: Convert grid map to png
