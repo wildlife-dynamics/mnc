@@ -51,7 +51,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry,
+    drop_null_geometry as drop_null_geometry_1,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     exclude_row_values as exclude_row_values,
@@ -745,7 +745,9 @@ create_mnc_parcels_layers = (
 # %%
 # parameters
 
-subject_observations_params = dict()
+subject_observations_params = dict(
+    filter=...,
+)
 
 # %%
 # call the task
@@ -1060,7 +1062,9 @@ extract_date = (
 # %%
 # parameters
 
-rename_grouper_columns_params = dict()
+rename_grouper_columns_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -1230,6 +1234,7 @@ persist_weather_summary = (
 # parameters
 
 precipitation_chart_params = dict(
+    smoothing=...,
     widget_id=...,
 )
 
@@ -1323,6 +1328,7 @@ persist_precipitation = (
 # parameters
 
 temperature_chart_params = dict(
+    smoothing=...,
     widget_id=...,
 )
 
@@ -1413,6 +1419,7 @@ persist_temperature = (
 # parameters
 
 wind_speed_chart_params = dict(
+    smoothing=...,
     widget_id=...,
 )
 
@@ -1503,6 +1510,7 @@ persist_wind_speed = (
 # parameters
 
 wind_gusts_chart_params = dict(
+    smoothing=...,
     widget_id=...,
 )
 
@@ -1593,6 +1601,7 @@ persist_wind_gusts = (
 # parameters
 
 soil_temp_chart_params = dict(
+    smoothing=...,
     widget_id=...,
 )
 
@@ -1683,6 +1692,7 @@ persist_soil_temp = (
 # parameters
 
 rel_humidity_chart_params = dict(
+    smoothing=...,
     widget_id=...,
 )
 
@@ -1773,6 +1783,7 @@ persist_rel_humidity = (
 # parameters
 
 pressure_chart_params = dict(
+    smoothing=...,
     widget_id=...,
 )
 
@@ -2193,6 +2204,7 @@ persist_summary_event_type = (
 # parameters
 
 draw_events_chart_params = dict(
+    smoothing=...,
     widget_id=...,
 )
 
@@ -2632,7 +2644,7 @@ remove_mb_invalid_geoms_params = dict()
 
 
 remove_mb_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_mb_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_mb_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -3385,7 +3397,7 @@ remove_livestock_invalid_geoms_params = dict()
 
 
 remove_livestock_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_livestock_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_livestock_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -4009,7 +4021,7 @@ remove_wildlife_invalid_geoms_params = dict()
 
 
 remove_wildlife_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_wildlife_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_wildlife_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -4585,7 +4597,7 @@ remove_ele_invalid_geoms_params = dict()
 
 
 remove_ele_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_ele_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_ele_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -5125,7 +5137,7 @@ drop_ele_bins_invalid_geoms_params = dict()
 
 
 drop_ele_bins_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("drop_ele_bins_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("drop_ele_bins_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -5444,7 +5456,9 @@ normalize_buffalo_values = (
 # %%
 # parameters
 
-rename_buffalo_columns_params = dict()
+rename_buffalo_columns_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -5691,7 +5705,7 @@ remove_buffalo_invalid_geoms_params = dict()
 
 
 remove_buffalo_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_buffalo_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_buffalo_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -6121,7 +6135,7 @@ remove_buff_bins_geoms_params = dict()
 
 
 remove_buff_bins_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_buff_bins_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_buff_bins_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -6543,7 +6557,7 @@ remove_rhino_invalid_geoms_params = dict()
 
 
 remove_rhino_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_rhino_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_rhino_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -7214,7 +7228,7 @@ remove_lion_invalid_geoms_params = dict()
 
 
 remove_lion_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_lion_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_lion_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -7843,7 +7857,7 @@ remove_leopard_invalid_geoms_params = dict()
 
 
 remove_leopard_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_leopard_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_leopard_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -8438,7 +8452,7 @@ remove_cheetah_invalid_geoms_params = dict()
 
 
 remove_cheetah_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_cheetah_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_cheetah_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -8719,7 +8733,9 @@ normalize_giraffe_values = (
 # %%
 # parameters
 
-rename_giraffe_cols_params = dict()
+rename_giraffe_cols_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -8897,7 +8913,7 @@ remove_giraffe_invalid_geoms_params = dict()
 
 
 remove_giraffe_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_giraffe_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_giraffe_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -9213,7 +9229,7 @@ remove_hb_invalid_geoms_params = dict()
 
 
 remove_hb_invalid_geoms = (
-    drop_null_geometry.set_task_instance_id("remove_hb_invalid_geoms")
+    drop_null_geometry_1.set_task_instance_id("remove_hb_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -9842,7 +9858,9 @@ normalize_airstrip_values = (
 # %%
 # parameters
 
-rename_airstrip_params = dict()
+rename_airstrip_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -10388,7 +10406,9 @@ normalize_pi_values = (
 # %%
 # parameters
 
-rename_patrol_info_params = dict()
+rename_patrol_info_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -10752,7 +10772,9 @@ get_patrol_obs = (
 # %%
 # parameters
 
-drop_values_patrol_info_params = dict()
+drop_values_patrol_info_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -11351,7 +11373,9 @@ temporal_unspecified_traj = (
 # %%
 # parameters
 
-rename_foot_trajs_params = dict()
+rename_foot_trajs_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -11396,7 +11420,9 @@ rename_foot_trajs = (
 # %%
 # parameters
 
-rename_vehicle_trajs_params = dict()
+rename_vehicle_trajs_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -11441,7 +11467,9 @@ rename_vehicle_trajs = (
 # %%
 # parameters
 
-rename_motor_trajs_params = dict()
+rename_motor_trajs_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -11486,7 +11514,9 @@ rename_motor_trajs = (
 # %%
 # parameters
 
-rename_unspecified_trajs_params = dict()
+rename_unspecified_trajs_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task
@@ -12634,7 +12664,9 @@ merge_trajs = (
 # %%
 # parameters
 
-rename_combined_trajs_params = dict()
+rename_combined_trajs_params = dict(
+    raise_if_not_found=...,
+)
 
 # %%
 # call the task

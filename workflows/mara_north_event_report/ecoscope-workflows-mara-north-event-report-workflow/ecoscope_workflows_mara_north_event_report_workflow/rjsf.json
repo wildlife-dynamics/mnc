@@ -74,6 +74,334 @@
       ],
       "type": "object",
       "title": "Connect to ER"
+    },
+    "subject_observations": {
+      "additionalProperties": false,
+      "properties": {
+        "filter": {
+          "default": "clean",
+          "enum": [
+            "none",
+            "clean",
+            "manually_filtered",
+            "automatically_filtered",
+            "manually_and_automatically_filtered"
+          ],
+          "title": "Filter",
+          "type": "string",
+          "description": "Filter observations based on exclusion flags.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Retrieve weather observations from GMMF"
+    },
+    "rename_grouper_columns": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename value grouper columns"
+    },
+    "precipitation_chart": {
+      "additionalProperties": false,
+      "properties": {
+        "smoothing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SmoothingConfig"
+            }
+          ],
+          "default": null,
+          "title": "Smoothing",
+          "description": "Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Draw precipitation chart"
+    },
+    "temperature_chart": {
+      "additionalProperties": false,
+      "properties": {
+        "smoothing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SmoothingConfig"
+            }
+          ],
+          "default": null,
+          "title": "Smoothing",
+          "description": "Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Draw temperature chart"
+    },
+    "wind_speed_chart": {
+      "additionalProperties": false,
+      "properties": {
+        "smoothing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SmoothingConfig"
+            }
+          ],
+          "default": null,
+          "title": "Smoothing",
+          "description": "Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Draw wind speed chart"
+    },
+    "wind_gusts_chart": {
+      "additionalProperties": false,
+      "properties": {
+        "smoothing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SmoothingConfig"
+            }
+          ],
+          "default": null,
+          "title": "Smoothing",
+          "description": "Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Draw wind gusts chart"
+    },
+    "soil_temp_chart": {
+      "additionalProperties": false,
+      "properties": {
+        "smoothing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SmoothingConfig"
+            }
+          ],
+          "default": null,
+          "title": "Smoothing",
+          "description": "Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Draw soil temperature chart"
+    },
+    "rel_humidity_chart": {
+      "additionalProperties": false,
+      "properties": {
+        "smoothing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SmoothingConfig"
+            }
+          ],
+          "default": null,
+          "title": "Smoothing",
+          "description": "Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Draw relative humidity chart"
+    },
+    "pressure_chart": {
+      "additionalProperties": false,
+      "properties": {
+        "smoothing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SmoothingConfig"
+            }
+          ],
+          "default": null,
+          "title": "Smoothing",
+          "description": "Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Draw atmospheric pressure chart"
+    },
+    "draw_events_chart": {
+      "additionalProperties": false,
+      "properties": {
+        "smoothing": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/SmoothingConfig"
+            }
+          ],
+          "default": null,
+          "title": "Smoothing",
+          "description": "Configuration for line smoothing. When set, creates a smoothed line with original data point markers.",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Draw total events line chart"
+    },
+    "rename_buffalo_columns": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename buffalo events column"
+    },
+    "rename_giraffe_cols": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename giraffe events column"
+    },
+    "rename_airstrip": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename airstrip information columns"
+    },
+    "rename_patrol_info": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename patrol information columns"
+    },
+    "drop_values_patrol_info": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Drop values from patrol information df"
+    },
+    "rename_foot_trajs": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename foot traj columns"
+    },
+    "rename_vehicle_trajs": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename vehicle traj columns"
+    },
+    "rename_motor_trajs": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename motor traj columns"
+    },
+    "rename_unspecified_trajs": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename unspecified traj columns"
+    },
+    "rename_combined_trajs": {
+      "additionalProperties": false,
+      "properties": {
+        "raise_if_not_found": {
+          "default": true,
+          "title": "Raise If Not Found",
+          "type": "boolean",
+          "description": "Whether or not to raise if var is not in value_map."
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": "Rename merged trajectory columns"
     }
   },
   "$defs": {
@@ -117,6 +445,51 @@
       ],
       "title": "EarthRangerConnection",
       "type": "object"
+    },
+    "SmoothingConfig": {
+      "description": "Configuration for data smoothing.",
+      "properties": {
+        "method": {
+          "const": "spline",
+          "default": "spline",
+          "description": "The smoothing method to apply. Currently supports 'spline'.",
+          "enum": [
+            "spline"
+          ],
+          "title": "Method",
+          "type": "string"
+        },
+        "y_min": {
+          "default": null,
+          "description": "The minimum value to clamp smoothed values to. Useful for data like precipitation where values should not go below zero.",
+          "ecoscope:advanced": true,
+          "title": "Y Min",
+          "type": "number"
+        },
+        "y_max": {
+          "default": null,
+          "description": "The maximum value to clamp smoothed values to.",
+          "ecoscope:advanced": true,
+          "title": "Y Max",
+          "type": "number"
+        },
+        "resolution": {
+          "default": 10,
+          "description": "The resolution multiplier for interpolation points. The number of output points will be len(x) * resolution.",
+          "ecoscope:advanced": true,
+          "title": "Resolution",
+          "type": "integer"
+        },
+        "degree": {
+          "default": 3,
+          "description": "The degree of the spline. 1: Linear, 2: Quadratic, 3: Cubic (recommended), 4-5: Higher degree.",
+          "ecoscope:advanced": true,
+          "title": "Degree",
+          "type": "integer"
+        }
+      },
+      "title": "SmoothingConfig",
+      "type": "object"
     }
   },
   "uiSchema": {
@@ -137,7 +510,27 @@
     "ui:order": [
       "workflow_details",
       "time_range",
-      "er_client_name"
+      "er_client_name",
+      "subject_observations",
+      "rename_grouper_columns",
+      "precipitation_chart",
+      "temperature_chart",
+      "wind_speed_chart",
+      "wind_gusts_chart",
+      "soil_temp_chart",
+      "rel_humidity_chart",
+      "pressure_chart",
+      "draw_events_chart",
+      "rename_buffalo_columns",
+      "rename_giraffe_cols",
+      "rename_airstrip",
+      "rename_patrol_info",
+      "drop_values_patrol_info",
+      "rename_foot_trajs",
+      "rename_vehicle_trajs",
+      "rename_motor_trajs",
+      "rename_unspecified_trajs",
+      "rename_combined_trajs"
     ]
   },
   "additionalProperties": false
