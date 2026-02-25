@@ -1251,13 +1251,7 @@ precipitation_chart = (
         unpack_depth=1,
     )
     .partial(
-        smoothing={
-            "method": "spline",
-            "y_min": None,
-            "y_max": None,
-            "resolution": 10,
-            "degree": 3,
-        },
+        smoothing=None,
         dataframe=daily_weather,
         x_column="date",
         y_column="precipitation",
@@ -1351,13 +1345,7 @@ temperature_chart = (
         unpack_depth=1,
     )
     .partial(
-        smoothing={
-            "method": "spline",
-            "y_min": None,
-            "y_max": None,
-            "resolution": 10,
-            "degree": 3,
-        },
+        smoothing=None,
         dataframe=daily_weather,
         x_column="date",
         y_column="temperature",
@@ -1448,13 +1436,7 @@ wind_speed_chart = (
         unpack_depth=1,
     )
     .partial(
-        smoothing={
-            "method": "spline",
-            "y_min": None,
-            "y_max": None,
-            "resolution": 10,
-            "degree": 3,
-        },
+        smoothing=None,
         dataframe=daily_weather,
         x_column="date",
         y_column="wind_speed",
@@ -1545,13 +1527,7 @@ wind_gusts_chart = (
         unpack_depth=1,
     )
     .partial(
-        smoothing={
-            "method": "spline",
-            "y_min": None,
-            "y_max": None,
-            "resolution": 10,
-            "degree": 3,
-        },
+        smoothing=None,
         dataframe=daily_weather,
         x_column="date",
         y_column="wind_gusts",
@@ -1642,13 +1618,7 @@ soil_temp_chart = (
         unpack_depth=1,
     )
     .partial(
-        smoothing={
-            "method": "spline",
-            "y_min": None,
-            "y_max": None,
-            "resolution": 10,
-            "degree": 3,
-        },
+        smoothing=None,
         dataframe=daily_weather,
         x_column="date",
         y_column="soil_temperature",
@@ -1739,13 +1709,7 @@ rel_humidity_chart = (
         unpack_depth=1,
     )
     .partial(
-        smoothing={
-            "method": "spline",
-            "y_min": None,
-            "y_max": None,
-            "resolution": 10,
-            "degree": 3,
-        },
+        smoothing=None,
         dataframe=daily_weather,
         x_column="date",
         y_column="relative_humidity",
@@ -1836,13 +1800,7 @@ pressure_chart = (
         unpack_depth=1,
     )
     .partial(
-        smoothing={
-            "method": "spline",
-            "y_min": None,
-            "y_max": None,
-            "resolution": 10,
-            "degree": 3,
-        },
+        smoothing=None,
         dataframe=daily_weather,
         x_column="date",
         y_column="atmospheric_pressure",
@@ -2263,13 +2221,7 @@ draw_events_chart = (
         unpack_depth=1,
     )
     .partial(
-        smoothing={
-            "method": "spline",
-            "y_min": None,
-            "y_max": None,
-            "resolution": 10,
-            "degree": 3,
-        },
+        smoothing=None,
         dataframe=total_events_recorded,
         x_column="date",
         y_column="no_of_events",
