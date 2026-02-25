@@ -513,12 +513,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      smoothing: 
-        method: spline 
-        y_min: null
-        y_max: null 
-        resolution: 10 
-        degree: 3
+      smoothing: null
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: precipitation
@@ -568,12 +563,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      smoothing: 
-        method: spline 
-        y_min: null
-        y_max: null 
-        resolution: 10 
-        degree: 3
+      smoothing: null
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: temperature
@@ -620,12 +610,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      smoothing: 
-        method: spline 
-        y_min: null
-        y_max: null 
-        resolution: 10 
-        degree: 3
+      smoothing: null
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: wind_speed
@@ -672,12 +657,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      smoothing: 
-        method: spline 
-        y_min: null
-        y_max: null 
-        resolution: 10 
-        degree: 3
+      smoothing: null
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: wind_gusts
@@ -724,12 +704,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      smoothing: 
-        method: spline 
-        y_min: null
-        y_max: null 
-        resolution: 10 
-        degree: 3
+      smoothing: null
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: soil_temperature
@@ -776,12 +751,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      smoothing: 
-        method: spline 
-        y_min: null
-        y_max: null 
-        resolution: 10 
-        degree: 3
+      smoothing: null
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: relative_humidity
@@ -828,12 +798,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      smoothing: 
-        method: spline 
-        y_min: null
-        y_max: null 
-        resolution: 10 
-        degree: 3
+      smoothing: null
       dataframe: ${{ workflow.daily_weather.return }}
       x_column: date
       y_column: atmospheric_pressure
@@ -1026,12 +991,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      smoothing: 
-        method: spline 
-        y_min: null
-        y_max: null 
-        resolution: 10 
-        degree: 3
+      smoothing: null
       dataframe: ${{ workflow.total_events_recorded.return }}
       x_column: date 
       y_column: no_of_events
