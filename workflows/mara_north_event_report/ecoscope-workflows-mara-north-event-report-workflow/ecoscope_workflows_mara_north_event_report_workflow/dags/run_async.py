@@ -1522,13 +1522,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "smoothing": {
-                    "method": "spline",
-                    "y_min": None,
-                    "y_max": None,
-                    "resolution": 10,
-                    "degree": 3,
-                },
+                "smoothing": None,
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "precipitation",
@@ -1599,13 +1593,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "smoothing": {
-                    "method": "spline",
-                    "y_min": None,
-                    "y_max": None,
-                    "resolution": 10,
-                    "degree": 3,
-                },
+                "smoothing": None,
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "temperature",
@@ -1673,13 +1661,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "smoothing": {
-                    "method": "spline",
-                    "y_min": None,
-                    "y_max": None,
-                    "resolution": 10,
-                    "degree": 3,
-                },
+                "smoothing": None,
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "wind_speed",
@@ -1747,13 +1729,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "smoothing": {
-                    "method": "spline",
-                    "y_min": None,
-                    "y_max": None,
-                    "resolution": 10,
-                    "degree": 3,
-                },
+                "smoothing": None,
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "wind_gusts",
@@ -1821,13 +1797,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "smoothing": {
-                    "method": "spline",
-                    "y_min": None,
-                    "y_max": None,
-                    "resolution": 10,
-                    "degree": 3,
-                },
+                "smoothing": None,
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "soil_temperature",
@@ -1895,13 +1865,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "smoothing": {
-                    "method": "spline",
-                    "y_min": None,
-                    "y_max": None,
-                    "resolution": 10,
-                    "degree": 3,
-                },
+                "smoothing": None,
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "relative_humidity",
@@ -1969,13 +1933,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "smoothing": {
-                    "method": "spline",
-                    "y_min": None,
-                    "y_max": None,
-                    "resolution": 10,
-                    "degree": 3,
-                },
+                "smoothing": None,
                 "dataframe": DependsOn("daily_weather"),
                 "x_column": "date",
                 "y_column": "atmospheric_pressure",
@@ -2279,13 +2237,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "smoothing": {
-                    "method": "spline",
-                    "y_min": None,
-                    "y_max": None,
-                    "resolution": 10,
-                    "degree": 3,
-                },
+                "smoothing": None,
                 "dataframe": DependsOn("total_events_recorded"),
                 "x_column": "date",
                 "y_column": "no_of_events",
