@@ -1878,9 +1878,10 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "event_type_colors",
-                "get_radius": 5,
+                "get_line_color": "event_type_colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Boma Movements",
@@ -2386,9 +2387,10 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_line_color": "colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Livestock Species",
@@ -2835,9 +2837,10 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_line_color": "colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Incidents",
@@ -3194,9 +3197,10 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_line_color": "colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Herd Types",
@@ -3573,12 +3577,13 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
+                "get_line_color": "colors",
                 "get_radius": "elephant_sight_herd_size",
                 "line_width_min_pixels": 1,
                 "radius_units": "pixels",
                 "radius_scale": 0.43,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Group Sizes",
@@ -3929,9 +3934,10 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_line_color": "colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             geodataframe=apply_buffalo_colormap,
             legend={
@@ -4215,12 +4221,13 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
+                "get_line_color": "colors",
                 "get_radius": "buffalo_herd_size",
                 "line_width_min_pixels": 1,
                 "radius_units": "pixels",
                 "radius_scale": 0.015,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Herd Size",
@@ -4460,28 +4467,6 @@ def main(params: Params):
         .call()
     )
 
-    apply_rhino_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_rhino_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="event_type",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_rhino_invalid_geoms,
-            **(params_dict.get("apply_rhino_colormap") or {}),
-        )
-        .call()
-    )
-
     generate_rhino_layers = (
         create_scatterplot_layer.validate()
         .set_task_instance_id("generate_rhino_layers")
@@ -4497,17 +4482,16 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_line_color": "colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Rhino Sightings",
-                "label_column": "event_type",
-                "color_column": "colors",
-                "sort": "ascending",
+                "values": [{"label": "Sighting", "value": "#87cefa"}],
             },
-            geodataframe=apply_rhino_colormap,
+            geodataframe=remove_rhino_invalid_geoms,
             **(params_dict.get("generate_rhino_layers") or {}),
         )
         .call()
@@ -4952,9 +4936,10 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_line_color": "colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Lion Prides",
@@ -5375,9 +5360,10 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_line_color": "colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Individual",
@@ -5776,9 +5762,10 @@ def main(params: Params):
         .partial(
             layer_style={
                 "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_line_color": "colors",
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Individual",
@@ -6047,28 +6034,6 @@ def main(params: Params):
         .call()
     )
 
-    apply_giraffe_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_giraffe_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="event_type",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_giraffe_invalid_geoms,
-            **(params_dict.get("apply_giraffe_colormap") or {}),
-        )
-        .call()
-    )
-
     generate_giraffe_layers = (
         create_scatterplot_layer.validate()
         .set_task_instance_id("generate_giraffe_layers")
@@ -6083,18 +6048,17 @@ def main(params: Params):
         )
         .partial(
             layer_style={
-                "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_fill_color": [135, 206, 250],
+                "get_line_color": [135, 206, 250],
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Giraffe Sightings",
-                "label_column": "event_type",
-                "color_column": "colors",
-                "sort": "ascending",
+                "values": [{"label": "Sighting", "color": "#87cefa"}],
             },
-            geodataframe=apply_giraffe_colormap,
+            geodataframe=remove_giraffe_invalid_geoms,
             **(params_dict.get("generate_giraffe_layers") or {}),
         )
         .call()
@@ -6255,28 +6219,6 @@ def main(params: Params):
         .call()
     )
 
-    apply_hb_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_hb_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="event_type",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_hb_invalid_geoms,
-            **(params_dict.get("apply_hb_colormap") or {}),
-        )
-        .call()
-    )
-
     generate_hb_layers = (
         create_scatterplot_layer.validate()
         .set_task_instance_id("generate_hb_layers")
@@ -6291,18 +6233,17 @@ def main(params: Params):
         )
         .partial(
             layer_style={
-                "get_fill_color": "colors",
-                "get_radius": 5,
+                "get_fill_color": [135, 206, 250],
+                "get_line_color": [135, 206, 250],
+                "get_radius": 4,
                 "opacity": 0.75,
-                "stroked": False,
+                "stroked": True,
             },
             legend={
                 "title": "Hartebeest Sightings",
-                "label_column": "event_type",
-                "color_column": "colors",
-                "sort": "ascending",
+                "values": [{"label": "Sighting", "color": "#87cefa"}],
             },
-            geodataframe=apply_hb_colormap,
+            geodataframe=remove_hb_invalid_geoms,
             **(params_dict.get("generate_hb_layers") or {}),
         )
         .call()
@@ -7530,33 +7471,6 @@ def main(params: Params):
         .call()
     )
 
-    unspecified_trajs = (
-        relocations_to_trajectory.validate()
-        .set_task_instance_id("unspecified_trajs")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            relocations=filter_unspecified_patrols,
-            trajectory_segment_filter={
-                "min_length_meters": 0.35,
-                "max_length_meters": 5000.0,
-                "max_time_secs": 18000.0,
-                "min_time_secs": 1.0,
-                "max_speed_kmhr": 100.0,
-                "min_speed_kmhr": 10.0,
-            },
-            **(params_dict.get("unspecified_trajs") or {}),
-        )
-        .call()
-    )
-
     foot_trajs = (
         relocations_to_trajectory.validate()
         .set_task_instance_id("foot_trajs")
@@ -7649,29 +7563,6 @@ def main(params: Params):
             cast_to_datetime=True,
             format="mixed",
             **(params_dict.get("temporal_motor_traj") or {}),
-        )
-        .call()
-    )
-
-    temporal_unspecified_traj = (
-        add_temporal_index.validate()
-        .set_task_instance_id("temporal_unspecified_traj")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=unspecified_trajs,
-            time_col="segment_start",
-            groupers=groupers,
-            cast_to_datetime=True,
-            format="mixed",
-            **(params_dict.get("temporal_unspecified_traj") or {}),
         )
         .call()
     )
@@ -7774,40 +7665,6 @@ def main(params: Params):
             },
             df=temporal_motor_traj,
             **(params_dict.get("rename_motor_trajs") or {}),
-        )
-        .call()
-    )
-
-    rename_unspecified_trajs = (
-        map_columns.validate()
-        .set_task_instance_id("rename_unspecified_trajs")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            raise_if_not_found=True,
-            drop_columns=["heading", "extra__created_at", "extra__id"],
-            retain_columns=[],
-            rename_columns={
-                "extra__patrol_start_time": "patrol_start_time",
-                "extra__patrol_end_time": "patrol_end_time",
-                "extra__patrol_id": "patrol_id",
-                "extra__patrol_serial_number": "patrol_serial_number",
-                "extra__patrol_status": "patrol_status",
-                "extra__patrol_subject": "patrol_subject_name",
-                "extra__patrol_title": "patrol_title",
-                "extra__patrol_type": "patrol_type_id",
-                "extra__patrol_type__value": "patrol_type_value",
-                "extra__subject_id": "subject_id",
-            },
-            df=temporal_unspecified_traj,
-            **(params_dict.get("rename_unspecified_trajs") or {}),
         )
         .call()
     )

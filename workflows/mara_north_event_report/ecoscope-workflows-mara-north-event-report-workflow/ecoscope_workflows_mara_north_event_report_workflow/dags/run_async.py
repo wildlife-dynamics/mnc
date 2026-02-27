@@ -391,8 +391,7 @@ def main(params: Params):
         "persist_rhino_df": ["include_rhino_totals"],
         "exclude_rhino_outliers": ["normalize_rhino_values"],
         "remove_rhino_invalid_geoms": ["exclude_rhino_outliers"],
-        "apply_rhino_colormap": ["remove_rhino_invalid_geoms"],
-        "generate_rhino_layers": ["apply_rhino_colormap"],
+        "generate_rhino_layers": ["remove_rhino_invalid_geoms"],
         "combine_rhino_events": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -494,8 +493,7 @@ def main(params: Params):
         "persist_giraffe_df": ["include_giraffe_totals"],
         "exclude_giraffe_outliers": ["rename_giraffe_cols"],
         "remove_giraffe_invalid_geoms": ["exclude_giraffe_outliers"],
-        "apply_giraffe_colormap": ["remove_giraffe_invalid_geoms"],
-        "generate_giraffe_layers": ["apply_giraffe_colormap"],
+        "generate_giraffe_layers": ["remove_giraffe_invalid_geoms"],
         "combine_giraffe_events": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -512,8 +510,7 @@ def main(params: Params):
         "normalize_hb_values": ["filter_hb_events"],
         "exclude_hb_outliers": ["normalize_hb_values"],
         "remove_hb_invalid_geoms": ["exclude_hb_outliers"],
-        "apply_hb_colormap": ["remove_hb_invalid_geoms"],
-        "generate_hb_layers": ["apply_hb_colormap"],
+        "generate_hb_layers": ["remove_hb_invalid_geoms"],
         "combine_hb_events": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -575,16 +572,13 @@ def main(params: Params):
         "filter_unspecified_patrols": ["obs_relocs"],
         "vehicle_trajs": ["filter_vehicle_patrols"],
         "motor_trajs": ["filter_motor_patrols"],
-        "unspecified_trajs": ["filter_unspecified_patrols"],
         "foot_trajs": ["filter_foot_patrols"],
         "temporal_foot_traj": ["foot_trajs", "groupers"],
         "temporal_vehicle_traj": ["vehicle_trajs", "groupers"],
         "temporal_motor_traj": ["motor_trajs", "groupers"],
-        "temporal_unspecified_traj": ["unspecified_trajs", "groupers"],
         "rename_foot_trajs": ["temporal_foot_traj"],
         "rename_vehicle_trajs": ["temporal_vehicle_traj"],
         "rename_motor_trajs": ["temporal_motor_traj"],
-        "rename_unspecified_trajs": ["temporal_unspecified_traj"],
         "foot_patrol_metrics": ["rename_foot_trajs"],
         "add_fp_metrics_totals": ["foot_patrol_metrics"],
         "persist_foot_df": ["add_fp_metrics_totals"],
@@ -2588,9 +2582,10 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "event_type_colors",
-                    "get_radius": 5,
+                    "get_line_color": "event_type_colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Boma Movements",
@@ -3112,9 +3107,10 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_line_color": "colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Livestock Species",
@@ -3566,9 +3562,10 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_line_color": "colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Incidents",
@@ -3935,9 +3932,10 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_line_color": "colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Herd Types",
@@ -4328,12 +4326,13 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
+                    "get_line_color": "colors",
                     "get_radius": "elephant_sight_herd_size",
                     "line_width_min_pixels": 1,
                     "radius_units": "pixels",
                     "radius_scale": 0.43,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Group Sizes",
@@ -4692,9 +4691,10 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_line_color": "colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "geodataframe": DependsOn("apply_buffalo_colormap"),
                 "legend": {
@@ -4988,12 +4988,13 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
+                    "get_line_color": "colors",
                     "get_radius": "buffalo_herd_size",
                     "line_width_min_pixels": 1,
                     "radius_units": "pixels",
                     "radius_scale": 0.015,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Herd Size",
@@ -5238,28 +5239,6 @@ def main(params: Params):
             | (params_dict.get("remove_rhino_invalid_geoms") or {}),
             method="call",
         ),
-        "apply_rhino_colormap": Node(
-            async_task=apply_color_map.validate()
-            .set_task_instance_id("apply_rhino_colormap")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "input_column_name": "event_type",
-                "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_rhino_invalid_geoms"),
-            }
-            | (params_dict.get("apply_rhino_colormap") or {}),
-            method="call",
-        ),
         "generate_rhino_layers": Node(
             async_task=create_scatterplot_layer.validate()
             .set_task_instance_id("generate_rhino_layers")
@@ -5276,17 +5255,21 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_line_color": "colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Rhino Sightings",
-                    "label_column": "event_type",
-                    "color_column": "colors",
-                    "sort": "ascending",
+                    "values": [
+                        {
+                            "label": "Sighting",
+                            "value": "#87cefa",
+                        },
+                    ],
                 },
-                "geodataframe": DependsOn("apply_rhino_colormap"),
+                "geodataframe": DependsOn("remove_rhino_invalid_geoms"),
             }
             | (params_dict.get("generate_rhino_layers") or {}),
             method="call",
@@ -5744,9 +5727,10 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_line_color": "colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Lion Prides",
@@ -6179,9 +6163,10 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_line_color": "colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Individual",
@@ -6592,9 +6577,10 @@ def main(params: Params):
             partial={
                 "layer_style": {
                     "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_line_color": "colors",
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Individual",
@@ -6866,28 +6852,6 @@ def main(params: Params):
             | (params_dict.get("remove_giraffe_invalid_geoms") or {}),
             method="call",
         ),
-        "apply_giraffe_colormap": Node(
-            async_task=apply_color_map.validate()
-            .set_task_instance_id("apply_giraffe_colormap")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "input_column_name": "event_type",
-                "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_giraffe_invalid_geoms"),
-            }
-            | (params_dict.get("apply_giraffe_colormap") or {}),
-            method="call",
-        ),
         "generate_giraffe_layers": Node(
             async_task=create_scatterplot_layer.validate()
             .set_task_instance_id("generate_giraffe_layers")
@@ -6903,18 +6867,30 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "layer_style": {
-                    "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_fill_color": [
+                        135,
+                        206,
+                        250,
+                    ],
+                    "get_line_color": [
+                        135,
+                        206,
+                        250,
+                    ],
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Giraffe Sightings",
-                    "label_column": "event_type",
-                    "color_column": "colors",
-                    "sort": "ascending",
+                    "values": [
+                        {
+                            "label": "Sighting",
+                            "color": "#87cefa",
+                        },
+                    ],
                 },
-                "geodataframe": DependsOn("apply_giraffe_colormap"),
+                "geodataframe": DependsOn("remove_giraffe_invalid_geoms"),
             }
             | (params_dict.get("generate_giraffe_layers") or {}),
             method="call",
@@ -7076,28 +7052,6 @@ def main(params: Params):
             | (params_dict.get("remove_hb_invalid_geoms") or {}),
             method="call",
         ),
-        "apply_hb_colormap": Node(
-            async_task=apply_color_map.validate()
-            .set_task_instance_id("apply_hb_colormap")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "input_column_name": "event_type",
-                "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_hb_invalid_geoms"),
-            }
-            | (params_dict.get("apply_hb_colormap") or {}),
-            method="call",
-        ),
         "generate_hb_layers": Node(
             async_task=create_scatterplot_layer.validate()
             .set_task_instance_id("generate_hb_layers")
@@ -7113,18 +7067,30 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "layer_style": {
-                    "get_fill_color": "colors",
-                    "get_radius": 5,
+                    "get_fill_color": [
+                        135,
+                        206,
+                        250,
+                    ],
+                    "get_line_color": [
+                        135,
+                        206,
+                        250,
+                    ],
+                    "get_radius": 4,
                     "opacity": 0.75,
-                    "stroked": False,
+                    "stroked": True,
                 },
                 "legend": {
                     "title": "Hartebeest Sightings",
-                    "label_column": "event_type",
-                    "color_column": "colors",
-                    "sort": "ascending",
+                    "values": [
+                        {
+                            "label": "Sighting",
+                            "color": "#87cefa",
+                        },
+                    ],
                 },
-                "geodataframe": DependsOn("apply_hb_colormap"),
+                "geodataframe": DependsOn("remove_hb_invalid_geoms"),
             }
             | (params_dict.get("generate_hb_layers") or {}),
             method="call",
@@ -8396,33 +8362,6 @@ def main(params: Params):
             | (params_dict.get("motor_trajs") or {}),
             method="call",
         ),
-        "unspecified_trajs": Node(
-            async_task=relocations_to_trajectory.validate()
-            .set_task_instance_id("unspecified_trajs")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "relocations": DependsOn("filter_unspecified_patrols"),
-                "trajectory_segment_filter": {
-                    "min_length_meters": 0.35,
-                    "max_length_meters": 5000.0,
-                    "max_time_secs": 18000.0,
-                    "min_time_secs": 1.0,
-                    "max_speed_kmhr": 100.0,
-                    "min_speed_kmhr": 10.0,
-                },
-            }
-            | (params_dict.get("unspecified_trajs") or {}),
-            method="call",
-        ),
         "foot_trajs": Node(
             async_task=relocations_to_trajectory.validate()
             .set_task_instance_id("foot_trajs")
@@ -8517,29 +8456,6 @@ def main(params: Params):
                 "format": "mixed",
             }
             | (params_dict.get("temporal_motor_traj") or {}),
-            method="call",
-        ),
-        "temporal_unspecified_traj": Node(
-            async_task=add_temporal_index.validate()
-            .set_task_instance_id("temporal_unspecified_traj")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("unspecified_trajs"),
-                "time_col": "segment_start",
-                "groupers": DependsOn("groupers"),
-                "cast_to_datetime": True,
-                "format": "mixed",
-            }
-            | (params_dict.get("temporal_unspecified_traj") or {}),
             method="call",
         ),
         "rename_foot_trajs": Node(
@@ -8651,43 +8567,6 @@ def main(params: Params):
                 "df": DependsOn("temporal_motor_traj"),
             }
             | (params_dict.get("rename_motor_trajs") or {}),
-            method="call",
-        ),
-        "rename_unspecified_trajs": Node(
-            async_task=map_columns.validate()
-            .set_task_instance_id("rename_unspecified_trajs")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "raise_if_not_found": True,
-                "drop_columns": [
-                    "heading",
-                    "extra__created_at",
-                    "extra__id",
-                ],
-                "rename_columns": {
-                    "extra__patrol_start_time": "patrol_start_time",
-                    "extra__patrol_end_time": "patrol_end_time",
-                    "extra__patrol_id": "patrol_id",
-                    "extra__patrol_serial_number": "patrol_serial_number",
-                    "extra__patrol_status": "patrol_status",
-                    "extra__patrol_subject": "patrol_subject_name",
-                    "extra__patrol_title": "patrol_title",
-                    "extra__patrol_type": "patrol_type_id",
-                    "extra__patrol_type__value": "patrol_type_value",
-                    "extra__subject_id": "subject_id",
-                },
-                "df": DependsOn("temporal_unspecified_traj"),
-            }
-            | (params_dict.get("rename_unspecified_trajs") or {}),
             method="call",
         ),
         "foot_patrol_metrics": Node(
