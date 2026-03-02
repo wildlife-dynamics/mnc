@@ -19,6 +19,8 @@ pip="*"
 hatch-vcs="*"
 setuptools="*"
 playwright = ">=1.58.2,<2"
+virtualenv = "20.39.0.*"
+
 [feature.compile.dependencies]
 # Include this if you add new tasks and the package has been built
 
