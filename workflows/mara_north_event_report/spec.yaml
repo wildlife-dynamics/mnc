@@ -17,8 +17,8 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
-    version: "0.0.7.*"
-    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+    version: "*"
+    channel: file:///tmp/ecoscope-workflows-custom/release/artifacts/
     
 workflow:
   - name: Set workflow details
@@ -1136,6 +1136,49 @@ workflow:
       value_map:  
         mobile_boma_rep: Mobile boma
       inplace: false
+
+  - name: Calculate total boma counts 
+    id: calculate_total_boma 
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      groupby_cols:
+        - date
+      summary_params:
+        - display_name: total_count 
+          aggregator: nunique 
+          column: id 
+      reset_index: true
+      df: ${{ workflow.rename_boma_values.return }}
+
+  - name: Add total row on total boma counts
+    id: add_total_boma_row
+    task: add_totals_row
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      label_col:
+        - date 
+      label: Total
+      df: ${{ workflow.calculate_total_boma.return }}
+
+  - name: Persist total boma count df 
+    id: persist_boma_count_df
+    task: persist_df 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.add_total_boma_row.return }}
+      filename: total_boma_count_by_date
 
   - name: Cattle count summary table
     id: filter_cattle_cols 

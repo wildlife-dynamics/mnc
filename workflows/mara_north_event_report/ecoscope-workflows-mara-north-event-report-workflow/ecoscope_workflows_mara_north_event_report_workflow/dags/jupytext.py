@@ -2535,6 +2535,109 @@ rename_boma_values = (
 
 
 # %% [markdown]
+# ## Calculate total boma counts
+
+# %%
+# parameters
+
+calculate_total_boma_params = dict()
+
+# %%
+# call the task
+
+
+calculate_total_boma = (
+    summarize_df.set_task_instance_id("calculate_total_boma")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        groupby_cols=["date"],
+        summary_params=[
+            {"display_name": "total_count", "aggregator": "nunique", "column": "id"}
+        ],
+        reset_index=True,
+        df=rename_boma_values,
+        **calculate_total_boma_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Add total row on total boma counts
+
+# %%
+# parameters
+
+add_total_boma_row_params = dict()
+
+# %%
+# call the task
+
+
+add_total_boma_row = (
+    add_totals_row.set_task_instance_id("add_total_boma_row")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        label_col=["date"],
+        label="Total",
+        df=calculate_total_boma,
+        **add_total_boma_row_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Persist total boma count df
+
+# %%
+# parameters
+
+persist_boma_count_df_params = dict()
+
+# %%
+# call the task
+
+
+persist_boma_count_df = (
+    persist_df.set_task_instance_id("persist_boma_count_df")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        filetype="csv",
+        df=add_total_boma_row,
+        filename="total_boma_count_by_date",
+        **persist_boma_count_df_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Cattle count summary table
 
 # %%

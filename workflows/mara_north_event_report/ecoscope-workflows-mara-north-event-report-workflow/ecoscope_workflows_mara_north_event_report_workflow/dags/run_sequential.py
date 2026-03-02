@@ -1740,6 +1740,73 @@ def main(params: Params):
         .call()
     )
 
+    calculate_total_boma = (
+        summarize_df.validate()
+        .set_task_instance_id("calculate_total_boma")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {"display_name": "total_count", "aggregator": "nunique", "column": "id"}
+            ],
+            reset_index=True,
+            df=rename_boma_values,
+            **(params_dict.get("calculate_total_boma") or {}),
+        )
+        .call()
+    )
+
+    add_total_boma_row = (
+        add_totals_row.validate()
+        .set_task_instance_id("add_total_boma_row")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=calculate_total_boma,
+            **(params_dict.get("add_total_boma_row") or {}),
+        )
+        .call()
+    )
+
+    persist_boma_count_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_boma_count_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=add_total_boma_row,
+            filename="total_boma_count_by_date",
+            **(params_dict.get("persist_boma_count_df") or {}),
+        )
+        .call()
+    )
+
     filter_cattle_cols = (
         filter_columns.validate()
         .set_task_instance_id("filter_cattle_cols")
