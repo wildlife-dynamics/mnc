@@ -219,6 +219,9 @@ def main(params: Params):
         "rename_mobile_boma": ["normalize_mb_values"],
         "rename_cattle_count": ["normalize_cc_values"],
         "rename_boma_values": ["rename_mobile_boma"],
+        "calculate_total_boma": ["rename_boma_values"],
+        "add_total_boma_row": ["calculate_total_boma"],
+        "persist_boma_count_df": ["add_total_boma_row"],
         "filter_cattle_cols": ["rename_cattle_count"],
         "persist_cattle_count_df": ["filter_cattle_cols"],
         "exclude_mb_outliers": ["rename_boma_values"],
@@ -2454,6 +2457,81 @@ def main(params: Params):
                 "inplace": False,
             }
             | (params_dict.get("rename_boma_values") or {}),
+            method="call",
+        ),
+        "calculate_total_boma": Node(
+            async_task=summarize_df.validate()
+            .set_task_instance_id("calculate_total_boma")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "groupby_cols": [
+                    "date",
+                ],
+                "summary_params": [
+                    {
+                        "display_name": "total_count",
+                        "aggregator": "nunique",
+                        "column": "id",
+                    },
+                ],
+                "reset_index": True,
+                "df": DependsOn("rename_boma_values"),
+            }
+            | (params_dict.get("calculate_total_boma") or {}),
+            method="call",
+        ),
+        "add_total_boma_row": Node(
+            async_task=add_totals_row.validate()
+            .set_task_instance_id("add_total_boma_row")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "label_col": [
+                    "date",
+                ],
+                "label": "Total",
+                "df": DependsOn("calculate_total_boma"),
+            }
+            | (params_dict.get("add_total_boma_row") or {}),
+            method="call",
+        ),
+        "persist_boma_count_df": Node(
+            async_task=persist_df.validate()
+            .set_task_instance_id("persist_boma_count_df")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "root_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "filetype": "csv",
+                "df": DependsOn("add_total_boma_row"),
+                "filename": "total_boma_count_by_date",
+            }
+            | (params_dict.get("persist_boma_count_df") or {}),
             method="call",
         ),
         "filter_cattle_cols": Node(
