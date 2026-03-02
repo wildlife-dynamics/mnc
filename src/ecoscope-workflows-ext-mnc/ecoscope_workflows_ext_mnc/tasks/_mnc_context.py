@@ -309,8 +309,8 @@ def generate_mnc_report(
 
     # 7. Boma movements
     df = read_csv_safe("total_boma_count_by_date")  # mobile_boma_summary
-    if df is not None and "boma" in df.columns and "total_count" in df.columns:
-        total_row = df[df["boma"] == "Total"]
+    if df is not None and "date" in df.columns and "total_count" in df.columns:
+        total_row = df[df["date"] == "Total"]
         context["no_of_boma_movements"] = int(total_row["total_count"].iloc[0]) if not total_row.empty else 0
     else:
         context["no_of_boma_movements"] = 0
