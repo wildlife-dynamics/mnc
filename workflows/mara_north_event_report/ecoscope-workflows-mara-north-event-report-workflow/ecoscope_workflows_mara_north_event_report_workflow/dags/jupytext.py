@@ -13706,7 +13706,7 @@ convert_foot_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 20000,
+            "wait_for_timeout": 40000,
             "max_concurrent_pages": 1,
         },
         **convert_foot_png_params,
@@ -13744,7 +13744,7 @@ convert_vehicle_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 25000,
+            "wait_for_timeout": 75000,
             "max_concurrent_pages": 1,
         },
         **convert_vehicle_png_params,
