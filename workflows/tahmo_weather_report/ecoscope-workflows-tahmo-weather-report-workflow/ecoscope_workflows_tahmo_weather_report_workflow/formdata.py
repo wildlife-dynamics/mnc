@@ -26,28 +26,6 @@ class EarthRangerConnection(BaseModel):
     name: str = Field(..., title="Data Source")
 
 
-class ScreenshotConfig(BaseModel):
-    width: int | None = Field(1280, title="Width")
-    height: int | None = Field(720, title="Height")
-    full_page: bool | None = Field(True, title="Full Page")
-    device_scale_factor: float | None = Field(2.0, title="Device Scale Factor")
-    wait_for_timeout: int | None = Field(
-        30000,
-        description="Forced wait time (ms) after network idle before taking the screenshot.",
-        title="Wait For Timeout",
-    )
-    timeout: int | None = Field(
-        0,
-        description="Playwright navigation/screenshot timeout in ms. 0 disables timeouts.",
-        title="Timeout",
-    )
-    max_concurrent_pages: int | None = Field(
-        5,
-        description="Maximum number of pages open at once when batching.",
-        title="Max Concurrent Pages",
-    )
-
-
 class TimeRange(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -69,27 +47,6 @@ class ErClientName(BaseModel):
     )
 
 
-class ConvertChartHtmlPng(BaseModel):
-    model_config = ConfigDict(
-        extra="forbid",
-    )
-    config: ScreenshotConfig | None = Field(
-        default_factory=lambda: ScreenshotConfig.model_validate(
-            {
-                "width": 1280,
-                "height": 720,
-                "full_page": True,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 30000,
-                "timeout": 0,
-                "max_concurrent_pages": 5,
-            }
-        ),
-        description="The screenshot configuration",
-        title="Config",
-    )
-
-
 class FormData(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -103,6 +60,3 @@ class FormData(BaseModel):
         None, description="Choose the period of time to analyze.", title="Time range"
     )
     er_client_name: ErClientName | None = Field(None, title="Connect to ER")
-    convert_chart_html_png: ConvertChartHtmlPng | None = Field(
-        None, title="Convert chart htmls to png"
-    )

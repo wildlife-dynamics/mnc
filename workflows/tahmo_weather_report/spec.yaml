@@ -637,21 +637,7 @@ workflow:
         wait_for_timeout: 10 
         timeout: 0 
         max_concurrent_pages: 5
-
-  # 5. Create context and persist word doc
-  - name: Generate MNC report 
-    id: generate_mnc_word_doc 
-    task: generate_mnc_report 
-    partial:
-      template_path: ${{ workflow.persist_mnc_tpt.return }}
-      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      generated_by: Ecoscope 
-      validate_images: true 
-      box_h_cm: 6.9
-      box_w_cm: 11.5 
-      time_period: ${{ workflow.time_range.return }}
-      filename: null
-
+        
   - name: MNC event report dashboard
     id: mnc_events_dashboard
     task: gather_dashboard

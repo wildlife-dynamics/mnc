@@ -74,32 +74,6 @@
       ],
       "type": "object",
       "title": "Connect to ER"
-    },
-    "convert_chart_html_png": {
-      "additionalProperties": false,
-      "properties": {
-        "config": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/ScreenshotConfig"
-            }
-          ],
-          "default": {
-            "width": 1280,
-            "height": 720,
-            "full_page": true,
-            "device_scale_factor": 2.0,
-            "wait_for_timeout": 30000,
-            "timeout": 0,
-            "max_concurrent_pages": 5
-          },
-          "title": "Config",
-          "description": "The screenshot configuration"
-        }
-      },
-      "required": [],
-      "type": "object",
-      "title": "Convert chart htmls to png"
     }
   },
   "$defs": {
@@ -143,50 +117,6 @@
       ],
       "title": "EarthRangerConnection",
       "type": "object"
-    },
-    "ScreenshotConfig": {
-      "properties": {
-        "width": {
-          "default": 1280,
-          "title": "Width",
-          "type": "integer"
-        },
-        "height": {
-          "default": 720,
-          "title": "Height",
-          "type": "integer"
-        },
-        "full_page": {
-          "default": true,
-          "title": "Full Page",
-          "type": "boolean"
-        },
-        "device_scale_factor": {
-          "default": 2.0,
-          "title": "Device Scale Factor",
-          "type": "number"
-        },
-        "wait_for_timeout": {
-          "default": 30000,
-          "description": "Forced wait time (ms) after network idle before taking the screenshot.",
-          "title": "Wait For Timeout",
-          "type": "integer"
-        },
-        "timeout": {
-          "default": 0,
-          "description": "Playwright navigation/screenshot timeout in ms. 0 disables timeouts.",
-          "title": "Timeout",
-          "type": "integer"
-        },
-        "max_concurrent_pages": {
-          "default": 5,
-          "description": "Maximum number of pages open at once when batching.",
-          "title": "Max Concurrent Pages",
-          "type": "integer"
-        }
-      },
-      "title": "ScreenshotConfig",
-      "type": "object"
     }
   },
   "uiSchema": {
@@ -207,8 +137,7 @@
     "ui:order": [
       "workflow_details",
       "time_range",
-      "er_client_name",
-      "convert_chart_html_png"
+      "er_client_name"
     ]
   },
   "additionalProperties": false

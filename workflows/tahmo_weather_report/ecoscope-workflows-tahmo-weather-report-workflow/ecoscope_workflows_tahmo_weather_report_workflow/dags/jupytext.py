@@ -43,7 +43,6 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df as persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
     draw_line_chart as draw_line_chart,
 )
-from ecoscope_workflows_ext_mnc.tasks import generate_mnc_report as generate_mnc_report
 from ecoscope_workflows_ext_ste.tasks import (
     fetch_and_persist_file as fetch_and_persist_file,
 )
@@ -1303,9 +1302,7 @@ persist_pressure = (
 # %%
 # parameters
 
-convert_chart_html_png_params = dict(
-    config=...,
-)
+convert_chart_html_png_params = dict()
 
 # %%
 # call the task
@@ -1333,38 +1330,16 @@ convert_chart_html_png = (
             persist_rel_humidity,
             persist_pressure,
         ],
+        config={
+            "width": 1280,
+            "height": 720,
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 10,
+            "timeout": 0,
+            "max_concurrent_pages": 5,
+        },
         **convert_chart_html_png_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Generate MNC report
-
-# %%
-# parameters
-
-generate_mnc_word_doc_params = dict()
-
-# %%
-# call the task
-
-
-generate_mnc_word_doc = (
-    generate_mnc_report.set_task_instance_id("generate_mnc_word_doc")
-    .handle_errors()
-    .with_tracing()
-    .partial(
-        template_path=persist_mnc_tpt,
-        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        generated_by="Ecoscope",
-        validate_images=True,
-        box_h_cm=6.9,
-        box_w_cm=11.5,
-        time_period=time_range,
-        filename=None,
-        **generate_mnc_word_doc_params,
     )
     .call()
 )
