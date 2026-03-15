@@ -629,6 +629,12 @@ workflow:
         - ${{ workflow.persist_rel_humidity.return }} # relative humidity
         - ${{ workflow.persist_pressure.return }} # atmospheric pressure
 
+      config: 
+        full_page: false
+        device_scale_factor: 2.0 
+        wait_for_timeout: 10 
+        max_concurrent_pages: 5
+        
   # 5. Create context and persist word doc
   - name: Generate MNC report 
     id: generate_mnc_word_doc 
