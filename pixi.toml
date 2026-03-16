@@ -68,3 +68,11 @@ depends-on = ["build-release"]
 [feature.compile.tasks.recompile-patrol_effort_report]
 cmd = './dev/recompile.sh patrol_effort_report --no-install'
 depends-on = ["build-release"]
+
+[feature.compile.tasks.compile-tahmo_weather_report]
+cmd = './dev/recompile.sh tahmo_weather_report --install'
+depends-on = ["build-release"]
+
+[feature.compile.tasks.recompile-tahmo_weather_report]
+cmd = './dev/recompile.sh tahmo_weather_report --no-install'
+depends-on = ["build-release"]

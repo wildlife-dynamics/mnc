@@ -1,0 +1,639 @@
+id: tahmo_weather_report
+requirements:
+  - name: ecoscope-workflows-core
+    version: "0.22.9.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+
+  - name: ecoscope-workflows-ext-ecoscope
+    version: "0.22.9.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+
+  - name: ecoscope-workflows-ext-custom
+    version: "0.0.28.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+  - name: ecoscope-workflows-ext-ste
+    version: "0.0.16.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+  - name: ecoscope-workflows-ext-mnc
+    version: "0.0.8.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+    
+workflow:
+  - name: Set workflow details
+    id: workflow_details
+    task: set_workflow_details
+
+  - name: Time range
+    id: time_range
+    task: set_time_range
+      
+  - name: Set groupers
+    id: groupers
+    task: set_groupers
+    partial: 
+      groupers: []
+
+  - name: Connect to ER 
+    id: er_client_name
+    task: set_er_connection
+
+  # 1. --- Weather report --- 
+  - name: Retrieve weather observations from GMMF 
+    id: subject_observations
+    task: get_subjectgroup_observations
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      filter: clean
+      client: ${{ workflow.er_client_name.return }}
+      time_range: ${{ workflow.time_range.return }}
+      raise_on_empty: false
+      include_details: false
+      include_subjectsource_details: false
+      subject_group_name: "ER2ER - From GMMF"
+  
+  # Extract precipitation data
+  - name: Extract precipitation data
+    id: extract_precipitation
+    task: extract_value_from_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.subject_observations.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - precipitation
+      output_type: float
+      output_column_name: precipitation
+  
+  # Extract temperature data
+  - name: Extract temperature data
+    id: extract_temperature
+    task: extract_value_from_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_precipitation.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - surface_air_temperature
+      output_type: float
+      output_column_name: temperature
+  
+  # Extract wind speed data 
+  - name: Extract wind speed data
+    id: extract_wind_speed
+    task: extract_value_from_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_temperature.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - wind_speed
+      output_type: float
+      output_column_name: wind_speed
+
+  # Extract wind gusts data 
+  - name: Extract wind gusts data
+    id: extract_wind_gusts
+    task: extract_value_from_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_wind_speed.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - wind_gusts
+      output_type: float
+      output_column_name: wind_gusts
+
+    # Extract soil temperature data 
+  - name: Extract soil temperature data
+    id: extract_soil_temperature
+    task: extract_value_from_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_wind_gusts.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - soil_temperature
+      output_type: float
+      output_column_name: soil_temperature
+
+    # Extract relative humidity data 
+  - name: Extract relative humidity data
+    id: extract_relative_humidity
+    task: extract_value_from_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_soil_temperature.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - relative_humidity
+      output_type: float
+      output_column_name: relative_humidity
+
+    # Extract atmospheric pressure data
+  - name: Extract atmospheric pressure data
+    id: extract_pressure
+    task: extract_value_from_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_relative_humidity.return }}
+      column_name: extra__observation_details
+      field_name_options:
+        - atmospheric_pressure
+      output_type: float
+      output_column_name: atmospheric_pressure
+
+  # Extract date
+  - name: Extract date
+    id: extract_date
+    task: extract_column_as_type
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_pressure.return }}
+      column_name: fixtime
+      output_type: date
+      output_column_name: date
+  
+  # Rename column
+  - name: Rename value grouper columns
+    id: rename_grouper_columns
+    task: map_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      raise_if_not_found: true
+      df: ${{ workflow.extract_date.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        extra__subject__name: "weather_station"
+
+  - name: Add temporal index
+    id: df_with_temporal_index
+    task: add_temporal_index
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.rename_grouper_columns.return }}
+      time_col: fixtime
+      cast_to_datetime: true
+      groupers: ${{ workflow.groupers.return }}
+      format: mixed 
+
+  - name: Calculate weather summary table 
+    id: daily_weather
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.df_with_temporal_index.return }}
+      groupby_cols:
+        - weather_station
+        - date
+      summary_params:
+        - display_name: precipitation
+          aggregator: sum
+          column: precipitation
+
+        - display_name: temperature
+          aggregator: mean
+          column: temperature
+
+        - display_name: wind_speed
+          aggregator: mean
+          column: wind_speed
+        
+        - display_name: wind_gusts
+          aggregator: max
+          column: wind_gusts
+        
+        - display_name: soil_temperature
+          aggregator: mean 
+          column: soil_temperature
+
+        - display_name: relative_humidity
+          aggregator: mean 
+          column: relative_humidity
+
+        - display_name: atmospheric_pressure
+          aggregator: mean 
+          column: atmospheric_pressure
+
+      reset_index: true
+
+  - name: Perist weather summary table 
+    id: persist_weather_summary 
+    task: persist_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:  
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.daily_weather.return }}
+      filename: weather_summary_table
+
+  # Draw weather charts and persist
+  # Draw precipitation chart and persist
+  - name: Draw precipitation chart
+    id: precipitation_chart
+    task: draw_line_chart
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      smoothing: null
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: precipitation
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          showgrid: true
+          gridcolor: "#e0e0e0"
+          gridwidth: 1
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Precipitation (mm)"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist precipitation chart as text
+    id: persist_precipitation
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.precipitation_chart.return }}
+      filename: precipitation_readings_over_time.html
+
+  # Draw temperature chart ,persist
+  - name: Draw temperature chart
+    id: temperature_chart
+    task: draw_line_chart
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      smoothing: null
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: temperature
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average Temperature (°C)"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist temperature chart as text
+    id: persist_temperature
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.temperature_chart.return }}
+      filename: temperature_readings_over_time.html
+
+  # Draw wind speed  chart, persist and add widgets
+  - name: Draw wind speed chart 
+    id: wind_speed_chart
+    task: draw_line_chart
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      smoothing: null
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: wind_speed
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average wind speed"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist wind speed chart as text
+    id: persist_wind_speed
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.wind_speed_chart.return }}
+      filename: wind_speed_readings_over_time.html
+
+  # Draw wind gusts  chart, persist and add widgets
+  - name: Draw wind gusts chart 
+    id: wind_gusts_chart
+    task: draw_line_chart
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      smoothing: null
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: wind_gusts
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Max wind gusts"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist wind gusts chart as text
+    id: persist_wind_gusts
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.wind_gusts_chart.return }}
+      filename: wind_gusts_readings_over_time.html
+
+  # Draw soil temperature chart, persist and add widgets
+  - name: Draw soil temperature chart 
+    id: soil_temp_chart
+    task: draw_line_chart
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      smoothing: null
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: soil_temperature
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average Temperature (°C)"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist soil temperature chart as text
+    id: persist_soil_temp
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.soil_temp_chart.return }}
+      filename: soil_temperature_readings_over_time.html
+
+  # Draw relative humidity and persist
+  - name: Draw relative humidity chart
+    id: rel_humidity_chart
+    task: draw_line_chart
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      smoothing: null
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: relative_humidity
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average humidity"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist relative humidity chart as text
+    id: persist_rel_humidity
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.rel_humidity_chart.return }}
+      filename: relative_humidity_readings_over_time.html
+
+  # Draw atmospheric pressure and persist
+  - name: Draw atmospheric pressure chart
+    id: pressure_chart
+    task: draw_line_chart
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      smoothing: null
+      dataframe: ${{ workflow.daily_weather.return }}
+      x_column: date
+      y_column: atmospheric_pressure
+      category_column: weather_station
+      line_kwargs:
+        shape: "linear"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: true
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Average pressure"
+          tickformat: ".1f"
+        legend_title: "Weather Station"
+        hovermode: "x unified"
+
+  - name: Persist atmospheric pressure chart as text
+    id: persist_pressure
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.pressure_chart.return }}
+      filename: atmospheric_pressure_readings_over_time.html
+
+  - name: Convert chart htmls to png 
+    id: convert_chart_html_png 
+    task: html_to_png 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: 
+        - ${{ workflow.persist_precipitation.return }} # precipitation
+        - ${{ workflow.persist_temperature.return }} # temperature 
+        - ${{ workflow.persist_wind_speed.return }} # wind speed
+        - ${{ workflow.persist_wind_gusts.return }} # wind gusts 
+        - ${{ workflow.persist_soil_temp.return }} # soil temperature 
+        - ${{ workflow.persist_rel_humidity.return }} # relative humidity
+        - ${{ workflow.persist_pressure.return }} # atmospheric pressure
+
+      config: 
+        width: 1280          
+        height: 720          
+        full_page: false
+        device_scale_factor: 2.0 
+        wait_for_timeout: 10 
+        timeout: 0 
+        max_concurrent_pages: 5
+        
+  - name: MNC event report dashboard
+    id: mnc_events_dashboard
+    task: gather_dashboard
+    partial:
+      details: ${{ workflow.workflow_details.return}}
+      widgets: []
+      time_range: ${{ workflow.time_range.return}}
+      groupers: ${{ workflow.groupers.return }}
+      
