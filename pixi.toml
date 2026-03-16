@@ -60,3 +60,11 @@ depends-on = ["build-release"]
 [feature.compile.tasks.recompile-mara_north_event_report]
 cmd = './dev/recompile.sh mara_north_event_report --no-install'
 depends-on = ["build-release"]
+
+[feature.compile.tasks.compile-livestock_monitoring]
+cmd = './dev/recompile.sh livestock_monitoring --install'
+depends-on = ["build-release"]
+
+[feature.compile.tasks.recompile-livestock_monitoring]
+cmd = './dev/recompile.sh livestock_monitoring --no-install'
+depends-on = ["build-release"]
