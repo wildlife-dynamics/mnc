@@ -1,0 +1,1795 @@
+id: patrol_effort_report
+requirements:
+  - name: ecoscope-workflows-core
+    version: "0.22.9.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+
+  - name: ecoscope-workflows-ext-ecoscope
+    version: "0.22.9.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows/
+
+  - name: ecoscope-workflows-ext-custom
+    version: "0.0.28.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+  - name: ecoscope-workflows-ext-ste
+    version: "0.0.16.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+  - name: ecoscope-workflows-ext-mnc
+    version: "0.0.8.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+    
+workflow:
+  - name: Set workflow details
+    id: workflow_details
+    task: set_workflow_details
+
+  - name: Time range
+    id: time_range
+    task: set_time_range
+      
+  - name: Set groupers
+    id: groupers
+    task: set_groupers
+    partial: 
+      groupers: []
+
+  - name: Connect to ER 
+    id: er_client_name
+    task: set_er_connection
+
+  - name: Configure base map layers
+    id: configure_base_maps
+    task: set_base_maps_pydeck
+    partial:
+      base_maps:
+        - url: >-
+            https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}
+          opacity: 1
+          max_zoom: 20
+
+  - name: Download MNC community conservancy boundaries
+    id: persist_mnc_gpkg
+    task: fetch_and_persist_file
+    partial:
+      url: https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=gtdi4vv0&dl=0
+      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      overwrite_existing: false
+      retries: 3
+      unzip: false
+  
+  - name: Download MNC Parcels gpkg
+    id: download_mnc_parcels
+    task: fetch_and_persist_file
+    partial:
+      url: https://www.dropbox.com/scl/fi/33rdzy896rh91gtkfs2j3/mnc_across_the_river_parcels.gpkg?rlkey=xima1v0rozc0h9h78esfogx6q&st=o3gkk5p1&dl=0
+      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      overwrite_existing: false
+      retries: 3
+      unzip: false
+  
+  - name : Load community conservancy boundaries  
+    id: load_comm_shp 
+    task: load_df
+    partial:
+      file_path: ${{ workflow.persist_mnc_gpkg.return }}
+      layer: null
+      deserialize_json: false
+
+  - name: Split loaded gdf by various grazing zones and blocks
+    id: split_gdf_by_zone
+    task: split_gdf_by_column
+    partial:  
+      gdf: ${{ workflow.load_comm_shp.return }}
+      column: grazing_zone
+
+  - name: Annotate community conservancy gpkg with geom type 
+    id: annotate_comm_gdf_dict 
+    task: annotate_gdf_dict_with_geom_type 
+    partial:
+      gdf_dict: ${{ workflow.split_gdf_by_zone.return }}
+
+  - name: Create styled layers from split mnc zones
+    id: create_mnc_styled_layers
+    task: create_deckgl_layers_from_gdf_dict
+    partial:
+      gdf_dict: ${{ workflow.annotate_comm_gdf_dict.return }}
+      styles:
+        Conservancy:
+          extruded: false
+          get_fill_color: [169, 169, 169]
+          get_line_color: [169, 169, 169]
+          get_line_width: 4.00
+          stroked: true
+          filled: false
+          opacity: 0.95
+
+        Conservancy Herd Zone:
+          extruded: false
+          get_fill_color: [173, 255, 47]
+          get_line_color: [173, 255, 47]
+          get_line_width: 1.95
+          stroked: true
+          filled: true
+          opacity: 0.15
+
+        Grazing Zone 1:
+          extruded: false
+          get_fill_color: [85, 107, 47]
+          get_line_color: [85, 107, 47]
+          get_line_width: 1.95
+          stroked: true
+          filled: true
+          opacity: 0.15
+
+        Grazing Zone 2:
+          extruded: false
+          get_fill_color: [0, 139, 139]
+          get_line_color: [0, 139, 139]
+          get_line_width: 1.95
+          stroked: true
+          filled: true
+          opacity: 0.15
+
+        Grazing Zone 3:
+          extruded: false
+          get_fill_color: [0, 100, 0]
+          get_line_color: [0, 100, 0]
+          get_line_width: 1.95
+          stroked: true
+          filled: true
+          opacity: 0.15
+
+        Grazing Zone 4:
+          extruded: false
+          get_fill_color: [143, 188, 139]
+          get_line_color: [143, 188, 139]
+          get_line_width: 1.95
+          stroked: true
+          filled: true
+          opacity: 0.15
+
+      legends:
+        title: Legend
+        values: 
+          - label: Conservancy
+            color: "#a9a9a9"
+          - label: Conservancy Herd Zone
+            color: "#adff2f"
+          - label: Grazing Zone 1
+            color: "#556b2f"
+          - label: Grazing Zone 2
+            color: "#008b8b"
+          - label: Grazing Zone 3
+            color: "#006400"
+          - label: Grazing Zone 4
+            color: "#8fbc8b"
+
+  - name: Create conservancy boundaries
+    id: create_conservancy_boundaries
+    task: create_deckgl_layers_from_gdf_dict
+    partial:
+      gdf_dict: ${{ workflow.annotate_comm_gdf_dict.return }}
+      styles:
+        Conservancy:
+          extruded: false
+          get_fill_color: [169, 169, 169]
+          get_line_color: [169, 169, 169]
+          get_line_width: 4.00
+          stroked: true
+          filled: false
+          opacity: 0.95
+
+      legends:
+        title: Legend 
+        values: 
+          - label: Boundaries
+            color: "#a9a9a9"
+
+  - name: Create conservancy gdf from split dict 
+    id: conservancy_gdf
+    task: create_gdf_from_dict
+    partial: 
+      gdf_dict: ${{ workflow.split_gdf_by_zone.return }}
+      key: Conservancy
+
+  - name: Create group ranch gdf from loaded gdf
+    id: overall_grazing_zones
+    task: filter_df 
+    partial: 
+      column_name: grazing_zone
+      op: ne
+      value: Conservancy 
+      df: ${{ workflow.load_comm_shp.return }}
+      reset_index: false
+
+  - name: Create conservancy text layers here 
+    id: conservancy_text_layer
+    task: create_custom_text_layer 
+    partial: 
+      geodataframe: ${{ workflow.conservancy_gdf.return }}
+      layer_style: 
+        get_text: name 
+        get_color: [0,0,0,255]
+        
+        get_size: 1500
+        size_units: meters 
+        size_min_pixels: 70 #65 
+        size_max_pixels: 100
+        size_scale: 2.25 
+
+        font_family: Calibri 
+        font_weight: "700" 
+        get_text_anchor: middle 
+        get_alignment_baseline: center
+        billboard: true 
+
+        background_padding: [4,8]
+        pickable: true 
+        auto_highlight: false 
+      use_centroid: true 
+      legend: null 
+
+  - name: Load mnc parcels 
+    id: load_mnc_parcels 
+    task: load_df 
+    partial:
+      file_path: ${{ workflow.download_mnc_parcels.return }}
+      layer: null
+      deserialize_json: false
+
+  - name: Assign geom type to mnc parcels 
+    id: assign_mnc_geom
+    task: get_gdf_geom_type 
+    partial:
+      gdf: ${{ workflow.load_mnc_parcels.return }}
+
+  - name: Create mnc parcels layers 
+    id: create_mnc_parcels_layers 
+    task: create_deckgl_layer_from_gdf 
+    partial:
+      gdf: ${{ workflow.assign_mnc_geom.return }}
+      style: 
+        extruded: false
+        get_fill_color: [189, 183, 107]
+        get_line_color: [189, 183, 107]
+        get_line_width: 1.95
+        stroked: true 
+        filled: true 
+        opacity: 0.15
+      legend: 
+        title: ""
+        values: 
+          - label: Parcels
+            color: "#bdb76b"
+
+  # 1. Total events recorded and patrol efforts
+  - name: Retrieve all events 
+    id: get_events_data
+    task: get_events
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      client: ${{ workflow.er_client_name.return }}
+      time_range: ${{ workflow.time_range.return }}
+      event_columns:
+        - id
+        - time
+        - event_type
+        - event_category
+        - reported_by
+        - serial_number
+        - geometry
+        - created_at
+        - event_details
+        - patrols
+      event_types: []
+      raise_on_empty: true
+      include_details: true
+      include_updates: false
+      include_related_events: false
+      include_null_geometry: false
+      include_display_values: false
+
+  # Extract date
+  - name: Extract date from events data
+    id: extract_event_date
+    task: extract_column_as_type
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.get_events_data.return }}
+      column_name: time
+      output_type: date
+      output_column_name: date
+
+  - name: Add temporal index on events
+    id: events_temporal
+    task: add_temporal_index
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_event_date.return }}
+      time_col: date
+      groupers: ${{ workflow.groupers.return }}
+      cast_to_datetime: true
+      format: mixed
+
+  - name: Exclude specific events types from total events
+    id: filter_events
+    task: exclude_row_values
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:  
+      df: ${{ workflow.events_temporal.return }}
+      column: event_type 
+      values:
+        - distancecountwildlife_rep
+        - distancecountpatrol_rep
+        - airstrip_operations
+
+  - name: Calculate total events
+    id: total_events_recorded
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      groupby_cols:
+        - date
+      summary_params:
+        - display_name: no_of_events
+          aggregator: nunique
+          column: id
+      reset_index: true
+      df: ${{ workflow.filter_events.return }}
+  
+  - name: Add total row on total events recorded
+    id: add_total_events_row
+    task: add_totals_row
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      label_col:
+        - date 
+      label: Total
+      df: ${{ workflow.total_events_recorded.return }}
+
+  - name: Persist total events df 
+    id: persist_tevents_df
+    task: persist_df 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.add_total_events_row.return }}
+      filename: total_events_recorded_by_date
+
+  - name: Calculate total events recorded by event type
+    id: total_events_type_recorded
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      groupby_cols:
+        - date
+        - event_type
+      summary_params:
+        - display_name: no_of_events
+          aggregator: nunique
+          column: id
+      reset_index: true
+      df: ${{ workflow.filter_events.return }}
+
+  - name: Persist total events by event type df
+    id: persist_summary_event_type
+    task: persist_df 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.total_events_type_recorded.return }}
+      filename: total_events_recorded_by_type
+
+  - name: Draw total events line chart 
+    id: draw_events_chart 
+    task: draw_line_chart
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      smoothing: null
+      dataframe: ${{ workflow.total_events_recorded.return }}
+      x_column: date 
+      y_column: no_of_events
+      category_column: null
+      line_kwargs:
+        shape: "linear"
+        color: "lightsteelblue"
+      layout_kwargs:
+        title: null
+        title_x: 0.01
+        title_y:  0.95
+        showlegend: false
+        fontsize: 20
+        fontcolor: "#2c3e50"
+        plot_bgcolor: "#f5f5f5"
+        xaxis:
+          title: "Date"
+          tickformat: "%Y-%m-%d"
+          tickangle: -45
+          rangemode: auto
+        yaxis:
+          title: "Number of events"
+          tickformat: ".1f"
+        hovermode: "x unified"
+
+  - name: Persist Total events chart as text
+    id: persist_total_events
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path:  ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_events_chart.return }}
+      filename: total_events_recorded.html # -- convert this to .png
+
+  - name : Filter events and get patrol information 
+    id: filter_patrol_info_events
+    task: filter_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      column_name: event_type
+      op: equal
+      value: patrol_info
+      df: ${{ workflow.events_temporal.return }}
+      reset_index: false
+
+  - name: Normalize event details columns 
+    id: normalize_pi_values
+    task: normalize_json_column
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      column: event_details
+      df: ${{ workflow.filter_patrol_info_events.return }}
+      skip_if_not_exists: true 
+      sort_columns: true 
+
+  - name: Rename patrol information columns 
+    id: rename_patrol_info
+    task: map_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      raise_if_not_found: true
+      drop_columns: []
+      retain_columns: []
+      rename_columns:
+        event_details__patrolinfomation_participants: participants
+        event_details__patrolinfomation_patrolpurpose: purpose
+        event_details__patrolinfomation_personwhoauthorised: authorized_by
+        event_details__patrolinfomation_transporttype: transport_type 
+        patrols: patrol_id
+
+      df: ${{ workflow.normalize_pi_values.return }}
+
+  - name: Patrol information Summary
+    id: patrol_info_summary
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      groupby_cols:
+        - purpose
+      summary_params:
+        - display_name: no_of_patrols
+          aggregator: nunique 
+          column: id 
+      reset_index: true
+      df: ${{ workflow.rename_patrol_info.return }}
+
+  - name: Capitalize patrol text 
+    id: capitalize_patrol_text
+    task: capitalize_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.patrol_info_summary.return }}
+      column: purpose
+
+  - name: Add totals row in patrol info summary table
+    id: include_pat_totals
+    task: add_totals_row
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      label_col: 
+        - purpose
+      label: Total
+      df: ${{ workflow.capitalize_patrol_text.return }}
+
+  - name: Persist patrol summary table 
+    id: persist_patrol_df
+    task: persist_df 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: patrol_purpose_summary
+      df: ${{ workflow.include_pat_totals.return }}
+
+  # patrol observations 
+  - name: Rename column values in participants
+    id: rename_participants 
+    task: map_name_values 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.rename_patrol_info.return }}
+      column: participants 
+  
+  - name: Filter non empty values from patrols info
+    id: filter_null_patrols
+    task: filter_non_empty_values
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.rename_participants.return }}
+      column: patrol_id 
+    
+  - name: Replace transport type nulls with unspecifice
+    id: replace_transport_unspecified 
+    task: replace_missing_with_label 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.filter_null_patrols.return }}
+      columns: 
+        - transport_type 
+      label: unspecified 
+
+  - name: Explode columns on patrols 
+    id: explode_patrol_columns 
+    task: explode_multiple_columns 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.replace_transport_unspecified.return }}
+      columns: 
+        - patrol_id 
+        - participants
+      reset_index: true 
+
+  - name: Get patrol values from patrol information 
+    id: get_patrols_from_info
+    task: get_patrol_values 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      events_df : ${{ workflow.explode_patrol_columns.return }}
+      patrols_column: patrol_id 
+      client: ${{ workflow.er_client_name.return }}
+      batch_size: 15
+
+  - name: Get patrol observations from patrol df 
+    id: get_patrol_obs 
+    task: custom_get_patrol_observations_from_patrols_df # -- error occurs here -- missing mock data in core
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      client: ${{ workflow.er_client_name.return }}
+      patrols_df : ${{ workflow.get_patrols_from_info.return }}
+      include_patrol_details: true 
+      raise_on_empty: true
+      sub_page_size: 150
+
+  - name: Drop values from patrol information df 
+    id: drop_values_patrol_info 
+    task: map_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      raise_if_not_found: true
+      drop_columns: 
+        - geometry 
+        - reported_by
+        - index 
+        - serial_number 
+      retain_columns: []
+      rename_columns: 
+        authorized_by: authorized_by
+        event_details__updates: updates
+    
+      df: ${{ workflow.explode_patrol_columns.return }}
+
+  - name: Merge dataframes
+    id: merge_patrol_events_obs 
+    task: merge_dataframes
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      left_df: ${{ workflow.get_patrol_obs.return }}
+      right_df: ${{ workflow.drop_values_patrol_info.return }}
+      on: patrol_id 
+      how: left 
+      preserve_left_index: true 
+
+
+  - name: Transform observations to relocations
+    id: obs_relocs
+    task: process_relocations
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      observations: ${{ workflow.merge_patrol_events_obs.return }}
+      relocs_columns:
+        - extra__id
+        - extra__created_at
+        - extra__subject_id
+        - geometry
+        - groupby_col
+        - fixtime
+        - junk_status
+        - patrol_id
+        - patrol_title
+        - patrol_serial_number
+        - patrol_start_time
+        - patrol_end_time
+        - patrol_type
+        - patrol_status
+        - patrol_subject
+        - patrol_type__value
+        - participants
+        - purpose
+        - transport_type
+      filter_point_coords:
+        - x: 180.000000
+          y: 90.000000
+        - x: 0.000000
+          y: 0.000000
+        - x: 1.000000
+          y: 1.000000
+
+  - name: Persist  patrol observations as relocations 
+    id: persist_relocs
+    task: persist_df 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: geoparquet 
+      filename: patrol_relocations
+      df: ${{ workflow.obs_relocs.return }}
+
+  - name: Filter foot patrol observations 
+    id: filter_foot_patrols
+    task: filter_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      column_name: transport_type
+      op: equal
+      value: foot
+      df:  ${{ workflow.obs_relocs.return }}
+      reset_index: false
+
+  - name: Filter vehicle patrol observations 
+    id: filter_vehicle_patrols
+    task: filter_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      column_name: transport_type
+      op: equal
+      value: vehicle
+      df:  ${{ workflow.obs_relocs.return }}
+      reset_index: false
+
+  - name: Filter motorbike patrol observations 
+    id: filter_motor_patrols
+    task: filter_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      column_name: transport_type
+      op: equal
+      value: motorbike
+      df:  ${{ workflow.obs_relocs.return }}
+      reset_index: false
+
+  - name: Filter unspecified patrol observations 
+    id: filter_unspecified_patrols
+    task: filter_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      column_name: transport_type
+      op: equal
+      value: unspecified
+      df:  ${{ workflow.obs_relocs.return }}
+      reset_index: false
+
+  - name: Convert vehicle relocations to trajectories
+    id: vehicle_trajs
+    task: relocations_to_trajectory
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      relocations: ${{ workflow.filter_vehicle_patrols.return }}
+      trajectory_segment_filter:
+        min_length_meters: 0.35
+        max_length_meters: 5000.0
+        max_time_secs: 18000.0
+        min_time_secs: 1.0
+        max_speed_kmhr: 100.0
+        min_speed_kmhr: 10.0
+      
+  - name: Convert motorbike relocations to trajectories
+    id: motor_trajs
+    task: relocations_to_trajectory
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      relocations: ${{ workflow.filter_motor_patrols.return }}
+      trajectory_segment_filter:
+        min_length_meters: 0.35
+        max_length_meters: 5000.0
+        max_time_secs: 18000.0
+        min_time_secs: 1.0
+        max_speed_kmhr: 100.0
+        min_speed_kmhr: 10.0
+
+  - name: Convert foot relocations to trajectories
+    id: foot_trajs
+    task: relocations_to_trajectory
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      relocations: ${{ workflow.filter_foot_patrols.return }}
+      trajectory_segment_filter:
+        min_length_meters: 0.001
+        max_length_meters: 5000.0
+        max_time_secs: 14400.0
+        min_time_secs: 1.0
+        max_speed_kmhr: 9.0
+        min_speed_kmhr: 0.5
+
+  - name: Add temporal index to foot trajs
+    id: temporal_foot_traj
+    task: add_temporal_index
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.foot_trajs.return }}
+      time_col: segment_start
+      groupers: ${{ workflow.groupers.return }}
+      cast_to_datetime: true
+      format: mixed
+
+  - name: Add temporal index to vehicle trajs
+    id: temporal_vehicle_traj
+    task: add_temporal_index
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.vehicle_trajs.return }}
+      time_col: segment_start
+      groupers: ${{ workflow.groupers.return }}
+      cast_to_datetime: true
+      format: mixed
+
+  - name: Add temporal index to motorbike trajs
+    id: temporal_motor_traj
+    task: add_temporal_index
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.motor_trajs.return }}
+      time_col: segment_start
+      groupers: ${{ workflow.groupers.return }}
+      cast_to_datetime: true
+      format: mixed
+
+  - name: Rename foot traj columns
+    id: rename_foot_trajs
+    task: map_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      raise_if_not_found: true
+      drop_columns:
+        - heading
+        - extra__created_at
+        - extra__id 
+      retain_columns: []
+      rename_columns:
+        extra__patrol_start_time: patrol_start_time
+        extra__patrol_end_time: patrol_end_time
+        extra__patrol_id: patrol_id
+        extra__patrol_serial_number: patrol_serial_number
+        extra__patrol_status: patrol_status
+        extra__patrol_subject: patrol_subject_name
+        extra__patrol_title: patrol_title 
+        extra__patrol_type: patrol_type_id
+        extra__patrol_type__value: patrol_type_value 
+        extra__subject_id: subject_id
+      df: ${{ workflow.temporal_foot_traj.return }}
+
+  - name: Rename vehicle traj columns
+    id: rename_vehicle_trajs
+    task: map_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      raise_if_not_found: true
+      drop_columns:
+        - heading
+        - extra__created_at
+        - extra__id 
+      retain_columns: []
+      rename_columns:
+        extra__patrol_start_time: patrol_start_time
+        extra__patrol_end_time: patrol_end_time
+        extra__patrol_id: patrol_id
+        extra__patrol_serial_number: patrol_serial_number
+        extra__patrol_status: patrol_status
+        extra__patrol_subject: patrol_subject_name
+        extra__patrol_title: patrol_title 
+        extra__patrol_type: patrol_type_id
+        extra__patrol_type__value: patrol_type_value 
+        extra__subject_id: subject_id
+      df: ${{ workflow.temporal_vehicle_traj.return }}
+
+  - name: Rename motor traj columns
+    id: rename_motor_trajs
+    task: map_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      raise_if_not_found: true
+      drop_columns:
+        - heading
+        - extra__created_at
+        - extra__id 
+      retain_columns: []
+      rename_columns:
+        extra__patrol_start_time: patrol_start_time
+        extra__patrol_end_time: patrol_end_time
+        extra__patrol_id: patrol_id
+        extra__patrol_serial_number: patrol_serial_number
+        extra__patrol_status: patrol_status
+        extra__patrol_subject: patrol_subject_name
+        extra__patrol_title: patrol_title 
+        extra__patrol_type: patrol_type_id
+        extra__patrol_type__value: patrol_type_value 
+        extra__subject_id: subject_id
+      df: ${{ workflow.temporal_motor_traj.return }}
+
+  - name: Summarize foot patrol metrics
+    id: foot_patrol_metrics
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      groupby_cols:
+        - patrol_type_value
+      summary_params:
+        - display_name: no_of_patrols
+          aggregator: nunique
+          column: patrol_id
+
+        - display_name: distance_km
+          aggregator: sum
+          column: dist_meters
+          original_unit: m
+          new_unit: km
+
+        - display_name: duration_hrs
+          aggregator: sum
+          column: timespan_seconds
+          original_unit: s
+          new_unit: h
+
+        - display_name: average_speed 
+          aggregator: mean 
+          column: speed_kmhr
+      reset_index: true
+      df: ${{ workflow.rename_foot_trajs.return }}
+
+  - name: Add totals row
+    id: add_fp_metrics_totals
+    task: add_totals_row
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      label_col: 
+        - patrol_type_value
+      label: Total 
+      df: ${{ workflow.foot_patrol_metrics.return }}
+
+  - name: Persist foot patrol metrics
+    id: persist_foot_df
+    task: persist_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: foot_patrol_efforts
+      df: ${{ workflow.add_fp_metrics_totals.return }}
+
+  - name: Apply Colormap to foot patrols
+    id: apply_footp_colormap
+    task: apply_color_map
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      input_column_name: patrol_type_value
+      output_column_name: foot_patrol_colors
+      colormap: tab20
+      df: ${{ workflow.rename_foot_trajs.return }}
+
+  - name: Filter cols from foot patrols 
+    id: filter_foot_patrol_cols 
+    task: filter_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.apply_footp_colormap.return }}
+      columns: 
+        - timespan_seconds
+        - dist_meters
+        - geometry
+        - patrol_type_value
+        - foot_patrol_colors 
+
+      exclude: []
+
+  - name: Generate  foot patrol layers
+    id: generate_foot_layers
+    task: create_path_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        get_color: foot_patrol_colors
+        get_width: 1.85
+        width_scale: 1
+        width_min_pixels: 2
+        width_max_pixels: 6
+        width_units: pixels
+        cap_rounded: true
+        joint_rounded: true 
+        billboard: false 
+        opacity: 0.75
+        stroked: true
+      legend:
+        title: Patrol Type
+        label_column: patrol_type_value
+        color_column: foot_patrol_colors
+        sort: ascending
+      geodataframe: ${{ workflow.filter_foot_patrol_cols.return }}
+
+  - name: Combine styled layers with foot layers
+    id: combine_foot_layers
+    task: combine_deckgl_map_layers
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      static_layers: 
+        - ${{ workflow.create_conservancy_boundaries.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_foot_layers.return }}
+
+  # global zoom value 
+  - name: Global map zoom value
+    id: global_zoom_value
+    task: view_state_deck_gdf
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      pitch: 0
+      bearing: 0
+      gdf: ${{ workflow.overall_grazing_zones.return }}
+
+  - name: Draw foot patrols map
+    id: draw_foot_map
+    task: draw_map
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 10
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_foot_layers.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist foot patrols map HTML paths
+    id: persist_foot_urls
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_foot_map.return }}
+      filename: foot_patrols_map.html  # -- convert this to png 
+
+  - name: Summarize vehicle patrol metrics
+    id: vehicle_patrol_metrics
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      groupby_cols:
+        - patrol_type_value
+      summary_params:
+        - display_name: no_of_patrols
+          aggregator: nunique
+          column: patrol_id
+        - display_name: distance_km
+          aggregator: sum
+          column: dist_meters
+          original_unit: m
+          new_unit: km
+        - display_name: duration_hrs
+          aggregator: sum
+          column: timespan_seconds
+          original_unit: s
+          new_unit: h
+        - display_name: average_speed 
+          aggregator: mean 
+          column: speed_kmhr
+      reset_index: true
+      df: ${{ workflow.rename_vehicle_trajs.return }}
+
+  - name: Add totals row to vehicle patrols summary
+    id: add_vh_metrics_totals
+    task: add_totals_row
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      label_col: 
+        - patrol_type_value
+      label: Total 
+      df: ${{ workflow.vehicle_patrol_metrics.return }}
+
+  - name: Persist vehicle patrol metrics
+    id: persist_vehicle_df
+    task: persist_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.add_vh_metrics_totals.return }}
+      filename: vehicle_patrol_efforts
+
+  - name: Apply Colormap to vehicle patrols
+    id: apply_vehicle_colormap
+    task: apply_color_map
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      input_column_name: patrol_type_value
+      output_column_name: colors
+      colormap: tab20
+      df: ${{ workflow.rename_vehicle_trajs.return }}
+
+  - name: Filter cols from vehicle patrols 
+    id: filter_vehicle_patrol_cols 
+    task: filter_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.apply_vehicle_colormap.return }}
+      columns: 
+        - timespan_seconds
+        - dist_meters
+        - geometry
+        - patrol_type_value
+        - colors 
+
+      exclude: []
+
+  - name: Generate vehiclce patrol layers
+    id: generate_vehicle_layers
+    task: create_path_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        get_color: colors
+        get_width: 1.85
+        width_scale: 1
+        width_min_pixels: 2
+        width_max_pixels: 6
+        width_units: pixels
+        cap_rounded: true
+        joint_rounded: true 
+        billboard: false 
+        opacity: 0.75
+        stroked: true
+      legend:
+        title: Patrol Type
+        label_column: patrol_type_value
+        color_column: colors
+        sort: ascending
+      geodataframe:  ${{ workflow.filter_vehicle_patrol_cols.return }}
+
+  - name: Combine styled layers with vehicle layers
+    id: combine_vehicle_layers
+    task: combine_deckgl_map_layers
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      static_layers: 
+        - ${{ workflow.create_conservancy_boundaries.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_vehicle_layers.return }}
+
+  - name: Draw vehicle patrols map
+    id: draw_vehicle_map
+    task: draw_map
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 10
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_vehicle_layers.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist vehicle patrols map HTML paths
+    id: persist_vehicle_urls
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_vehicle_map.return }}
+      filename: vehicle_patrols_map.html  # -- convert this to png 
+
+ # Motorbike patrol metrics and persist
+  - name: Summarize motorbike patrol metrics
+    id: motor_patrol_metrics
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      groupby_cols:
+        - patrol_type_value
+      summary_params:
+        - display_name: no_of_patrols
+          aggregator: nunique
+          column: patrol_id
+        - display_name: distance_km
+          aggregator: sum
+          column: dist_meters
+          original_unit: m
+          new_unit: km
+        - display_name: duration_hrs
+          aggregator: sum
+          column: timespan_seconds
+          original_unit: s
+          new_unit: h
+        - display_name: average_speed 
+          aggregator: mean 
+          column: speed_kmhr
+      reset_index: true
+      df: ${{ workflow.rename_motor_trajs.return }}
+
+  - name: Add totals row to motorbike patrols
+    id: add_mb_metrics_totals
+    task: add_totals_row
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      label_col: 
+        - patrol_type_value
+      label: Total 
+      df: ${{ workflow.motor_patrol_metrics.return }}
+
+  - name: Persist motorbike patrol metrics
+    id: persist_motor_df
+    task: persist_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.add_mb_metrics_totals.return }}
+      filename: motorbike_patrol_efforts
+
+  # Draw motor patrol maps
+  - name: Apply Colormap to motor patrols
+    id: apply_motor_colormap
+    task: apply_color_map
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      input_column_name: patrol_type_value
+      output_column_name: colors
+      colormap: tab20
+      df: ${{ workflow.rename_motor_trajs.return }}
+
+  - name: Filter cols from motor patrols 
+    id: filter_motor_patrol_cols 
+    task: filter_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.apply_motor_colormap.return }}
+      columns: 
+        - timespan_seconds
+        - dist_meters
+        - geometry
+        - patrol_type_value
+        - colors 
+
+      exclude: []
+
+  - name: Generate motor patrol layers
+    id: generate_motor_layers
+    task: create_path_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style:
+        get_color: colors
+        get_width: 1.85
+        width_scale: 1
+        width_min_pixels: 2
+        width_max_pixels: 6
+        width_units: pixels
+        cap_rounded: true
+        joint_rounded: true 
+        billboard: false 
+        opacity: 0.75
+        stroked: true
+      legend:
+        title: Patrol Type
+        label_column: patrol_type_value
+        color_column: colors
+        sort: ascending
+      geodataframe: ${{ workflow.filter_motor_patrol_cols.return }}
+
+  - name: Combine styled layers with motorbike layers
+    id: combine_motor_layers
+    task: combine_deckgl_map_layers
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      static_layers: 
+        - ${{ workflow.create_conservancy_boundaries.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_motor_layers.return }}
+
+  - name: Draw motor patrols map
+    id: draw_motor_map
+    task: draw_map
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 10
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_motor_layers.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist motor patrols map HTML paths
+    id: persist_motor_urls
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_motor_map.return }}
+      filename: motorbike_patrols_map.html  # -- convert this to png 
+
+  - name: Merge motorbike ,vehicle and foot patrol trajectories 
+    id: merge_trajs 
+    task: ecoscope_workflows_ext_mnc.tasks.merge_multiple_df
+    partial:
+      list_df:
+        - ${{ workflow.foot_trajs.return }}
+        - ${{ workflow.vehicle_trajs.return }}
+        - ${{ workflow.motor_trajs.return }}
+
+      ignore_index: true
+      sort: false
+
+  - name: Rename merged trajectory columns 
+    id: rename_combined_trajs
+    task: map_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      raise_if_not_found: true
+      drop_columns:
+        - heading
+        - extra__created_at
+        - extra__id 
+      retain_columns: []
+      rename_columns:
+        extra__patrol_start_time: patrol_start_time
+        extra__patrol_end_time: patrol_end_time
+        extra__patrol_id: patrol_id
+        extra__patrol_serial_number: patrol_serial_number
+        extra__patrol_status: patrol_status
+        extra__patrol_subject: patrol_subject_name
+        extra__patrol_title: patrol_title 
+        extra__patrol_type: patrol_type_id
+        extra__patrol_type__value: patrol_type_value 
+        extra__subject_id: subject_id
+        extra__participants: participants 
+      df: ${{ workflow.merge_trajs.return }}
+
+  - name: Persist combined trajectories data 
+    id: persist_trajectories_data
+    task: persist_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: geoparquet
+      df: ${{ workflow.rename_combined_trajs.return }}
+      filename: patrol_trajectories
+
+  - name: Summarize overall ranger patrol metrics
+    id: ranger_patrol_metrics
+    task: summarize_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      groupby_cols:
+        - participants
+      summary_params:
+        - display_name: no_of_patrols
+          aggregator: nunique
+          column: patrol_id
+          decimal_places: 0 
+        - display_name: distance_km
+          aggregator: sum
+          column: dist_meters
+          original_unit: m
+          new_unit: km
+          decimal_places: 2
+        - display_name: duration_hrs
+          aggregator: sum
+          column: timespan_seconds
+          original_unit: s
+          new_unit: h
+          decimal_places: 2
+      reset_index: true
+      df: ${{ workflow.rename_combined_trajs.return }}
+
+  - name: Replace nulls with unspecified
+    id: replace_ranger_nulls
+    task: replace_missing_with_label
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.ranger_patrol_metrics.return }}
+      columns: 
+        - participants
+      label: Unspecified
+
+  - name: Add totals row to overall patrol metrics
+    id: add_ranger_metrics_totals
+    task: add_totals_row
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      label_col: 
+        - participants
+      label: Total 
+      df: ${{ workflow.replace_ranger_nulls.return }}
+
+  - name: Persist total patrol coverage 
+    id: persist_total_df
+    task: persist_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.add_ranger_metrics_totals.return }}
+      filename: overall_patrol_efforts
+
+  - name: Compute patrol visits 
+    id: patrol_grid_visits
+    task: create_patrol_coverage_grid
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      grid_cell_size: 1000
+      trajs: ${{ workflow.rename_combined_trajs.return }}
+
+  - name: Apply bin classification on grids
+    id: apply_classification_grid
+    task: apply_classification
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      input_column_name: unique_patrol_count
+      output_column_name: density_bins 
+      label_options:
+        label_ranges: false
+        label_decimals: 1
+      classification_options:
+        k: 5
+        scheme: "equal_interval"
+      df: ${{ workflow.patrol_grid_visits.return }}
+
+  - name: Apply Colormap to patrol grid visits
+    id: apply_grid_colormap
+    task: apply_color_map
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      input_column_name: density_bins
+      colormap: RdYlGn_r
+      output_column_name: density_colors
+      df: ${{ workflow.apply_classification_grid.return }}
+
+  - name: Create patrol visit grid layers
+    id: generate_grid_layers
+    task: create_geojson_layer
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      layer_style: 
+        filled: true 
+        stroked: true 
+        extruded: false 
+        wireframe: false
+        get_fill_color: density_colors
+        get_line_color: [0, 0, 0]
+        opacity: 0.75 
+        get_line_width: 0.85
+        get_elevation: 0
+        get_point_radius: 1
+        line_width_units: pixels 
+        line_width_scale: 1 
+        line_width_min_pixels: 1
+        line_width_max_pixels: 5
+
+      legend:
+        title: Visits
+        label_column: density_bins
+        color_column: density_colors
+      geodataframe: ${{ workflow.apply_grid_colormap.return }}
+
+  - name: Combine styled layers with patrol coverage
+    id: combine_grid_layers
+    task: combine_deckgl_map_layers
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      static_layers: 
+        - ${{ workflow.create_conservancy_boundaries.return }}
+        - ${{ workflow.create_mnc_parcels_layers.return }}
+        - ${{ workflow.conservancy_text_layer.return }}
+
+      grouped_layers: ${{ workflow.generate_grid_layers.return }}
+
+  - name: Draw patrol coverage map
+    id: draw_grid_map
+    task: draw_map
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      tile_layers: ${{ workflow.configure_base_maps.return }}
+      static: false
+      title: null
+      max_zoom: 10
+      legend_style:
+        placement: "bottom-right"
+      geo_layers: ${{ workflow.combine_grid_layers.return }}
+      view_state: ${{ workflow.global_zoom_value.return }} 
+
+  - name: Persist patrol coverage map HTML paths
+    id: persist_grid_urls
+    task: persist_text
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.draw_grid_map.return }}
+      filename: patrol_coverage_map.html  # -- convert this to png 
+
+  - name: Compute patrol occupancy
+    id: compute_patrol_occupancy
+    task: compute_occupancy 
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:  
+      coverage_grid_gdf: ${{ workflow.patrol_grid_visits.return }}
+      regions_gdf: ${{ workflow.conservancy_gdf.return }}
+      crs: epsg:4326
+  
+  - name: round off values to two decimal places
+    id: round_off_patrol
+    task: round_values
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:  
+      df: ${{ workflow.compute_patrol_occupancy.return }}
+      column: occupancy_percentage 
+      decimals: 2
+  
+  - name: persist occupancy df 
+    id: persist_occupancy_df
+    task: persist_df
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.round_off_patrol.return }}
+      filename: patrol_coverage
+
+
+
+  - name: Convert grid map to png
+    id: convert_grid_png
+    task: html_to_png
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_grid_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 40000
+        max_concurrent_pages: 1
+
+  - name: Convert motor patrol map to png
+    id: convert_motor_png
+    task: html_to_png
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_motor_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 25000
+        max_concurrent_pages: 1
+
+  - name: Convert foot patrol map to png
+    id: convert_foot_png
+    task: html_to_png
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_foot_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 40000
+        max_concurrent_pages: 1
+
+  - name: Convert vehicle patrol map to png
+    id: convert_vehicle_png
+    task: html_to_png
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_vehicle_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 75000
+        max_concurrent_pages: 1
+
+  - name: MNC event report dashboard
+    id: mnc_events_dashboard
+    task: gather_dashboard
+    partial:
+      details: ${{ workflow.workflow_details.return}}
+      widgets: []
+      time_range: ${{ workflow.time_range.return}}
+      groupers: ${{ workflow.groupers.return }}
+      

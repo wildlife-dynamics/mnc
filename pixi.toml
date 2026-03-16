@@ -61,6 +61,13 @@ depends-on = ["build-release"]
 cmd = './dev/recompile.sh mara_north_event_report --no-install'
 depends-on = ["build-release"]
 
+[feature.compile.tasks.compile-patrol_effort_report]
+cmd = './dev/recompile.sh patrol_effort_report --install'
+depends-on = ["build-release"]
+
+[feature.compile.tasks.recompile-patrol_effort_report]
+cmd = './dev/recompile.sh patrol_effort_report --no-install'
+depends-on = ["build-release"]
 
 [feature.compile.tasks.compile-tahmo_weather_report]
 cmd = './dev/recompile.sh tahmo_weather_report --install'
