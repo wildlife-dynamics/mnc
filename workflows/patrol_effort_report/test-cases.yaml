@@ -1,0 +1,24 @@
+all-grouper:
+  name: All Grouper
+  description: A demonstration of a workflow with no grouping.
+  params:
+    workflow_details:
+      description: custom
+      name: custom
+    groupers:
+      groupers: []
+    er_client_name:
+      data_source:
+        name: mnc
+    configure_base_maps:
+      base_maps:
+        - url: >-
+            https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}
+          opacity: 1
+          max_zoom: 20
+    time_range:
+      since: '2025-10-30T21:00:00.000Z'
+      until: '2025-12-31T21:00:00.000Z'
+
+
+
