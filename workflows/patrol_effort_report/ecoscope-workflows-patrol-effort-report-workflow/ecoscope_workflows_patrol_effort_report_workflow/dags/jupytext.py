@@ -243,34 +243,6 @@ configure_base_maps = (
 
 
 # %% [markdown]
-# ## Download MNC template and persist
-
-# %%
-# parameters
-
-persist_mnc_tpt_params = dict()
-
-# %%
-# call the task
-
-
-persist_mnc_tpt = (
-    fetch_and_persist_file.set_task_instance_id("persist_mnc_tpt")
-    .handle_errors()
-    .with_tracing()
-    .partial(
-        url="https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0",
-        output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        overwrite_existing=False,
-        retries=3,
-        unzip=False,
-        **persist_mnc_tpt_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
 # ## Download MNC community conservancy boundaries
 
 # %%

@@ -49,16 +49,6 @@ workflow:
           opacity: 1
           max_zoom: 20
 
-  - name: Download MNC template and persist
-    id: persist_mnc_tpt
-    task: fetch_and_persist_file
-    partial:
-      url: https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0
-      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      overwrite_existing: false
-      retries: 3
-      unzip: false
-
   - name: Download MNC community conservancy boundaries
     id: persist_mnc_gpkg
     task: fetch_and_persist_file
