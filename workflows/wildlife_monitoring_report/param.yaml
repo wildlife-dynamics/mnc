@@ -1,0 +1,15 @@
+workflow_details:
+  description: mara north conservancy report
+  name: mara_north_event_report
+er_client_name:
+  data_source:
+    name: mnc
+time_range:
+  since: '2026-01-01T21:00:00.000Z'
+  until: '2026-03-01T09:00:00.000Z'
+  timezone:
+    utc: '+03:00'
+    name: UTC
+    tzCode: UTC
+    label: UTC
+  time_format: '%d %b %Y %H:%M:%S'
