@@ -34,9 +34,6 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df as persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
     draw_line_chart as draw_line_chart,
 )
-from ecoscope_workflows_ext_ste.tasks import (
-    fetch_and_persist_file as fetch_and_persist_file,
-)
 
 from ..params import Params
 
@@ -49,7 +46,6 @@ def main(params: Params):
         "time_range": [],
         "groupers": [],
         "er_client_name": [],
-        "persist_mnc_tpt": [],
         "subject_observations": ["er_client_name", "time_range"],
         "extract_precipitation": ["subject_observations"],
         "extract_temperature": ["extract_precipitation"],
@@ -124,22 +120,6 @@ def main(params: Params):
             .with_tracing()
             .set_executor("lithops"),
             partial=(params_dict.get("er_client_name") or {}),
-            method="call",
-        ),
-        "persist_mnc_tpt": Node(
-            async_task=fetch_and_persist_file.validate()
-            .set_task_instance_id("persist_mnc_tpt")
-            .handle_errors()
-            .with_tracing()
-            .set_executor("lithops"),
-            partial={
-                "url": "https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0",
-                "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "overwrite_existing": False,
-                "retries": 3,
-                "unzip": False,
-            }
-            | (params_dict.get("persist_mnc_tpt") or {}),
             method="call",
         ),
         "subject_observations": Node(

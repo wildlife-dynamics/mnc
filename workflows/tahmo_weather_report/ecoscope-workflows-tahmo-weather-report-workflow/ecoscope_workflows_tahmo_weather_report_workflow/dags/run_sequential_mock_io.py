@@ -18,9 +18,6 @@ from ecoscope_workflows_core.tasks.filter import set_time_range as set_time_rang
 from ecoscope_workflows_core.tasks.groupby import set_groupers as set_groupers
 from ecoscope_workflows_core.tasks.io import set_er_connection as set_er_connection
 from ecoscope_workflows_core.testing import create_task_magicmock  # 🧪
-from ecoscope_workflows_ext_ste.tasks import (
-    fetch_and_persist_file as fetch_and_persist_file,
-)
 
 get_subjectgroup_observations = create_task_magicmock(  # 🧪
     anchor="ecoscope_workflows_ext_ecoscope.tasks.io",  # 🧪
@@ -90,22 +87,6 @@ def main(params: Params):
         .handle_errors()
         .with_tracing()
         .partial(**(params_dict.get("er_client_name") or {}))
-        .call()
-    )
-
-    persist_mnc_tpt = (
-        fetch_and_persist_file.validate()
-        .set_task_instance_id("persist_mnc_tpt")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            url="https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0",
-            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            overwrite_existing=False,
-            retries=3,
-            unzip=False,
-            **(params_dict.get("persist_mnc_tpt") or {}),
-        )
         .call()
     )
 

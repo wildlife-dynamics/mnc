@@ -43,9 +43,6 @@ from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df as persist_df
 from ecoscope_workflows_ext_ecoscope.tasks.results import (
     draw_line_chart as draw_line_chart,
 )
-from ecoscope_workflows_ext_ste.tasks import (
-    fetch_and_persist_file as fetch_and_persist_file,
-)
 
 # %% [markdown]
 # ## Set workflow details
@@ -138,34 +135,6 @@ er_client_name = (
     .handle_errors()
     .with_tracing()
     .partial(**er_client_name_params)
-    .call()
-)
-
-
-# %% [markdown]
-# ## Download MNC template and persist
-
-# %%
-# parameters
-
-persist_mnc_tpt_params = dict()
-
-# %%
-# call the task
-
-
-persist_mnc_tpt = (
-    fetch_and_persist_file.set_task_instance_id("persist_mnc_tpt")
-    .handle_errors()
-    .with_tracing()
-    .partial(
-        url="https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0",
-        output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        overwrite_existing=False,
-        retries=3,
-        unzip=False,
-        **persist_mnc_tpt_params,
-    )
     .call()
 )
 
