@@ -255,6 +255,7 @@ def main(params: Params):
         "compute_patrol_occupancy": ["patrol_grid_visits", "conservancy_gdf"],
         "round_off_patrol": ["compute_patrol_occupancy"],
         "persist_occupancy_df": ["round_off_patrol"],
+        "convert_tevents_png": ["persist_total_events"],
         "convert_grid_png": ["persist_grid_urls"],
         "convert_motor_png": ["persist_motor_urls"],
         "convert_foot_png": ["persist_foot_urls"],
@@ -3009,6 +3010,32 @@ def main(params: Params):
                 "filename": "patrol_coverage",
             }
             | (params_dict.get("persist_occupancy_df") or {}),
+            method="call",
+        ),
+        "convert_tevents_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_tevents_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_total_events"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 10,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_tevents_png") or {}),
             method="call",
         ),
         "convert_grid_png": Node(

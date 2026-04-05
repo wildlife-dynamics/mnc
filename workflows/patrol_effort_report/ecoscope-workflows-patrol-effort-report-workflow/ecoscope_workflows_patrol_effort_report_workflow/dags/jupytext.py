@@ -3920,6 +3920,44 @@ persist_occupancy_df = (
 
 
 # %% [markdown]
+# ## Convert total events html to png
+
+# %%
+# parameters
+
+convert_tevents_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_tevents_png = (
+    html_to_png.set_task_instance_id("convert_tevents_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_total_events,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 10,
+            "max_concurrent_pages": 1,
+        },
+        **convert_tevents_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Convert grid map to png
 
 # %%

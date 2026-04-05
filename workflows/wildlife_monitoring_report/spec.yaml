@@ -1,19 +1,19 @@
 id: wildlife_monitoring_report
 requirements:
   - name: ecoscope-workflows-core
-    version: "0.22.9.*"
+    version: "0.22.17.*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-ecoscope
-    version: "0.22.9.*"
+    version: "0.22.17.*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.28.*"
+    version: "0.0.39.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.16.*"
+    version: "0.0.18.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
@@ -2742,6 +2742,22 @@ workflow:
         wait_for_timeout: 40000
         max_concurrent_pages: 1
 
+  - name: Convert elephant bar chart to png
+    id: convert_elechart_png
+    task: html_to_png
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_elephant_bar.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 10
+        max_concurrent_pages: 1
+
   - name: Convert elephant map to png
     id: convert_elephant_png
     task: html_to_png
@@ -2790,6 +2806,22 @@ workflow:
         wait_for_timeout: 40000
         max_concurrent_pages: 1
 
+  - name: Convert buffalo bar chart to png
+    id: convert_buffalo_chart_png
+    task: html_to_png
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_buffalo_bar.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 10
+        max_concurrent_pages: 1
+        
   - name: Convert buffalo herd map to png
     id: convert_buffalo_herd_png
     task: html_to_png

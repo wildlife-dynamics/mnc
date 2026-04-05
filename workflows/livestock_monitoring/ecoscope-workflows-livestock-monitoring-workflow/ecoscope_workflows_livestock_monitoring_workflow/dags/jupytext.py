@@ -41,7 +41,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry_1,
+    drop_null_geometry as drop_null_geometry,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_events as get_events
@@ -209,34 +209,6 @@ configure_base_maps = (
             }
         ],
         **configure_base_maps_params,
-    )
-    .call()
-)
-
-
-# %% [markdown]
-# ## Download MNC template and persist
-
-# %%
-# parameters
-
-persist_mnc_tpt_params = dict()
-
-# %%
-# call the task
-
-
-persist_mnc_tpt = (
-    fetch_and_persist_file.set_task_instance_id("persist_mnc_tpt")
-    .handle_errors()
-    .with_tracing()
-    .partial(
-        url="https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0",
-        output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-        overwrite_existing=False,
-        retries=3,
-        unzip=False,
-        **persist_mnc_tpt_params,
     )
     .call()
 )
@@ -1251,7 +1223,7 @@ remove_mb_invalid_geoms_params = dict()
 
 
 remove_mb_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_mb_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_mb_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -2005,7 +1977,7 @@ remove_livestock_invalid_geoms_params = dict()
 
 
 remove_livestock_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_livestock_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_livestock_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(

@@ -68,7 +68,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
 )
 from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry_1,
+    drop_null_geometry as drop_null_geometry,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     filter_row_values as filter_row_values,
@@ -401,9 +401,11 @@ def main(params: Params):
         ],
         "persist_hb_urls": ["draw_hb_map"],
         "convert_wildlife_png": ["persist_wildlife_urls"],
+        "convert_elechart_png": ["persist_elephant_bar"],
         "convert_elephant_png": ["persist_elephant_urls"],
         "convert_ele_herd_png": ["persist_ele_herd_urls"],
         "convert_buffalo_png": ["persist_buffalo_urls"],
+        "convert_buffalo_chart_png": ["persist_buffalo_bar"],
         "convert_buffalo_herd_png": ["persist_buffalo_herd_urls"],
         "convert_rhino_png": ["persist_rhino_urls"],
         "convert_lion_png": ["persist_lion_urls"],
@@ -1233,7 +1235,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_wildlife_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_wildlife_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -1634,7 +1636,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_ele_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_ele_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -2005,7 +2007,7 @@ def main(params: Params):
             method="call",
         ),
         "drop_ele_bins_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("drop_ele_bins_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -2393,7 +2395,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_buffalo_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_buffalo_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -2690,7 +2692,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_buff_bins_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_buff_bins_geoms")
             .handle_errors()
             .with_tracing()
@@ -2979,7 +2981,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_rhino_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_rhino_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -3429,7 +3431,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_lion_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_lion_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -3865,7 +3867,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_leopard_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_leopard_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -4279,7 +4281,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_cheetah_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_cheetah_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -4592,7 +4594,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_giraffe_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_giraffe_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -4792,7 +4794,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_hb_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_hb_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -4952,6 +4954,32 @@ def main(params: Params):
             | (params_dict.get("convert_wildlife_png") or {}),
             method="call",
         ),
+        "convert_elechart_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_elechart_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_elephant_bar"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 10,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_elechart_png") or {}),
+            method="call",
+        ),
         "convert_elephant_png": Node(
             async_task=html_to_png.validate()
             .set_task_instance_id("convert_elephant_png")
@@ -5028,6 +5056,32 @@ def main(params: Params):
                 },
             }
             | (params_dict.get("convert_buffalo_png") or {}),
+            method="call",
+        ),
+        "convert_buffalo_chart_png": Node(
+            async_task=html_to_png.validate()
+            .set_task_instance_id("convert_buffalo_chart_png")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+                "html_path": DependsOn("persist_buffalo_bar"),
+                "config": {
+                    "full_page": False,
+                    "device_scale_factor": 2.0,
+                    "wait_for_timeout": 10,
+                    "max_concurrent_pages": 1,
+                },
+            }
+            | (params_dict.get("convert_buffalo_chart_png") or {}),
             method="call",
         ),
         "convert_buffalo_herd_png": Node(

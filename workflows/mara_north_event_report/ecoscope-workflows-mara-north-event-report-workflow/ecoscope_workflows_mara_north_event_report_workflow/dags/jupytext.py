@@ -51,7 +51,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry_1,
+    drop_null_geometry as drop_null_geometry,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     exclude_row_values as exclude_row_values,
@@ -2745,7 +2745,7 @@ remove_mb_invalid_geoms_params = dict()
 
 
 remove_mb_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_mb_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_mb_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -3499,7 +3499,7 @@ remove_livestock_invalid_geoms_params = dict()
 
 
 remove_livestock_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_livestock_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_livestock_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -4124,7 +4124,7 @@ remove_wildlife_invalid_geoms_params = dict()
 
 
 remove_wildlife_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_wildlife_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_wildlife_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -4701,7 +4701,7 @@ remove_ele_invalid_geoms_params = dict()
 
 
 remove_ele_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_ele_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_ele_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -5242,7 +5242,7 @@ drop_ele_bins_invalid_geoms_params = dict()
 
 
 drop_ele_bins_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("drop_ele_bins_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("drop_ele_bins_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -5810,7 +5810,7 @@ remove_buffalo_invalid_geoms_params = dict()
 
 
 remove_buffalo_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_buffalo_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_buffalo_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -6241,7 +6241,7 @@ remove_buff_bins_geoms_params = dict()
 
 
 remove_buff_bins_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_buff_bins_geoms")
+    drop_null_geometry.set_task_instance_id("remove_buff_bins_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -6664,7 +6664,7 @@ remove_rhino_invalid_geoms_params = dict()
 
 
 remove_rhino_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_rhino_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_rhino_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -7300,7 +7300,7 @@ remove_lion_invalid_geoms_params = dict()
 
 
 remove_lion_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_lion_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_lion_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -7930,7 +7930,7 @@ remove_leopard_invalid_geoms_params = dict()
 
 
 remove_leopard_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_leopard_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_leopard_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -8526,7 +8526,7 @@ remove_cheetah_invalid_geoms_params = dict()
 
 
 remove_cheetah_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_cheetah_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_cheetah_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -8987,7 +8987,7 @@ remove_giraffe_invalid_geoms_params = dict()
 
 
 remove_giraffe_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_giraffe_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_giraffe_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -9268,7 +9268,7 @@ remove_hb_invalid_geoms_params = dict()
 
 
 remove_hb_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_hb_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_hb_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
