@@ -2690,6 +2690,32 @@ def main(params: Params):
         .call()
     )
 
+    convert_tevents_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_tevents_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_total_events,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 10,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_tevents_png") or {}),
+        )
+        .call()
+    )
+
     convert_grid_png = (
         html_to_png.validate()
         .set_task_instance_id("convert_grid_png")

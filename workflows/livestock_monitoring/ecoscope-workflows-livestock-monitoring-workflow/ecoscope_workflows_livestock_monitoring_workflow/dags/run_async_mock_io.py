@@ -67,7 +67,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
 )
 from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry_1,
+    drop_null_geometry as drop_null_geometry,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import persist_df as persist_df
@@ -108,7 +108,6 @@ def main(params: Params):
         "groupers": [],
         "er_client_name": [],
         "configure_base_maps": [],
-        "persist_mnc_tpt": [],
         "persist_mnc_gpkg": [],
         "download_mnc_parcels": [],
         "load_comm_shp": ["persist_mnc_gpkg"],
@@ -237,22 +236,6 @@ def main(params: Params):
                 ],
             }
             | (params_dict.get("configure_base_maps") or {}),
-            method="call",
-        ),
-        "persist_mnc_tpt": Node(
-            async_task=fetch_and_persist_file.validate()
-            .set_task_instance_id("persist_mnc_tpt")
-            .handle_errors()
-            .with_tracing()
-            .set_executor("lithops"),
-            partial={
-                "url": "https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0",
-                "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "overwrite_existing": False,
-                "retries": 3,
-                "unzip": False,
-            }
-            | (params_dict.get("persist_mnc_tpt") or {}),
             method="call",
         ),
         "persist_mnc_gpkg": Node(
@@ -1041,7 +1024,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_mb_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_mb_invalid_geoms")
             .handle_errors()
             .with_tracing()
@@ -1566,7 +1549,7 @@ def main(params: Params):
             method="call",
         ),
         "remove_livestock_invalid_geoms": Node(
-            async_task=drop_null_geometry_1.validate()
+            async_task=drop_null_geometry.validate()
             .set_task_instance_id("remove_livestock_invalid_geoms")
             .handle_errors()
             .with_tracing()

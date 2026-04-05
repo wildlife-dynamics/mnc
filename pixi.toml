@@ -1,8 +1,6 @@
 [workspace]
 name = "mnc"
 channels = [
-    # Uncomment the following lines to use local channels for development.
-    # "file:///tmp/ecoscope-workflows/release/artifacts/",
     #"file:///tmp/ecoscope-workflows-custom/release/artifacts/",
     'https://repo.prefix.dev/ecoscope-workflows/',
     'https://repo.prefix.dev/ecoscope-workflows-custom/',
@@ -26,14 +24,8 @@ virtualenv = "20.39.0.*"
 
 ecoscope-workflows-ext-mnc = "0.0.8.*"
 ecoscope-workflows-ext-ste = "0.0.13.*"
-ecoscope-workflows-core = "0.22.9.*"
-ecoscope-workflows-ext-custom = "0.0.28.*"
-
-# Here we don't specify the channel on purpose, as we want to use the local channel if it exists,
-# otherwise we fall back to the remote channel.
-# If you want to ensure a specific channel to incorporate your local changes, you can uncomment the line below.
-# ecoscope-workflows-core = { version = "*", channel = "file:///tmp/ecoscope-workflows/release/artifacts/" }
-# ecoscope-workflows-ext-mnc = { version = "*", channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/" }
+ecoscope-workflows-core = "0.22.18.*"
+ecoscope-workflows-ext-custom = "0.0.39.*"
 
 [environments]
 compile = { features = [

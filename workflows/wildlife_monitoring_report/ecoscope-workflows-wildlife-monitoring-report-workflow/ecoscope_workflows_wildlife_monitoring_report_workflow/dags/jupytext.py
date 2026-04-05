@@ -42,7 +42,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry_1,
+    drop_null_geometry as drop_null_geometry,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     filter_row_values as filter_row_values,
@@ -1217,7 +1217,7 @@ remove_wildlife_invalid_geoms_params = dict()
 
 
 remove_wildlife_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_wildlife_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_wildlife_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -1794,7 +1794,7 @@ remove_ele_invalid_geoms_params = dict()
 
 
 remove_ele_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_ele_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_ele_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -2335,7 +2335,7 @@ drop_ele_bins_invalid_geoms_params = dict()
 
 
 drop_ele_bins_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("drop_ele_bins_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("drop_ele_bins_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -2903,7 +2903,7 @@ remove_buffalo_invalid_geoms_params = dict()
 
 
 remove_buffalo_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_buffalo_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_buffalo_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -3334,7 +3334,7 @@ remove_buff_bins_geoms_params = dict()
 
 
 remove_buff_bins_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_buff_bins_geoms")
+    drop_null_geometry.set_task_instance_id("remove_buff_bins_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -3757,7 +3757,7 @@ remove_rhino_invalid_geoms_params = dict()
 
 
 remove_rhino_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_rhino_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_rhino_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -4393,7 +4393,7 @@ remove_lion_invalid_geoms_params = dict()
 
 
 remove_lion_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_lion_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_lion_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -5023,7 +5023,7 @@ remove_leopard_invalid_geoms_params = dict()
 
 
 remove_leopard_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_leopard_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_leopard_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -5619,7 +5619,7 @@ remove_cheetah_invalid_geoms_params = dict()
 
 
 remove_cheetah_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_cheetah_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_cheetah_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -6080,7 +6080,7 @@ remove_giraffe_invalid_geoms_params = dict()
 
 
 remove_giraffe_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_giraffe_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_giraffe_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -6361,7 +6361,7 @@ remove_hb_invalid_geoms_params = dict()
 
 
 remove_hb_invalid_geoms = (
-    drop_null_geometry_1.set_task_instance_id("remove_hb_invalid_geoms")
+    drop_null_geometry.set_task_instance_id("remove_hb_invalid_geoms")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -6571,6 +6571,44 @@ convert_wildlife_png = (
 
 
 # %% [markdown]
+# ## Convert elephant bar chart to png
+
+# %%
+# parameters
+
+convert_elechart_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_elechart_png = (
+    html_to_png.set_task_instance_id("convert_elechart_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_elephant_bar,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 10,
+            "max_concurrent_pages": 1,
+        },
+        **convert_elechart_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Convert elephant map to png
 
 # %%
@@ -6679,6 +6717,44 @@ convert_buffalo_png = (
             "max_concurrent_pages": 1,
         },
         **convert_buffalo_png_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
+# ## Convert buffalo bar chart to png
+
+# %%
+# parameters
+
+convert_buffalo_chart_png_params = dict()
+
+# %%
+# call the task
+
+
+convert_buffalo_chart_png = (
+    html_to_png.set_task_instance_id("convert_buffalo_chart_png")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+        html_path=persist_buffalo_bar,
+        config={
+            "full_page": False,
+            "device_scale_factor": 2.0,
+            "wait_for_timeout": 10,
+            "max_concurrent_pages": 1,
+        },
+        **convert_buffalo_chart_png_params,
     )
     .call()
 )

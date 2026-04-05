@@ -1,19 +1,19 @@
 id: livestock_monitoring
 requirements:
   - name: ecoscope-workflows-core
-    version: "0.22.9.*"
+    version: "0.22.17.*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-ecoscope
-    version: "0.22.9.*"
+    version: "0.22.17.*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.28.*"
+    version: "0.0.39.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.16.*"
+    version: "0.0.18.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
@@ -48,16 +48,6 @@ workflow:
             https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}
           opacity: 1
           max_zoom: 20
-
-  - name: Download MNC template and persist
-    id: persist_mnc_tpt
-    task: fetch_and_persist_file
-    partial:
-      url: https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0
-      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      overwrite_existing: false
-      retries: 3
-      unzip: false
 
   - name: Download MNC community conservancy boundaries
     id: persist_mnc_gpkg
@@ -331,8 +321,6 @@ workflow:
       groupers: ${{ workflow.groupers.return }}
       cast_to_datetime: true
       format: mixed
-
-
 
   # 2.1 Livestock summary
   # Mobile boma - persist csv ,draw map

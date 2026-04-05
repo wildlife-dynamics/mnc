@@ -49,10 +49,6 @@ platforms = ["linux-64", "osx-arm64", "win-64"]
 ecoscope-workflows-ext-mnc = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
-# restating dependencies from ecoscope-workflows.core to ensure they are included
-# todo: ensure exact 1:1 synchronization with ecoscope-workflows.core
-# note: if depending on a conda release of ecoscope-workflows, restatement should not be necessary
-# perhaps possible to demonstrate this here by making the restatement specific to a 'dev' environment
 jinja2 = "*"
 pandera = ">0.20.0"
 pydantic = "<2.9.0"
@@ -64,10 +60,10 @@ tomli-w = "*"
 geopandas="*"
 shapely = "*"
 numpy="2,<2.1"
-ecoscope-workflows-ext-ste = "0.0.16.*"
-ecoscope-workflows-core =">=0.22.9"
-ecoscope-workflows-ext-ecoscope=">=0.22.9"
-ecoscope-workflows-ext-custom = "0.0.28.*"
+ecoscope-workflows-ext-ste = "0.0.18.*"
+ecoscope-workflows-core =">=0.22.17"
+ecoscope-workflows-ext-ecoscope=">=0.22.17"
+ecoscope-workflows-ext-custom = "0.0.39.*"
 docxtpl="*"
 playwright="*"
 setuptools="81.0.0.*"

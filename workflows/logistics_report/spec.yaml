@@ -1,19 +1,19 @@
 id: logistics_report
 requirements:
   - name: ecoscope-workflows-core
-    version: "0.22.9.*"
+    version: "0.22.17.*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-ecoscope
-    version: "0.22.9.*"
+    version: "0.22.17.*"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.28.*"
+    version: "0.0.39.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.16.*"
+    version: "0.0.18.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
@@ -38,7 +38,6 @@ workflow:
   - name: Connect to ER 
     id: er_client_name
     task: set_er_connection
-
 
   # Get  Events 
   - name: Retrieve all events 
@@ -392,7 +391,6 @@ workflow:
       filetype: csv
       df: ${{ workflow.pivot_airstrip_table.return }}
       filename: airstrip_arrivals_and_departure
-
 
     # Logistics -  Airstrip maintenance
   - name: Filter events and get airstrip maintenance records 
