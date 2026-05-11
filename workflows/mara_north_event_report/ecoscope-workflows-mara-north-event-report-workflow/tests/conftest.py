@@ -41,6 +41,22 @@ MATCHSPEC_OVERRIDE = "ecoscope-workflows-mara-north-event-report-workflow"
 IO_TASKS_IMPORTABLE_REFERENCES = [
     "ecoscope_workflows_ext_ecoscope.tasks.io.get_subjectgroup_observations",
     "ecoscope_workflows_ext_ecoscope.tasks.io.get_events",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
+    "ecoscope_workflows_ext_custom.tasks.io.process_events_details",
 ]
 
 yaml = ruamel.yaml.YAML(typ="safe")

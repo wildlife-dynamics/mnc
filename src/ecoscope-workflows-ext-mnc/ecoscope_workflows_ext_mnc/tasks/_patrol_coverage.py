@@ -87,7 +87,7 @@ def compute_occupancy(
         raise ValueError("Patrol coverage geometry is empty.")
 
     results = []
-    for idx, region in regions_projected.iterrows():
+    for _, region in regions_projected.iterrows():
         region_area = region.geometry.area
 
         if region_area == 0:
@@ -121,66 +121,39 @@ def get_patrol_values(
     events_df: AnyDataFrame,
     patrols_column: str,
     client: Annotated[EarthRangerClient, Field(description="EarthRanger client")],
-    batch_size: int = 10,
+    max_workers: int = 10,
 ) -> AnyDataFrame:
-    """
-    Fetch patrol details from EarthRanger API for unique patrol IDs in batches.
+    """Fetch patrol details from EarthRanger API concurrently."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    Args:
-        events_df: DataFrame containing patrol IDs
-        patrols_column: Name of column containing patrol IDs
-        client: EarthRanger client instance (with _get method)
-        batch_size: Number of patrols to process per batch (default: 10)
-
-    Returns:
-        DataFrame with patrol details from API
-
-    Example:
-        >>> patrol_df = get_patrol_values(
-        ...     events_df=my_events,
-        ...     patrols_column='patrol_id',
-        ...     client=er_client,
-        ...     batch_size=10
-        ... )
-    """
-    # Validate column exists
     if patrols_column not in events_df.columns:
         raise ValueError(f"Column '{patrols_column}' not found in DataFrame")
 
-    # Get unique patrol IDs
-    patrol_list = events_df[patrols_column].unique().tolist()
-    patrol_list = [p for p in patrol_list if pd.notna(p)]
+    patrol_list = [p for p in events_df[patrols_column].unique() if pd.notna(p)]
+
+    if not patrol_list:
+        logger.warning("No patrol IDs found, returning empty DataFrame")
+        return pd.DataFrame()
+
+    logger.info(f"Fetching {len(patrol_list)} patrols with {max_workers} workers")
+
+    def fetch(patrol_id):
+        try:
+            data = client._get(f"/activity/patrols/{patrol_id}/")
+            if not data:
+                logger.warning(f"No data returned for patrol: {patrol_id}")
+            return data
+        except Exception as e:
+            logger.error(f"Error fetching patrol {patrol_id}: {e}")
+            return None
+
     results = []
-
-    # Process in batches
-    for i in range(0, len(patrol_list), batch_size):
-        batch = patrol_list[i : i + batch_size]
-        batch_num = (i // batch_size) + 1
-        total_batches = (len(patrol_list) + batch_size - 1) // batch_size
-
-        logger.info(f"Processing batch {batch_num}/{total_batches} ({len(batch)} patrols)")
-
-        for patrol_id in batch:
-            try:
-                # Fetch patrol details from API
-                patrol_data = client._get(f"/activity/patrols/{patrol_id}/")
-
-                if patrol_data:
-                    results.append(patrol_data)
-                    logger.debug(f"Successfully fetched patrol: {patrol_id}")
-                else:
-                    logger.warning(f"No data returned for patrol: {patrol_id}")
-
-            except Exception as e:
-                logger.error(f"Error fetching patrol {patrol_id}: {e}")
-                continue
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(fetch, pid): pid for pid in patrol_list}
+        for future in as_completed(futures):
+            data = future.result()
+            if data:
+                results.append(data)
 
     logger.info(f"Successfully fetched {len(results)} patrol records")
-
-    # Convert results to DataFrame
-    if results:
-        patrols_df = pd.DataFrame(results)
-        return patrols_df
-    else:
-        logger.warning("No patrol data fetched, returning empty DataFrame")
-        return None
+    return pd.DataFrame(results) if results else pd.DataFrame()
