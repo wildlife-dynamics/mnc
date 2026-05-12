@@ -41,17 +41,32 @@ from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map
 from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_column_prefix as drop_column_prefix,
+from ecoscope_workflows_ext_custom.tasks.spatial_ops import (
+    create_patrol_coverage_grid as create_patrol_coverage_grid_1,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry,
+    coerce_columns_to_int as coerce_columns_to_int,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    drop_column_prefix as drop_column_prefix,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     exclude_row_values as exclude_row_values,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     filter_row_values as filter_row_values,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    format_text_column as format_text_column,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    map_column_value as map_column_value,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    pivot_dataframe as pivot_dataframe,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    replace_empty_strings_in_columns as replace_empty_strings_in_columns,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_events as get_events
@@ -78,6 +93,9 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     apply_color_map as apply_color_map,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
+    apply_reloc_coord_filter as apply_reloc_coord_filter,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     normalize_json_column as normalize_json_column,
 )
 from ecoscope_workflows_ext_mnc.tasks import add_totals_row as add_totals_row
@@ -93,15 +111,9 @@ from ecoscope_workflows_ext_mnc.tasks import (
     create_gdf_from_dict as create_gdf_from_dict,
 )
 from ecoscope_workflows_ext_mnc.tasks import (
-    create_patrol_coverage_grid as create_patrol_coverage_grid,
-)
-from ecoscope_workflows_ext_mnc.tasks import (
     custom_get_patrol_observations_from_patrols_df as custom_get_patrol_observations_from_patrols_df,
 )
 from ecoscope_workflows_ext_mnc.tasks import drop_null_values as drop_null_values
-from ecoscope_workflows_ext_mnc.tasks import (
-    exclude_geom_outliers as exclude_geom_outliers,
-)
 from ecoscope_workflows_ext_mnc.tasks import (
     explode_multiple_columns as explode_multiple_columns,
 )
@@ -113,21 +125,15 @@ from ecoscope_workflows_ext_mnc.tasks import get_patrol_values as get_patrol_val
 from ecoscope_workflows_ext_mnc.tasks import (
     make_wildlife_summary_table as make_wildlife_summary_table,
 )
-from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_values
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
 from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df
-from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
 )
-from ecoscope_workflows_ext_mnc.tasks import (
-    replace_missing_with_label as replace_missing_with_label,
-)
 from ecoscope_workflows_ext_mnc.tasks import round_values as round_values
-from ecoscope_workflows_ext_mnc.tasks import transform_columns as transform_columns
 from ecoscope_workflows_ext_ste.tasks import (
-    annotate_gdf_dict_with_geom_type as annotate_gdf_dict_with_geom_type,
+    annotate_gdf_dict_with_geom_type as annotate_gdf_dict_with_geom_type_1,
 )
 from ecoscope_workflows_ext_ste.tasks import (
     combine_deckgl_map_layers as combine_deckgl_map_layers,
@@ -144,7 +150,7 @@ from ecoscope_workflows_ext_ste.tasks import (
 from ecoscope_workflows_ext_ste.tasks import (
     fetch_and_persist_file as fetch_and_persist_file,
 )
-from ecoscope_workflows_ext_ste.tasks import get_gdf_geom_type as get_gdf_geom_type
+from ecoscope_workflows_ext_ste.tasks import get_gdf_geom_type as get_gdf_geom_type_1
 from ecoscope_workflows_ext_ste.tasks import split_gdf_by_column as split_gdf_by_column
 from ecoscope_workflows_ext_ste.tasks import view_state_deck_gdf as view_state_deck_gdf
 
@@ -196,7 +202,8 @@ def main(params: Params):
             "persist_pressure",
         ],
         "get_events_data": ["er_client_name", "time_range"],
-        "extract_event_date": ["get_events_data"],
+        "filter_mnc_aois": ["get_events_data"],
+        "extract_event_date": ["filter_mnc_aois"],
         "events_temporal": ["extract_event_date", "groupers"],
         "filter_balloon_events": ["events_temporal"],
         "filter_airstrip_operations": ["events_temporal"],
@@ -265,10 +272,7 @@ def main(params: Params):
         "summarize_mobile_boma": ["map_mobile_boma"],
         "add_mobile_summary_row": ["summarize_mobile_boma"],
         "persist_boma_summary": ["add_mobile_summary_row"],
-        "exclude_mobile_outliers": ["map_mobile_boma"],
-        "remove_mobile_invalids": ["exclude_mobile_outliers"],
-        "mobile_colormap": ["remove_mobile_invalids"],
-        "generate_mobile_layers": ["mobile_colormap"],
+        "generate_mobile_layers": ["map_mobile_boma"],
         "global_zoom_value": ["overall_grazing_zones"],
         "combine_custom_mobile_boma": [
             "create_mnc_styled_layers",
@@ -289,9 +293,7 @@ def main(params: Params):
         "summarize_predation_events": ["map_livestock_predation"],
         "add_predation_summary_row": ["summarize_predation_events"],
         "persist_predation_summary": ["add_predation_summary_row"],
-        "exclude_livestock_outliers": ["map_livestock_predation"],
-        "remove_livestock_invalid_geoms": ["exclude_livestock_outliers"],
-        "apply_livestock_colormap": ["remove_livestock_invalid_geoms"],
+        "apply_livestock_colormap": ["map_livestock_predation"],
         "generate_livestock_layers": ["apply_livestock_colormap"],
         "combine_custom_livestock": [
             "create_conservancy_boundaries",
@@ -308,10 +310,7 @@ def main(params: Params):
         "convert_livestock_int": ["map_livestock_unknown"],
         "persist_livestock_summary": ["convert_livestock_int"],
         "map_illegal_grazing": ["drop_illegal_prefix"],
-        "exclude_illegal_outliers": ["map_illegal_grazing"],
-        "remove_illegal_invalids": ["exclude_illegal_outliers"],
-        "illegal_colormap": ["remove_illegal_invalids"],
-        "generate_illegal_layers": ["illegal_colormap"],
+        "generate_illegal_layers": ["map_illegal_grazing"],
         "combine_custom_illegal": [
             "create_mnc_styled_layers",
             "conservancy_text_layer",
@@ -364,9 +363,7 @@ def main(params: Params):
         "elephant_obs_summary": ["map_ele_column_values"],
         "include_elephant_totals": ["elephant_obs_summary"],
         "persist_ele_df": ["include_elephant_totals"],
-        "exclude_ele_outliers": ["map_ele_column_values"],
-        "remove_ele_invalid_geoms": ["exclude_ele_outliers"],
-        "apply_ele_events_colormap": ["remove_ele_invalid_geoms"],
+        "apply_ele_events_colormap": ["map_ele_column_values"],
         "generate_elephant_layers": ["apply_ele_events_colormap"],
         "combine_custom_ele": [
             "create_conservancy_boundaries",
@@ -387,9 +384,7 @@ def main(params: Params):
         "persist_elephant_bar": ["draw_elephant_herd_bar"],
         "convert_elechart_png": ["persist_elephant_bar"],
         "drop_null_ele_bins": ["cat_elephant_bins"],
-        "exclude_ele_outlier_bins": ["drop_null_ele_bins"],
-        "drop_ele_bins_invalid_geoms": ["exclude_ele_outlier_bins"],
-        "clean_ele_column_idx": ["drop_ele_bins_invalid_geoms"],
+        "clean_ele_column_idx": ["drop_null_ele_bins"],
         "apply_ele_color_bins": ["clean_ele_column_idx"],
         "generate_ele_herd_layers": ["apply_ele_color_bins"],
         "combine_ele_bins": [
@@ -412,9 +407,7 @@ def main(params: Params):
         "buffalo_obs_summary": ["map_buff_column_values"],
         "include_buffalo_totals": ["buffalo_obs_summary"],
         "persist_buff_df": ["include_buffalo_totals"],
-        "exclude_buff_outliers": ["map_buff_column_values"],
-        "remove_buff_invalid_geoms": ["exclude_buff_outliers"],
-        "apply_buff_events_colormap": ["remove_buff_invalid_geoms"],
+        "apply_buff_events_colormap": ["map_buff_column_values"],
         "generate_buffalo_layers": ["apply_buff_events_colormap"],
         "combine_custom_buff": [
             "create_conservancy_boundaries",
@@ -435,9 +428,7 @@ def main(params: Params):
         "persist_buffalo_bar": ["draw_buffalo_herd_bar"],
         "convert_buff_chart_png": ["persist_buffalo_bar"],
         "drop_null_buff_bins": ["cat_buffalo_bins"],
-        "exclude_buff_outlier_bins": ["drop_null_buff_bins"],
-        "drop_buff_bins_invalid_geoms": ["exclude_buff_outlier_bins"],
-        "clean_buff_column_idx": ["drop_buff_bins_invalid_geoms"],
+        "clean_buff_column_idx": ["drop_null_buff_bins"],
         "apply_buff_color_bins": ["clean_buff_column_idx"],
         "generate_buff_herd_layers": ["apply_buff_color_bins"],
         "combine_buff_bins": [
@@ -456,10 +447,7 @@ def main(params: Params):
         "rhino_obs_summary": ["drop_rhino_prefix"],
         "include_rhino_totals": ["rhino_obs_summary"],
         "persist_rhino_df": ["include_rhino_totals"],
-        "exclude_rhino_outliers": ["drop_rhino_prefix"],
-        "remove_rhino_invalid_geoms": ["exclude_rhino_outliers"],
-        "apply_rhino_events_colormap": ["remove_rhino_invalid_geoms"],
-        "generate_rhino_layers": ["apply_rhino_events_colormap"],
+        "generate_rhino_layers": ["drop_rhino_prefix"],
         "combine_custom_rhino": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -482,9 +470,7 @@ def main(params: Params):
         "persist_lion_df": ["include_lion_totals"],
         "unique_lions_summary": ["map_lion_column_values"],
         "persist_lions_df": ["unique_lions_summary"],
-        "exclude_lion_outliers": ["map_lion_column_values"],
-        "remove_lion_invalid_geoms": ["exclude_lion_outliers"],
-        "apply_lion_events_colormap": ["remove_lion_invalid_geoms"],
+        "apply_lion_events_colormap": ["map_lion_column_values"],
         "generate_lion_layers": ["apply_lion_events_colormap"],
         "combine_custom_lion": [
             "create_conservancy_boundaries",
@@ -508,9 +494,7 @@ def main(params: Params):
         "persist_leopard_df": ["include_leopard_totals"],
         "unique_leopards_summary": ["map_leopard_column_values"],
         "persist_leopards_df": ["unique_leopards_summary"],
-        "exclude_leopard_outliers": ["map_leopard_column_values"],
-        "remove_leopard_invalid_geoms": ["exclude_leopard_outliers"],
-        "apply_leopard_events_colormap": ["remove_leopard_invalid_geoms"],
+        "apply_leopard_events_colormap": ["map_leopard_column_values"],
         "generate_leopard_layers": ["apply_leopard_events_colormap"],
         "combine_custom_leopard": [
             "create_conservancy_boundaries",
@@ -534,9 +518,7 @@ def main(params: Params):
         "persist_cheetah_df": ["include_cheetah_totals"],
         "unique_cheetahs_summary": ["map_cheetah_column_values"],
         "persist_cheetahs_df": ["unique_cheetahs_summary"],
-        "exclude_cheetah_outliers": ["map_cheetah_column_values"],
-        "remove_cheetah_invalid_geoms": ["exclude_cheetah_outliers"],
-        "apply_cheetah_events_colormap": ["remove_cheetah_invalid_geoms"],
+        "apply_cheetah_events_colormap": ["map_cheetah_column_values"],
         "generate_cheetah_layers": ["apply_cheetah_events_colormap"],
         "combine_custom_cheetah": [
             "create_conservancy_boundaries",
@@ -552,10 +534,7 @@ def main(params: Params):
         "persist_cheetah_urls": ["draw_cheetah_map"],
         "convert_cheetah_png": ["persist_cheetah_urls"],
         "map_giraffe_sighting": ["drop_giraffe_prefix"],
-        "exclude_giraffe_outliers": ["map_giraffe_sighting"],
-        "remove_giraffe_invalid_geoms": ["exclude_giraffe_outliers"],
-        "apply_giraffe_events_colormap": ["remove_giraffe_invalid_geoms"],
-        "generate_giraffe_layers": ["apply_giraffe_events_colormap"],
+        "generate_giraffe_layers": ["map_giraffe_sighting"],
         "combine_custom_giraffe": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -570,10 +549,7 @@ def main(params: Params):
         "persist_giraffe_urls": ["draw_giraffe_map"],
         "convert_giraffe_png": ["persist_giraffe_urls"],
         "map_hartebeest_sighting": ["drop_hartebeest_prefix"],
-        "exclude_hartebeest_outliers": ["map_hartebeest_sighting"],
-        "remove_hartebeest_invalid_geoms": ["exclude_hartebeest_outliers"],
-        "apply_hartebeest_events_colormap": ["remove_hartebeest_invalid_geoms"],
-        "generate_hartebeest_layers": ["apply_hartebeest_events_colormap"],
+        "generate_hartebeest_layers": ["map_hartebeest_sighting"],
         "combine_custom_hartebeest": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -595,11 +571,9 @@ def main(params: Params):
         "wildlife_events_recorded": ["rename_wildlife_cols"],
         "add_total_wildlife": ["wildlife_events_recorded"],
         "wildlife_events_df": ["add_total_wildlife"],
-        "exclude_wildlife_events_outliers": ["rename_wildlife_cols"],
-        "remove_wildlife_invalid_geoms": ["exclude_wildlife_events_outliers"],
-        "apply_wildlife_colormap": ["remove_wildlife_invalid_geoms"],
-        "map_wildlife_values": ["apply_wildlife_colormap"],
-        "generate_wildlife_layers": ["map_wildlife_values"],
+        "map_wildlife_values": ["rename_wildlife_cols"],
+        "apply_wildlife_colormap": ["map_wildlife_values"],
+        "generate_wildlife_layers": ["apply_wildlife_colormap"],
         "combine_custom_wildlife": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -1640,9 +1614,9 @@ def main(params: Params):
                     "height": 720,
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 15,
+                    "wait_for_timeout": 2,
                     "timeout": 0,
-                    "max_concurrent_pages": 5,
+                    "max_concurrent_pages": 10,
                 },
             }
             | (params_dict.get("convert_chart_html_png") or {}),
@@ -1686,6 +1660,28 @@ def main(params: Params):
             | (params_dict.get("get_events_data") or {}),
             method="call",
         ),
+        "filter_mnc_aois": Node(
+            async_task=apply_reloc_coord_filter.validate()
+            .set_task_instance_id("filter_mnc_aois")
+            .handle_errors()
+            .with_tracing()
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("get_events_data"),
+                "bounding_box": {
+                    "min_y": -1.47207297799997,
+                    "max_y": -1.04360818399994,
+                    "min_x": 34.9973709710001,
+                    "max_x": 35.4212162050001,
+                },
+                "filter_point_coords": None,
+                "roi_gdf": None,
+                "roi_name": None,
+                "reset_index": True,
+            }
+            | (params_dict.get("filter_mnc_aois") or {}),
+            method="call",
+        ),
         "extract_event_date": Node(
             async_task=extract_column_as_type.validate()
             .set_task_instance_id("extract_event_date")
@@ -1700,7 +1696,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("get_events_data"),
+                "df": DependsOn("filter_mnc_aois"),
                 "column_name": "time",
                 "output_type": "date",
                 "output_column_name": "date",
@@ -2205,7 +2201,7 @@ def main(params: Params):
             method="call",
         ),
         "replace_airstrip_op_nulls": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_airstrip_op_nulls")
             .handle_errors()
             .with_tracing()
@@ -2222,13 +2218,15 @@ def main(params: Params):
                 "columns": [
                     "camp_lodge",
                 ],
-                "label": "other",
+                "replacement": "Other",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_airstrip_op_nulls") or {}),
             method="call",
         ),
         "convert_airstrip_op_ints": Node(
-            async_task=convert_to_int.validate()
+            async_task=coerce_columns_to_int.validate()
             .set_task_instance_id("convert_airstrip_op_ints")
             .handle_errors()
             .with_tracing()
@@ -2247,13 +2245,14 @@ def main(params: Params):
                 ],
                 "errors": "coerce",
                 "fill_value": 0,
-                "inplace": False,
+                "missing": "ignore",
+                "nullable": True,
             }
             | (params_dict.get("convert_airstrip_op_ints") or {}),
             method="call",
         ),
         "capitalize_camp_lodge": Node(
-            async_task=capitalize_text.validate()
+            async_task=format_text_column.validate()
             .set_task_instance_id("capitalize_camp_lodge")
             .handle_errors()
             .with_tracing()
@@ -2268,6 +2267,7 @@ def main(params: Params):
             partial={
                 "df": DependsOn("convert_airstrip_op_ints"),
                 "column": "camp_lodge",
+                "method": "capitalize",
             }
             | (params_dict.get("capitalize_camp_lodge") or {}),
             method="call",
@@ -2305,7 +2305,7 @@ def main(params: Params):
             method="call",
         ),
         "pivot_airstrip_ops": Node(
-            async_task=pivot_df.validate()
+            async_task=pivot_dataframe.validate()
             .set_task_instance_id("pivot_airstrip_ops")
             .handle_errors()
             .with_tracing()
@@ -2319,16 +2319,20 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("airstrip_op_summary_table"),
-                "index_col": "camp_lodge",
-                "columns_col": "arrival_departure",
-                "values_col": "no_of_clients",
-                "reset_idx": True,
+                "index": "camp_lodge",
+                "columns": [
+                    "arrival_departure",
+                ],
+                "values": [
+                    "no_of_clients",
+                ],
+                "fill_value": 0,
             }
             | (params_dict.get("pivot_airstrip_ops") or {}),
             method="call",
         ),
         "convert_pivot_int": Node(
-            async_task=convert_to_int.validate()
+            async_task=coerce_columns_to_int.validate()
             .set_task_instance_id("convert_pivot_int")
             .handle_errors()
             .with_tracing()
@@ -2348,7 +2352,8 @@ def main(params: Params):
                 ],
                 "errors": "coerce",
                 "fill_value": 0,
-                "inplace": False,
+                "missing": "ignore",
+                "nullable": True,
             }
             | (params_dict.get("convert_pivot_int") or {}),
             method="call",
@@ -2434,12 +2439,12 @@ def main(params: Params):
                 "base_maps": [
                     {
                         "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
-                        "opacity": 0.85,
+                        "opacity": 0.8,
                         "max_zoom": 20,
                     },
                     {
                         "url": "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places_Alternate/MapServer/tile/{z}/{y}/{x}",
-                        "opacity": 0.15,
+                        "opacity": 0.3,
                         "max_zoom": 20,
                     },
                 ],
@@ -2457,7 +2462,7 @@ def main(params: Params):
                 "url": "https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=gtdi4vv0&dl=0",
                 "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "overwrite_existing": False,
-                "retries": 3,
+                "retries": 2,
                 "unzip": False,
             }
             | (params_dict.get("persist_mnc_gpkg") or {}),
@@ -2473,7 +2478,7 @@ def main(params: Params):
                 "url": "https://www.dropbox.com/scl/fi/33rdzy896rh91gtkfs2j3/mnc_across_the_river_parcels.gpkg?rlkey=xima1v0rozc0h9h78esfogx6q&st=o3gkk5p1&dl=0",
                 "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "overwrite_existing": False,
-                "retries": 3,
+                "retries": 2,
                 "unzip": False,
             }
             | (params_dict.get("download_mnc_parcels") or {}),
@@ -2507,7 +2512,7 @@ def main(params: Params):
             method="call",
         ),
         "annotate_comm_gdf_dict": Node(
-            async_task=annotate_gdf_dict_with_geom_type.validate()
+            async_task=annotate_gdf_dict_with_geom_type_1.validate()
             .set_task_instance_id("annotate_comm_gdf_dict")
             .handle_errors()
             .with_tracing()
@@ -2530,16 +2535,16 @@ def main(params: Params):
                     "Conservancy": {
                         "extruded": False,
                         "get_fill_color": [
-                            169,
-                            169,
-                            169,
+                            119,
+                            136,
+                            153,
                         ],
                         "get_line_color": [
-                            169,
-                            169,
-                            169,
+                            119,
+                            136,
+                            153,
                         ],
-                        "get_line_width": 1.95,
+                        "get_line_width": 1.55,
                         "stroked": True,
                         "filled": False,
                         "opacity": 0.7,
@@ -2634,8 +2639,8 @@ def main(params: Params):
                     "title": "Legend",
                     "values": [
                         {
-                            "label": "Conservancy",
-                            "color": "#a9a9a9",
+                            "label": "Conservancy Boundaries",
+                            "color": "#778899",
                         },
                         {
                             "label": "Conservancy Herd Zone",
@@ -2675,27 +2680,27 @@ def main(params: Params):
                     "Conservancy": {
                         "extruded": False,
                         "get_fill_color": [
-                            169,
-                            169,
-                            169,
+                            119,
+                            136,
+                            153,
                         ],
                         "get_line_color": [
-                            169,
-                            169,
-                            169,
+                            119,
+                            136,
+                            153,
                         ],
-                        "get_line_width": 1.95,
+                        "get_line_width": 1.55,
                         "stroked": True,
                         "filled": False,
-                        "opacity": 0.95,
+                        "opacity": 0.7,
                     },
                 },
                 "legends": {
                     "title": "Legend",
                     "values": [
                         {
-                            "label": "Boundaries",
-                            "color": "#a9a9a9",
+                            "label": "Conservancy Boundaries",
+                            "color": "#778899",
                         },
                     ],
                 },
@@ -2754,7 +2759,7 @@ def main(params: Params):
                     "size_max_pixels": 100,
                     "size_scale": 2.25,
                     "font_family": "Calibri",
-                    "font_weight": "700",
+                    "font_weight": "normal",
                     "get_text_anchor": "middle",
                     "get_alignment_baseline": "center",
                     "billboard": True,
@@ -2786,7 +2791,7 @@ def main(params: Params):
             method="call",
         ),
         "assign_mnc_geom": Node(
-            async_task=get_gdf_geom_type.validate()
+            async_task=get_gdf_geom_type_1.validate()
             .set_task_instance_id("assign_mnc_geom")
             .handle_errors()
             .with_tracing()
@@ -2817,7 +2822,7 @@ def main(params: Params):
                         183,
                         107,
                     ],
-                    "get_line_width": 1.95,
+                    "get_line_width": 1.55,
                     "stroked": True,
                     "filled": True,
                     "opacity": 0.15,
@@ -3294,68 +3299,6 @@ def main(params: Params):
             | (params_dict.get("persist_boma_summary") or {}),
             method="call",
         ),
-        "exclude_mobile_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_mobile_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_mobile_boma"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_mobile_outliers") or {}),
-            method="call",
-        ),
-        "remove_mobile_invalids": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_mobile_invalids")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_mobile_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_mobile_invalids") or {}),
-            method="call",
-        ),
-        "mobile_colormap": Node(
-            async_task=apply_color_map.validate()
-            .set_task_instance_id("mobile_colormap")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "input_column_name": "event_type",
-                "output_column_name": "event_type_colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_mobile_invalids"),
-            }
-            | (params_dict.get("mobile_colormap") or {}),
-            method="call",
-        ),
         "generate_mobile_layers": Node(
             async_task=create_scatterplot_layer.validate()
             .set_task_instance_id("generate_mobile_layers")
@@ -3371,21 +3314,33 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "layer_style": {
-                    "get_fill_color": "event_type_colors",
-                    "get_line_color": "event_type_colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_fill_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_line_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
                     "title": "Boma Movements",
-                    "label_column": "event_type",
-                    "color_column": "event_type_colors",
-                    "sort": "ascending",
+                    "values": [
+                        {
+                            "label": "Boma movement",
+                            "color": "#000080",
+                        },
+                    ],
+                    "sort": None,
                     "label_suffix": None,
                 },
                 "data_url": None,
-                "geodataframe": DependsOn("mobile_colormap"),
+                "geodataframe": DependsOn("map_mobile_boma"),
             }
             | (params_dict.get("generate_mobile_layers") or {}),
             method="call",
@@ -3669,46 +3624,6 @@ def main(params: Params):
             | (params_dict.get("persist_predation_summary") or {}),
             method="call",
         ),
-        "exclude_livestock_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_livestock_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_livestock_predation"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_livestock_outliers") or {}),
-            method="call",
-        ),
-        "remove_livestock_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_livestock_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_livestock_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_livestock_invalid_geoms") or {}),
-            method="call",
-        ),
         "apply_livestock_colormap": Node(
             async_task=apply_color_map.validate()
             .set_task_instance_id("apply_livestock_colormap")
@@ -3725,8 +3640,8 @@ def main(params: Params):
             partial={
                 "input_column_name": "Livestock Species",
                 "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_livestock_invalid_geoms"),
+                "colormap": "tab10",
+                "df": DependsOn("map_livestock_predation"),
             }
             | (params_dict.get("apply_livestock_colormap") or {}),
             method="call",
@@ -3748,8 +3663,8 @@ def main(params: Params):
                 "layer_style": {
                     "get_fill_color": "colors",
                     "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
@@ -3901,7 +3816,7 @@ def main(params: Params):
             method="call",
         ),
         "replace_livestock_nulls": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_livestock_nulls")
             .handle_errors()
             .with_tracing()
@@ -3919,13 +3834,15 @@ def main(params: Params):
                     "suspected_predator",
                     "livestock_species",
                 ],
-                "label": "Unknown",
+                "replacement": "Unknown",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_livestock_nulls") or {}),
             method="call",
         ),
         "map_livestock_unknown": Node(
-            async_task=map_column_values.validate()
+            async_task=map_column_value.validate()
             .set_task_instance_id("map_livestock_unknown")
             .handle_errors()
             .with_tracing()
@@ -3939,19 +3856,19 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("replace_livestock_nulls"),
-                "columns": [
-                    "suspected_predator",
-                ],
-                "value_map": {
+                "col": "suspected_predator",
+                "new_col": "predator",
+                "default": "Unknown",
+                "mapping": {
                     "Other (specify in comments)": "Unknown",
                 },
-                "inplace": True,
+                "keep_unmapped": False,
             }
             | (params_dict.get("map_livestock_unknown") or {}),
             method="call",
         ),
         "convert_livestock_int": Node(
-            async_task=convert_to_int.validate()
+            async_task=coerce_columns_to_int.validate()
             .set_task_instance_id("convert_livestock_int")
             .handle_errors()
             .with_tracing()
@@ -3970,7 +3887,8 @@ def main(params: Params):
                 ],
                 "errors": "coerce",
                 "fill_value": 0,
-                "inplace": False,
+                "missing": "ignore",
+                "nullable": True,
             }
             | (params_dict.get("convert_livestock_int") or {}),
             method="call",
@@ -4025,68 +3943,6 @@ def main(params: Params):
             | (params_dict.get("map_illegal_grazing") or {}),
             method="call",
         ),
-        "exclude_illegal_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_illegal_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_illegal_grazing"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_illegal_outliers") or {}),
-            method="call",
-        ),
-        "remove_illegal_invalids": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_illegal_invalids")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_illegal_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_illegal_invalids") or {}),
-            method="call",
-        ),
-        "illegal_colormap": Node(
-            async_task=apply_color_map.validate()
-            .set_task_instance_id("illegal_colormap")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "input_column_name": "event_type",
-                "output_column_name": "event_type_colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_illegal_invalids"),
-            }
-            | (params_dict.get("illegal_colormap") or {}),
-            method="call",
-        ),
         "generate_illegal_layers": Node(
             async_task=create_scatterplot_layer.validate()
             .set_task_instance_id("generate_illegal_layers")
@@ -4102,21 +3958,33 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "layer_style": {
-                    "get_fill_color": "event_type_colors",
-                    "get_line_color": "event_type_colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_fill_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_line_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
                     "title": "Illegal grazing",
-                    "label_column": "event_type",
-                    "color_column": "event_type_colors",
-                    "sort": "ascending",
+                    "values": [
+                        {
+                            "label": "Illegal grazing",
+                            "color": "#000080",
+                        },
+                    ],
+                    "sort": None,
                     "label_suffix": None,
                 },
                 "data_url": None,
-                "geodataframe": DependsOn("illegal_colormap"),
+                "geodataframe": DependsOn("map_illegal_grazing"),
             }
             | (params_dict.get("generate_illegal_layers") or {}),
             method="call",
@@ -4980,13 +4848,13 @@ def main(params: Params):
                     "Subadult": "sub_adult",
                     "< 1 year": "underayear",
                 },
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
             }
             | (params_dict.get("map_elephant_sighting") or {}),
             method="call",
         ),
         "replace_elephant_unspecified": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_elephant_unspecified")
             .handle_errors()
             .with_tracing()
@@ -5003,13 +4871,15 @@ def main(params: Params):
                 "columns": [
                     "herd_composition",
                 ],
-                "label": "Unspecified",
+                "replacement": "Unspecified",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_elephant_unspecified") or {}),
             method="call",
         ),
         "convert_elephant_int": Node(
-            async_task=convert_to_int.validate()
+            async_task=coerce_columns_to_int.validate()
             .set_task_instance_id("convert_elephant_int")
             .handle_errors()
             .with_tracing()
@@ -5032,13 +4902,14 @@ def main(params: Params):
                 ],
                 "errors": "coerce",
                 "fill_value": 0,
-                "inplace": False,
+                "missing": "ignore",
+                "nullable": True,
             }
             | (params_dict.get("convert_elephant_int") or {}),
             method="call",
         ),
         "map_ele_column_values": Node(
-            async_task=map_column_values.validate()
+            async_task=map_column_value.validate()
             .set_task_instance_id("map_ele_column_values")
             .handle_errors()
             .with_tracing()
@@ -5052,16 +4923,16 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_elephant_int"),
-                "columns": [
-                    "herd_composition",
-                ],
-                "value_map": {
+                "col": "herd_composition",
+                "new_col": "mapped_herd_composition",
+                "default": "Unspecified",
+                "mapping": {
                     "bachelor": "Bachelor",
                     "femalecalf": "Female/Calf",
                     "mixed": "Mixed",
                     "unspecified": "Unspecified",
                 },
-                "inplace": True,
+                "keep_unmapped": False,
             }
             | (params_dict.get("map_ele_column_values") or {}),
             method="call",
@@ -5141,46 +5012,6 @@ def main(params: Params):
             | (params_dict.get("persist_ele_df") or {}),
             method="call",
         ),
-        "exclude_ele_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_ele_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_ele_column_values"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_ele_outliers") or {}),
-            method="call",
-        ),
-        "remove_ele_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_ele_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_ele_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_ele_invalid_geoms") or {}),
-            method="call",
-        ),
         "apply_ele_events_colormap": Node(
             async_task=apply_color_map.validate()
             .set_task_instance_id("apply_ele_events_colormap")
@@ -5195,10 +5026,10 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "herd_composition",
+                "input_column_name": "mapped_herd_composition",
                 "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_ele_invalid_geoms"),
+                "colormap": "tab10",
+                "df": DependsOn("map_ele_column_values"),
             }
             | (params_dict.get("apply_ele_events_colormap") or {}),
             method="call",
@@ -5220,8 +5051,8 @@ def main(params: Params):
                 "layer_style": {
                     "get_fill_color": "colors",
                     "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
@@ -5277,7 +5108,7 @@ def main(params: Params):
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
-                "max_zoom": 15,
+                "max_zoom": 10,
                 "legend_style": {
                     "placement": "bottom-right",
                 },
@@ -5490,46 +5321,6 @@ def main(params: Params):
             | (params_dict.get("drop_null_ele_bins") or {}),
             method="call",
         ),
-        "exclude_ele_outlier_bins": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_ele_outlier_bins")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("drop_null_ele_bins"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_ele_outlier_bins") or {}),
-            method="call",
-        ),
-        "drop_ele_bins_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("drop_ele_bins_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_ele_outlier_bins"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("drop_ele_bins_invalid_geoms") or {}),
-            method="call",
-        ),
         "clean_ele_column_idx": Node(
             async_task=clean_dataframe_index.validate()
             .set_task_instance_id("clean_ele_column_idx")
@@ -5544,7 +5335,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("drop_ele_bins_invalid_geoms"),
+                "df": DependsOn("drop_null_ele_bins"),
                 "reset_index": True,
                 "drop_index": True,
                 "rename_unnamed": True,
@@ -5569,7 +5360,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "herd_sizebins_sort",
                 "output_column_name": "colors",
-                "colormap": "Blues",
+                "colormap": "BuPu",
                 "df": DependsOn("clean_ele_column_idx"),
             }
             | (params_dict.get("apply_ele_color_bins") or {}),
@@ -5596,7 +5387,7 @@ def main(params: Params):
                     "line_width_min_pixels": 1,
                     "radius_units": "pixels",
                     "radius_scale": 0.35,
-                    "opacity": 0.75,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
@@ -5652,7 +5443,7 @@ def main(params: Params):
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
-                "max_zoom": 15,
+                "max_zoom": 10,
                 "legend_style": {
                     "placement": "bottom-right",
                 },
@@ -5735,13 +5526,13 @@ def main(params: Params):
                     "Herd Demographic": "herd_composition",
                     "Herd Size": "herd_size",
                 },
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
             }
             | (params_dict.get("map_buffalo_sighting") or {}),
             method="call",
         ),
         "replace_buffalo_unspecified": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_buffalo_unspecified")
             .handle_errors()
             .with_tracing()
@@ -5758,7 +5549,9 @@ def main(params: Params):
                 "columns": [
                     "herd_composition",
                 ],
-                "label": "Unspecified",
+                "replacement": "Unspecified",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_buffalo_unspecified") or {}),
             method="call",
@@ -5789,7 +5582,7 @@ def main(params: Params):
             method="call",
         ),
         "map_buff_column_values": Node(
-            async_task=map_column_values.validate()
+            async_task=map_column_value.validate()
             .set_task_instance_id("map_buff_column_values")
             .handle_errors()
             .with_tracing()
@@ -5803,16 +5596,16 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_buffalo_int"),
-                "columns": [
-                    "herd_composition",
-                ],
-                "value_map": {
+                "col": "herd_composition",
+                "new_col": "mapped_herd_composition",
+                "default": "Unspecified",
+                "mapping": {
                     "bachelor": "Bachelor",
                     "femalecalf": "Female/Calf",
                     "mixed": "Mixed",
                     "unspecified": "Unspecified",
                 },
-                "inplace": True,
+                "keep_unmapped": False,
             }
             | (params_dict.get("map_buff_column_values") or {}),
             method="call",
@@ -5892,46 +5685,6 @@ def main(params: Params):
             | (params_dict.get("persist_buff_df") or {}),
             method="call",
         ),
-        "exclude_buff_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_buff_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_buff_column_values"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_buff_outliers") or {}),
-            method="call",
-        ),
-        "remove_buff_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_buff_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_buff_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_buff_invalid_geoms") or {}),
-            method="call",
-        ),
         "apply_buff_events_colormap": Node(
             async_task=apply_color_map.validate()
             .set_task_instance_id("apply_buff_events_colormap")
@@ -5946,10 +5699,10 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "herd_composition",
+                "input_column_name": "mapped_herd_composition",
                 "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_buff_invalid_geoms"),
+                "colormap": "tab10",
+                "df": DependsOn("map_buff_column_values"),
             }
             | (params_dict.get("apply_buff_events_colormap") or {}),
             method="call",
@@ -5971,8 +5724,8 @@ def main(params: Params):
                 "layer_style": {
                     "get_fill_color": "colors",
                     "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
@@ -6241,46 +5994,6 @@ def main(params: Params):
             | (params_dict.get("drop_null_buff_bins") or {}),
             method="call",
         ),
-        "exclude_buff_outlier_bins": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_buff_outlier_bins")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("drop_null_buff_bins"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_buff_outlier_bins") or {}),
-            method="call",
-        ),
-        "drop_buff_bins_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("drop_buff_bins_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_buff_outlier_bins"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("drop_buff_bins_invalid_geoms") or {}),
-            method="call",
-        ),
         "clean_buff_column_idx": Node(
             async_task=clean_dataframe_index.validate()
             .set_task_instance_id("clean_buff_column_idx")
@@ -6295,7 +6008,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "df": DependsOn("drop_buff_bins_invalid_geoms"),
+                "df": DependsOn("drop_null_buff_bins"),
                 "reset_index": True,
                 "drop_index": True,
                 "rename_unnamed": True,
@@ -6320,7 +6033,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "herd_sizebins_sort",
                 "output_column_name": "colors",
-                "colormap": "Blues",
+                "colormap": "BuPu",
                 "df": DependsOn("clean_buff_column_idx"),
             }
             | (params_dict.get("apply_buff_color_bins") or {}),
@@ -6346,8 +6059,8 @@ def main(params: Params):
                     "get_radius": "herd_size",
                     "line_width_min_pixels": 1,
                     "radius_units": "pixels",
-                    "radius_scale": 0.043,
-                    "opacity": 0.75,
+                    "radius_scale": 0.045,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
@@ -6403,7 +6116,7 @@ def main(params: Params):
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
-                "max_zoom": 15,
+                "max_zoom": 10,
                 "legend_style": {
                     "placement": "bottom-right",
                 },
@@ -6535,68 +6248,6 @@ def main(params: Params):
             | (params_dict.get("persist_rhino_df") or {}),
             method="call",
         ),
-        "exclude_rhino_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_rhino_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("drop_rhino_prefix"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_rhino_outliers") or {}),
-            method="call",
-        ),
-        "remove_rhino_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_rhino_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_rhino_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_rhino_invalid_geoms") or {}),
-            method="call",
-        ),
-        "apply_rhino_events_colormap": Node(
-            async_task=apply_color_map.validate()
-            .set_task_instance_id("apply_rhino_events_colormap")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "input_column_name": "event_type",
-                "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_rhino_invalid_geoms"),
-            }
-            | (params_dict.get("apply_rhino_events_colormap") or {}),
-            method="call",
-        ),
         "generate_rhino_layers": Node(
             async_task=create_scatterplot_layer.validate()
             .set_task_instance_id("generate_rhino_layers")
@@ -6612,20 +6263,34 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "layer_style": {
-                    "get_fill_color": "colors",
-                    "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_fill_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_line_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
                     "title": "Rhino Sightings",
+                    "values": [
+                        {
+                            "label": "Sighting",
+                            "color": "#000080",
+                        },
+                    ],
                     "label_column": "event_type",
                     "color_column": "colors",
-                    "sort": "ascending",
+                    "sort": None,
                 },
                 "data_url": None,
-                "geodataframe": DependsOn("apply_rhino_events_colormap"),
+                "geodataframe": DependsOn("drop_rhino_prefix"),
             }
             | (params_dict.get("generate_rhino_layers") or {}),
             method="call",
@@ -6671,7 +6336,7 @@ def main(params: Params):
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
-                "max_zoom": 15,
+                "max_zoom": 10,
                 "legend_style": {
                     "placement": "bottom-right",
                 },
@@ -6760,13 +6425,13 @@ def main(params: Params):
                     "Pride": "pride",
                     "Young": "young",
                 },
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
             }
             | (params_dict.get("map_lion_sighting") or {}),
             method="call",
         ),
         "replace_lion_unspecified": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_lion_unspecified")
             .handle_errors()
             .with_tracing()
@@ -6783,13 +6448,15 @@ def main(params: Params):
                 "columns": [
                     "pride",
                 ],
-                "label": "Unspecified",
+                "replacement": "Unspecified",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_lion_unspecified") or {}),
             method="call",
         ),
         "convert_lion_int": Node(
-            async_task=convert_to_int.validate()
+            async_task=coerce_columns_to_int.validate()
             .set_task_instance_id("convert_lion_int")
             .handle_errors()
             .with_tracing()
@@ -6811,13 +6478,14 @@ def main(params: Params):
                 ],
                 "errors": "coerce",
                 "fill_value": 0,
-                "inplace": False,
+                "missing": "ignore",
+                "nullable": True,
             }
             | (params_dict.get("convert_lion_int") or {}),
             method="call",
         ),
         "map_lion_column_values": Node(
-            async_task=map_column_values.validate()
+            async_task=map_column_value.validate()
             .set_task_instance_id("map_lion_column_values")
             .handle_errors()
             .with_tracing()
@@ -6831,15 +6499,15 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_lion_int"),
-                "columns": [
-                    "pride",
-                ],
-                "value_map": {
+                "col": "pride",
+                "new_col": "mapped_pride",
+                "default": "Unknown",
+                "mapping": {
                     "Unknown": "Unknown",
                     "unspecified": "Unknown",
                     "Other (specify in comments)": "Unknown",
                 },
-                "inplace": True,
+                "keep_unmapped": False,
             }
             | (params_dict.get("map_lion_column_values") or {}),
             method="call",
@@ -6934,7 +6602,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "groupby_cols": [
-                    "pride",
+                    "mapped_pride",
                 ],
                 "summary_params": [
                     {
@@ -6971,46 +6639,6 @@ def main(params: Params):
             | (params_dict.get("persist_lions_df") or {}),
             method="call",
         ),
-        "exclude_lion_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_lion_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_lion_column_values"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_lion_outliers") or {}),
-            method="call",
-        ),
-        "remove_lion_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_lion_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_lion_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_lion_invalid_geoms") or {}),
-            method="call",
-        ),
         "apply_lion_events_colormap": Node(
             async_task=apply_color_map.validate()
             .set_task_instance_id("apply_lion_events_colormap")
@@ -7027,8 +6655,8 @@ def main(params: Params):
             partial={
                 "input_column_name": "pride",
                 "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_lion_invalid_geoms"),
+                "colormap": "tab10",
+                "df": DependsOn("map_lion_column_values"),
             }
             | (params_dict.get("apply_lion_events_colormap") or {}),
             method="call",
@@ -7050,12 +6678,12 @@ def main(params: Params):
                 "layer_style": {
                     "get_fill_color": "colors",
                     "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Pride",
+                    "title": "Lion Prides",
                     "label_column": "pride",
                     "color_column": "colors",
                     "sort": "ascending",
@@ -7107,7 +6735,7 @@ def main(params: Params):
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
-                "max_zoom": 15,
+                "max_zoom": 10,
                 "legend_style": {
                     "placement": "bottom-right",
                 },
@@ -7195,13 +6823,13 @@ def main(params: Params):
                     "Male": "male",
                     "Young": "young",
                 },
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
             }
             | (params_dict.get("map_leopard_sighting") or {}),
             method="call",
         ),
         "replace_leopard_unspecified": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_leopard_unspecified")
             .handle_errors()
             .with_tracing()
@@ -7218,13 +6846,15 @@ def main(params: Params):
                 "columns": [
                     "individuals_present",
                 ],
-                "label": "Unspecified",
+                "replacement": "Unspecified",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_leopard_unspecified") or {}),
             method="call",
         ),
         "convert_leopard_int": Node(
-            async_task=convert_to_int.validate()
+            async_task=coerce_columns_to_int.validate()
             .set_task_instance_id("convert_leopard_int")
             .handle_errors()
             .with_tracing()
@@ -7246,13 +6876,14 @@ def main(params: Params):
                 ],
                 "errors": "coerce",
                 "fill_value": 0,
-                "inplace": False,
+                "missing": "ignore",
+                "nullable": True,
             }
             | (params_dict.get("convert_leopard_int") or {}),
             method="call",
         ),
         "map_leopard_column_values": Node(
-            async_task=map_column_values.validate()
+            async_task=map_column_value.validate()
             .set_task_instance_id("map_leopard_column_values")
             .handle_errors()
             .with_tracing()
@@ -7266,15 +6897,15 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_leopard_int"),
-                "columns": [
-                    "individuals_present",
-                ],
-                "value_map": {
+                "col": "individuals_present",
+                "new_col": "mapped_individual_present",
+                "default": "Unknown",
+                "mapping": {
                     "Unknown": "Unknown",
                     "Unspecified": "Unknown",
                     "Other (specify in comments)": "Unknown",
                 },
-                "inplace": True,
+                "keep_unmapped": False,
             }
             | (params_dict.get("map_leopard_column_values") or {}),
             method="call",
@@ -7369,7 +7000,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "groupby_cols": [
-                    "individuals_present",
+                    "mapped_individuals_present",
                 ],
                 "summary_params": [
                     {
@@ -7406,46 +7037,6 @@ def main(params: Params):
             | (params_dict.get("persist_leopards_df") or {}),
             method="call",
         ),
-        "exclude_leopard_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_leopard_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_leopard_column_values"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_leopard_outliers") or {}),
-            method="call",
-        ),
-        "remove_leopard_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_leopard_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_leopard_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_leopard_invalid_geoms") or {}),
-            method="call",
-        ),
         "apply_leopard_events_colormap": Node(
             async_task=apply_color_map.validate()
             .set_task_instance_id("apply_leopard_events_colormap")
@@ -7460,10 +7051,10 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "individuals_present",
+                "input_column_name": "mapped_individuals_present",
                 "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_leopard_invalid_geoms"),
+                "colormap": "tab10",
+                "df": DependsOn("map_leopard_column_values"),
             }
             | (params_dict.get("apply_leopard_events_colormap") or {}),
             method="call",
@@ -7485,13 +7076,13 @@ def main(params: Params):
                 "layer_style": {
                     "get_fill_color": "colors",
                     "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
                     "title": "Individual",
-                    "label_column": "individuals_present",
+                    "label_column": "mapped_individuals_present",
                     "color_column": "colors",
                     "sort": "ascending",
                 },
@@ -7542,7 +7133,7 @@ def main(params: Params):
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
-                "max_zoom": 15,
+                "max_zoom": 10,
                 "legend_style": {
                     "placement": "bottom-right",
                 },
@@ -7630,13 +7221,13 @@ def main(params: Params):
                     "Male": "male",
                     "Young": "young",
                 },
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
             }
             | (params_dict.get("map_cheetah_sighting") or {}),
             method="call",
         ),
         "replace_cheetah_unspecified": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_cheetah_unspecified")
             .handle_errors()
             .with_tracing()
@@ -7653,13 +7244,15 @@ def main(params: Params):
                 "columns": [
                     "individuals_present",
                 ],
-                "label": "Unspecified",
+                "replacement": "Unspecified",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_cheetah_unspecified") or {}),
             method="call",
         ),
         "convert_cheetah_int": Node(
-            async_task=convert_to_int.validate()
+            async_task=coerce_columns_to_int.validate()
             .set_task_instance_id("convert_cheetah_int")
             .handle_errors()
             .with_tracing()
@@ -7681,13 +7274,14 @@ def main(params: Params):
                 ],
                 "errors": "coerce",
                 "fill_value": 0,
-                "inplace": False,
+                "missing": "ignore",
+                "nullable": True,
             }
             | (params_dict.get("convert_cheetah_int") or {}),
             method="call",
         ),
         "map_cheetah_column_values": Node(
-            async_task=map_column_values.validate()
+            async_task=map_column_value.validate()
             .set_task_instance_id("map_cheetah_column_values")
             .handle_errors()
             .with_tracing()
@@ -7701,15 +7295,15 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_cheetah_int"),
-                "columns": [
-                    "individuals_present",
-                ],
-                "value_map": {
+                "col": "individuals_present",
+                "new_col": "mapped_individuals_present",
+                "default": "Unknown",
+                "mapping": {
                     "Unknown": "Unknown",
                     "Unspecified": "Unknown",
                     "Other (specify in comments)": "Unknown",
                 },
-                "inplace": True,
+                "keep_unmapped": False,
             }
             | (params_dict.get("map_cheetah_column_values") or {}),
             method="call",
@@ -7804,7 +7398,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "groupby_cols": [
-                    "individuals_present",
+                    "mapped_individuals_present",
                 ],
                 "summary_params": [
                     {
@@ -7841,46 +7435,6 @@ def main(params: Params):
             | (params_dict.get("persist_cheetahs_df") or {}),
             method="call",
         ),
-        "exclude_cheetah_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_cheetah_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_cheetah_column_values"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_cheetah_outliers") or {}),
-            method="call",
-        ),
-        "remove_cheetah_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_cheetah_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_cheetah_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_cheetah_invalid_geoms") or {}),
-            method="call",
-        ),
         "apply_cheetah_events_colormap": Node(
             async_task=apply_color_map.validate()
             .set_task_instance_id("apply_cheetah_events_colormap")
@@ -7895,10 +7449,10 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "individuals_present",
+                "input_column_name": "mapped_individuals_present",
                 "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_cheetah_invalid_geoms"),
+                "colormap": "tab10",
+                "df": DependsOn("map_cheetah_column_values"),
             }
             | (params_dict.get("apply_cheetah_events_colormap") or {}),
             method="call",
@@ -7920,13 +7474,13 @@ def main(params: Params):
                 "layer_style": {
                     "get_fill_color": "colors",
                     "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
                     "title": "Individual",
-                    "label_column": "individuals_present",
+                    "label_column": "mapped_individuals_present",
                     "color_column": "colors",
                     "sort": "ascending",
                 },
@@ -7977,7 +7531,7 @@ def main(params: Params):
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
-                "max_zoom": 15,
+                "max_zoom": 10,
                 "legend_style": {
                     "placement": "bottom-right",
                 },
@@ -8056,71 +7610,9 @@ def main(params: Params):
                     "reported_by",
                     "serial_number",
                 ],
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
             }
             | (params_dict.get("map_giraffe_sighting") or {}),
-            method="call",
-        ),
-        "exclude_giraffe_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_giraffe_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_giraffe_sighting"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_giraffe_outliers") or {}),
-            method="call",
-        ),
-        "remove_giraffe_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_giraffe_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_giraffe_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_giraffe_invalid_geoms") or {}),
-            method="call",
-        ),
-        "apply_giraffe_events_colormap": Node(
-            async_task=apply_color_map.validate()
-            .set_task_instance_id("apply_giraffe_events_colormap")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "input_column_name": "event_type",
-                "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_giraffe_invalid_geoms"),
-            }
-            | (params_dict.get("apply_giraffe_events_colormap") or {}),
             method="call",
         ),
         "generate_giraffe_layers": Node(
@@ -8138,20 +7630,32 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "layer_style": {
-                    "get_fill_color": "colors",
-                    "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_fill_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_line_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
                     "title": "Giraffe Sighting",
-                    "label_column": "event_type",
-                    "color_column": "colors",
-                    "sort": "ascending",
+                    "values": [
+                        {
+                            "label": "Sighting",
+                            "color": "#000080",
+                        },
+                    ],
+                    "sort": None,
                 },
                 "data_url": None,
-                "geodataframe": DependsOn("apply_giraffe_events_colormap"),
+                "geodataframe": DependsOn("map_giraffe_sighting"),
             }
             | (params_dict.get("generate_giraffe_layers") or {}),
             method="call",
@@ -8276,71 +7780,9 @@ def main(params: Params):
                     "reported_by",
                     "serial_number",
                 ],
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
             }
             | (params_dict.get("map_hartebeest_sighting") or {}),
-            method="call",
-        ),
-        "exclude_hartebeest_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_hartebeest_outliers")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("map_hartebeest_sighting"),
-                "z_threshold": 3,
-            }
-            | (params_dict.get("exclude_hartebeest_outliers") or {}),
-            method="call",
-        ),
-        "remove_hartebeest_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_hartebeest_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_hartebeest_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_hartebeest_invalid_geoms") or {}),
-            method="call",
-        ),
-        "apply_hartebeest_events_colormap": Node(
-            async_task=apply_color_map.validate()
-            .set_task_instance_id("apply_hartebeest_events_colormap")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "input_column_name": "event_type",
-                "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_hartebeest_invalid_geoms"),
-            }
-            | (params_dict.get("apply_hartebeest_events_colormap") or {}),
             method="call",
         ),
         "generate_hartebeest_layers": Node(
@@ -8358,20 +7800,32 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "layer_style": {
-                    "get_fill_color": "colors",
-                    "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_fill_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_line_color": [
+                        0,
+                        0,
+                        128,
+                    ],
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
                     "title": "Hartebeest Sighting",
-                    "label_column": "event_type",
-                    "color_column": "colors",
-                    "sort": "ascending",
+                    "values": [
+                        {
+                            "label": "Sighting",
+                            "color": "#000080",
+                        },
+                    ],
+                    "sort": None,
                 },
                 "data_url": None,
-                "geodataframe": DependsOn("apply_hartebeest_events_colormap"),
+                "geodataframe": DependsOn("map_hartebeest_sighting"),
             }
             | (params_dict.get("generate_hartebeest_layers") or {}),
             method="call",
@@ -8497,7 +7951,7 @@ def main(params: Params):
             method="call",
         ),
         "rename_wildlife_cols": Node(
-            async_task=transform_columns.validate()
+            async_task=map_columns.validate()
             .set_task_instance_id("rename_wildlife_cols")
             .handle_errors()
             .with_tracing()
@@ -8520,7 +7974,7 @@ def main(params: Params):
                     "event_details__wildlifetreatment_vetprognosis": "wildlife_treatment_vet_prognosis",
                     "event_details__wildlifecarcass_comments": "wildlife_carcass_comments",
                 },
-                "skip_missing_rename": True,
+                "raise_if_not_found": False,
                 "df": DependsOn("normalize_wildlife_events"),
             }
             | (params_dict.get("rename_wildlife_cols") or {}),
@@ -8675,9 +8129,9 @@ def main(params: Params):
             | (params_dict.get("wildlife_events_df") or {}),
             method="call",
         ),
-        "exclude_wildlife_events_outliers": Node(
-            async_task=exclude_geom_outliers.validate()
-            .set_task_instance_id("exclude_wildlife_events_outliers")
+        "map_wildlife_values": Node(
+            async_task=map_column_value.validate()
+            .set_task_instance_id("map_wildlife_values")
             .handle_errors()
             .with_tracing()
             .skipif(
@@ -8690,29 +8144,20 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("rename_wildlife_cols"),
-                "z_threshold": 3,
+                "col": "event_type",
+                "new_col": "mapped_event_type",
+                "default": "Illegal grazing",
+                "mapping": {
+                    "fire_rep": "Fire",
+                    "snare_rep": "Snare",
+                    "wildlife_carcass_rep": "Wildlife carcass",
+                    "wildlife_injury_rep": "Injured wildlife",
+                    "wildlife_treatment_rep": "Veterinary treatment",
+                    "illegal_grazing_rep": "Illegal grazing",
+                },
+                "keep_unmapped": False,
             }
-            | (params_dict.get("exclude_wildlife_events_outliers") or {}),
-            method="call",
-        ),
-        "remove_wildlife_invalid_geoms": Node(
-            async_task=drop_null_geometry.validate()
-            .set_task_instance_id("remove_wildlife_invalid_geoms")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "gdf": DependsOn("exclude_wildlife_events_outliers"),
-                "geometry_column": "geometry",
-            }
-            | (params_dict.get("remove_wildlife_invalid_geoms") or {}),
+            | (params_dict.get("map_wildlife_values") or {}),
             method="call",
         ),
         "apply_wildlife_colormap": Node(
@@ -8729,43 +8174,12 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "event_type",
+                "input_column_name": "mapped_event_type",
                 "output_column_name": "colors",
-                "colormap": "tab20",
-                "df": DependsOn("remove_wildlife_invalid_geoms"),
+                "colormap": "tab10",
+                "df": DependsOn("map_wildlife_values"),
             }
             | (params_dict.get("apply_wildlife_colormap") or {}),
-            method="call",
-        ),
-        "map_wildlife_values": Node(
-            async_task=map_column_values.validate()
-            .set_task_instance_id("map_wildlife_values")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("apply_wildlife_colormap"),
-                "columns": [
-                    "event_type",
-                ],
-                "value_map": {
-                    "fire_rep": "Fire",
-                    "snare_rep": "Snare",
-                    "wildlife_carcass_rep": "Wildlife carcass",
-                    "wildlife_injury_rep": "Injured wildlife",
-                    "wildlife_treatment_rep": "Veterinary treatment",
-                    "illegal_grazing_rep": "Illegal grazing",
-                },
-                "inplace": True,
-            }
-            | (params_dict.get("map_wildlife_values") or {}),
             method="call",
         ),
         "generate_wildlife_layers": Node(
@@ -8785,17 +8199,17 @@ def main(params: Params):
                 "layer_style": {
                     "get_fill_color": "colors",
                     "get_line_color": "colors",
-                    "get_radius": 4,
-                    "opacity": 0.75,
+                    "get_radius": 3,
+                    "opacity": 0.55,
                     "stroked": True,
                 },
                 "legend": {
                     "title": "Incidents",
-                    "label_column": "event_type",
+                    "label_column": "mapped_event_type",
                     "color_column": "colors",
                     "sort": "ascending",
                 },
-                "geodataframe": DependsOn("map_wildlife_values"),
+                "geodataframe": DependsOn("apply_wildlife_colormap"),
                 "data_url": None,
             }
             | (params_dict.get("generate_wildlife_layers") or {}),
@@ -8842,7 +8256,7 @@ def main(params: Params):
                 "tile_layers": DependsOn("configure_base_maps"),
                 "static": False,
                 "title": None,
-                "max_zoom": 15,
+                "max_zoom": 10,
                 "legend_style": {
                     "placement": "bottom-right",
                 },
@@ -9206,7 +8620,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
                 "rename_columns": {
                     "event_details__patrolinfomation_participants": "participants",
                     "event_details__patrolinfomation_patrolpurpose": "purpose",
@@ -9355,7 +8769,7 @@ def main(params: Params):
             method="call",
         ),
         "replace_transport_unspecified": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_transport_unspecified")
             .handle_errors()
             .with_tracing()
@@ -9372,7 +8786,9 @@ def main(params: Params):
                 "columns": [
                     "transport_type",
                 ],
-                "label": "unspecified",
+                "replacement": "unspecified",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_transport_unspecified") or {}),
             method="call",
@@ -9418,7 +8834,7 @@ def main(params: Params):
                 "events_df": DependsOn("explode_patrol_columns"),
                 "patrols_column": "patrol_id",
                 "client": DependsOn("er_client_name"),
-                "max_workers": 10,
+                "max_workers": 15,
             }
             | (params_dict.get("get_patrols_from_info") or {}),
             method="call",
@@ -9441,7 +8857,7 @@ def main(params: Params):
                 "patrols_df": DependsOn("get_patrols_from_info"),
                 "include_patrol_details": True,
                 "raise_on_empty": True,
-                "sub_page_size": 150,
+                "sub_page_size": 750,
             }
             | (params_dict.get("get_patrol_obs") or {}),
             method="call",
@@ -9460,7 +8876,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
                 "drop_columns": [
                     "geometry",
                     "reported_by",
@@ -9831,7 +9247,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -9868,7 +9284,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -9905,7 +9321,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -10023,7 +9439,7 @@ def main(params: Params):
             method="call",
         ),
         "foot_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid.validate()
+            async_task=create_patrol_coverage_grid_1.validate()
             .set_task_instance_id("foot_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -10037,6 +9453,8 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "grid_cell_size": 1000,
+                "keep_empty_cells": False,
+                "aoi": None,
                 "trajs": DependsOn("rename_foot_trajs"),
             }
             | (params_dict.get("foot_patrol_grid_visits") or {}),
@@ -10113,13 +9531,9 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": [
-                        0,
-                        0,
-                        0,
-                    ],
-                    "opacity": 0.75,
-                    "get_line_width": 0.85,
+                    "get_line_color": "density_colors",
+                    "opacity": 0.55,
+                    "get_line_width": 0.75,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -10331,7 +9745,7 @@ def main(params: Params):
             method="call",
         ),
         "vehicle_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid.validate()
+            async_task=create_patrol_coverage_grid_1.validate()
             .set_task_instance_id("vehicle_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -10345,6 +9759,8 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "grid_cell_size": 1000,
+                "aoi": None,
+                "keep_empty_cells": False,
                 "trajs": DependsOn("rename_vehicle_trajs"),
             }
             | (params_dict.get("vehicle_patrol_grid_visits") or {}),
@@ -10421,13 +9837,9 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": [
-                        0,
-                        0,
-                        0,
-                    ],
-                    "opacity": 0.75,
-                    "get_line_width": 0.85,
+                    "get_line_color": "density_colors",
+                    "opacity": 0.55,
+                    "get_line_width": 0.75,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -10639,7 +10051,7 @@ def main(params: Params):
             method="call",
         ),
         "motor_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid.validate()
+            async_task=create_patrol_coverage_grid_1.validate()
             .set_task_instance_id("motor_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -10653,6 +10065,8 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "grid_cell_size": 1000,
+                "aoi": None,
+                "keep_empty_cells": False,
                 "trajs": DependsOn("rename_motor_trajs"),
             }
             | (params_dict.get("motor_patrol_grid_visits") or {}),
@@ -10729,13 +10143,9 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": [
-                        0,
-                        0,
-                        0,
-                    ],
-                    "opacity": 0.75,
-                    "get_line_width": 0.85,
+                    "get_line_color": "density_colors",
+                    "opacity": 0.55,
+                    "get_line_width": 0.75,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -10884,7 +10294,7 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "raise_if_not_found": True,
+                "raise_if_not_found": False,
                 "drop_columns": [
                     "heading",
                     "extra__created_at",
@@ -10978,7 +10388,7 @@ def main(params: Params):
             method="call",
         ),
         "replace_ranger_nulls": Node(
-            async_task=replace_missing_with_label.validate()
+            async_task=replace_empty_strings_in_columns.validate()
             .set_task_instance_id("replace_ranger_nulls")
             .handle_errors()
             .with_tracing()
@@ -10995,7 +10405,9 @@ def main(params: Params):
                 "columns": [
                     "participants",
                 ],
-                "label": "Unspecified",
+                "replacement": "Unspecified",
+                "strip_whitespace": True,
+                "missing": "ignore",
             }
             | (params_dict.get("replace_ranger_nulls") or {}),
             method="call",
@@ -11046,7 +10458,7 @@ def main(params: Params):
             method="call",
         ),
         "patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid.validate()
+            async_task=create_patrol_coverage_grid_1.validate()
             .set_task_instance_id("patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -11060,6 +10472,8 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "grid_cell_size": 1000,
+                "aoi": None,
+                "keep_empty_cells": False,
                 "trajs": DependsOn("rename_combined_trajs"),
             }
             | (params_dict.get("patrol_grid_visits") or {}),
@@ -11136,13 +10550,9 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": [
-                        0,
-                        0,
-                        0,
-                    ],
-                    "opacity": 0.75,
-                    "get_line_width": 0.85,
+                    "get_line_color": "density_colors",
+                    "opacity": 0.55,
+                    "get_line_width": 0.75,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -11333,7 +10743,7 @@ def main(params: Params):
                 "url": "https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=fufzxuyy&dl=0",
                 "output_path": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
                 "overwrite_existing": False,
-                "retries": 3,
+                "retries": 2,
                 "unzip": False,
             }
             | (params_dict.get("fetch_mnc_template") or {}),

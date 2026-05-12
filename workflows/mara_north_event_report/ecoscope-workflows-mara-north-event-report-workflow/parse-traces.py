@@ -40,11 +40,7 @@ def main(traces_path: str) -> int:
     root_id = root["context"]["span_id"]
 
     # Top-level task spans are direct children of root with method="call"
-    tasks = [
-        s for s in spans
-        if s.get("parent_id") == root_id
-        and s.get("attributes", {}).get("method") == "call"
-    ]
+    tasks = [s for s in spans if s.get("parent_id") == root_id and s.get("attributes", {}).get("method") == "call"]
     tasks.sort(key=lambda s: s["start_time"])
 
     if not tasks:

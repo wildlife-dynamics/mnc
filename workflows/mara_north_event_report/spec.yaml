@@ -9,15 +9,19 @@ requirements:
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.45.*"
+    version: "0.0.49.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.19.*"
+    version: "0.0.20.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mep
-    version: "0.0.14.*"
+    version: "0.0.19.*"
+    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
+
+  - name: ecoscope-workflows-ext-big-life
+    version: "0.0.11.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
@@ -627,9 +631,10 @@ workflow:
         height: 720          
         full_page: false
         device_scale_factor: 2.0 
-        wait_for_timeout: 15 
+        wait_for_timeout: 2 
         timeout: 0 
-        max_concurrent_pages: 5
+        max_concurrent_pages: 10
+
   # 2 -- Logistics report 
   # Get  Events 
   - name: Retrieve all events 
@@ -661,6 +666,22 @@ workflow:
       include_null_geometry: false
       include_display_values: false
 
+  # filter to only MNC roi
+  - name: Filter events to only ROI 
+    id: filter_mnc_aois
+    task: apply_reloc_coord_filter
+    partial: 
+      df: ${{ workflow.get_events_data.return }}
+      bounding_box: 
+        min_y: -1.47207297799997
+        max_y: -1.04360818399994
+        min_x: 34.9973709710001
+        max_x: 35.4212162050001
+      filter_point_coords: null 
+      roi_gdf: null 
+      roi_name: null 
+      reset_index: true 
+
   # Extract date
   - name: Extract date from events data
     id: extract_event_date
@@ -670,7 +691,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      df: ${{ workflow.get_events_data.return }}
+      df: ${{ workflow.filter_mnc_aois.return }}
       column_name: time
       output_type: date
       output_column_name: date
@@ -980,7 +1001,7 @@ workflow:
 
   - name: Replace missing values in camp_lodge column with other
     id: replace_airstrip_op_nulls
-    task: replace_missing_with_label
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -989,11 +1010,13 @@ workflow:
       df: ${{ workflow.remove_airstrip_op_brackets.return }}
       columns: 
         - camp_lodge
-      label: other
+      replacement: Other 
+      strip_whitespace: true 
+      missing: ignore
 
   - name: Convert columns to integer 
     id: convert_airstrip_op_ints
-    task: convert_to_int
+    task: coerce_columns_to_int  #convert_to_int
     skipif:
       conditions:
         - any_is_empty_df
@@ -1004,11 +1027,12 @@ workflow:
         - no_of_clients
       errors: coerce
       fill_value: 0
-      inplace: false
+      missing: ignore 
+      nullable: true 
   
   - name: Capitalize text in camp_lodge column 
     id: capitalize_camp_lodge
-    task: capitalize_text
+    task: format_text_column #capitalize_text
     skipif:
       conditions:
         - any_is_empty_df
@@ -1016,6 +1040,7 @@ workflow:
     partial:
       df: ${{ workflow.convert_airstrip_op_ints.return }}
       column: camp_lodge
+      method: capitalize
 
   - name: Airstrip operation events summary table
     id: airstrip_op_summary_table 
@@ -1038,21 +1063,23 @@ workflow:
 
   - name: Pivot airstrip operations summary table 
     id: pivot_airstrip_ops
-    task: pivot_df 
+    task: pivot_dataframe #pivot_df 
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.airstrip_op_summary_table.return }}
-      index_col: camp_lodge
-      columns_col: arrival_departure 
-      values_col: no_of_clients
-      reset_idx: true 
+      index: camp_lodge
+      columns: 
+        - arrival_departure 
+      values: 
+        - no_of_clients
+      fill_value: 0
   
   - name: Convert airstrip pivot table values to int 
     id: convert_pivot_int 
-    task: convert_to_int 
+    task: coerce_columns_to_int #convert_to_int 
     skipif:
       conditions:
         - any_is_empty_df
@@ -1064,7 +1091,8 @@ workflow:
         - departure 
       errors: coerce 
       fill_value: 0 
-      inplace: false 
+      missing: ignore 
+      nullable: true 
   
   - name: Persist airstrip operations summary table
     id: persist_airstrip_operations 
@@ -1119,11 +1147,11 @@ workflow:
       base_maps:
         - url: >-
             https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}
-          opacity: 0.85
+          opacity: 0.80
           max_zoom: 20
 
         - url: https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places_Alternate/MapServer/tile/{z}/{y}/{x}
-          opacity: 0.15
+          opacity: 0.30
           max_zoom: 20
 
   - name: Download MNC community conservancy boundaries
@@ -1133,7 +1161,7 @@ workflow:
       url: https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=gtdi4vv0&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       overwrite_existing: false
-      retries: 3
+      retries: 2
       unzip: false
   
   - name: Download MNC Parcels gpkg
@@ -1143,7 +1171,7 @@ workflow:
       url: https://www.dropbox.com/scl/fi/33rdzy896rh91gtkfs2j3/mnc_across_the_river_parcels.gpkg?rlkey=xima1v0rozc0h9h78esfogx6q&st=o3gkk5p1&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       overwrite_existing: false
-      retries: 3
+      retries: 2
       unzip: false
   
   - name : Load community conservancy boundaries  
@@ -1175,9 +1203,9 @@ workflow:
       styles:
         Conservancy:
           extruded: false
-          get_fill_color: [169, 169, 169]
-          get_line_color: [169, 169, 169]
-          get_line_width: 1.95
+          get_fill_color: [119, 136, 153]
+          get_line_color: [119, 136, 153]
+          get_line_width: 1.55
           stroked: true
           filled: false
           opacity: 0.70
@@ -1230,8 +1258,8 @@ workflow:
       legends:
         title: Legend
         values: 
-          - label: Conservancy
-            color: "#a9a9a9"
+          - label: Conservancy Boundaries
+            color: "#778899"
           - label: Conservancy Herd Zone
             color: "#adff2f"
           - label: Grazing Zone 1
@@ -1251,18 +1279,18 @@ workflow:
       styles:
         Conservancy:
           extruded: false
-          get_fill_color: [169, 169, 169]
-          get_line_color: [169, 169, 169]
-          get_line_width: 1.95
+          get_fill_color: [119, 136, 153]
+          get_line_color: [119, 136, 153]
+          get_line_width: 1.55
           stroked: true
           filled: false
-          opacity: 0.95
+          opacity: 0.70
 
       legends:
         title: Legend 
         values: 
-          - label: Boundaries
-            color: "#a9a9a9"
+          - label: Conservancy Boundaries
+            color: "#778899"
 
   - name: Create conservancy gdf from split dict 
     id: conservancy_gdf
@@ -1297,7 +1325,7 @@ workflow:
         size_scale: 2.25 
 
         font_family: Calibri 
-        font_weight: "700" 
+        font_weight: "normal" 
         get_text_anchor: middle 
         get_alignment_baseline: center
         billboard: true 
@@ -1331,7 +1359,7 @@ workflow:
         extruded: false
         get_fill_color: [189, 183, 107]
         get_line_color: [189, 183, 107]
-        get_line_width: 1.95
+        get_line_width: 1.55
         stroked: true 
         filled: true 
         opacity: 0.15
@@ -1618,41 +1646,6 @@ workflow:
       filename: mobile_boma_movement_summary_table 
 
   # Draw mobile boma map 
-  - name: Exclude geom outliers from mobile boma events
-    id: exclude_mobile_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_mobile_boma.return }}
-      z_threshold: 3
-
-  - name: Remove mobile boma invalid points 
-    id: remove_mobile_invalids 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_mobile_outliers.return }}
-      geometry_column: geometry 
-
-  - name: Apply colormap to mobile boma events
-    id: mobile_colormap
-    task: apply_color_map
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      input_column_name: event_type
-      output_column_name: event_type_colors
-      colormap: tab20
-      df: ${{ workflow.remove_mobile_invalids.return }}
-
   - name: Generate mobile boma point layers
     id: generate_mobile_layers
     task: create_scatterplot_layer
@@ -1662,19 +1655,21 @@ workflow:
         - any_dependency_skipped
     partial:
       layer_style:
-        get_fill_color: event_type_colors
-        get_line_color: event_type_colors
-        get_radius: 4
-        opacity: 0.75
+        get_fill_color: [0, 0, 128]
+        get_line_color: [0, 0, 128]
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Boma Movements
-        label_column: event_type
-        color_column: event_type_colors
-        sort: ascending
+        values: 
+          - label: Boma movement
+            color: "#000080"
+        sort: null
         label_suffix: null
       data_url: null
-      geodataframe: ${{ workflow.mobile_colormap.return }}
+      geodataframe: ${{ workflow.map_mobile_boma.return }} 
+      #${{ workflow.mobile_colormap.return }}
   
   # global zoom value 
   - name: Global map zoom value
@@ -1853,28 +1848,6 @@ workflow:
       df: ${{ workflow.add_predation_summary_row.return }}
       filename: total_livestock_predation_summary_table
 
-  - name: Exclude geom outliers from livestock predation events 
-    id: exclude_livestock_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_livestock_predation.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from livestock predation events 
-    id: remove_livestock_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_livestock_outliers.return }}
-      geometry_column: geometry 
-
   - name: Apply colormap to livestock predation events
     id: apply_livestock_colormap
     task: apply_color_map
@@ -1885,8 +1858,8 @@ workflow:
     partial:
       input_column_name: "Livestock Species"
       output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_livestock_invalid_geoms.return }}
+      colormap: tab10
+      df: ${{ workflow.map_livestock_predation.return }}
 
   - name: Generate livestock predation point layers
     id: generate_livestock_layers
@@ -1899,8 +1872,8 @@ workflow:
       layer_style:
         get_fill_color: colors
         get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Livestock Species 
@@ -2001,7 +1974,7 @@ workflow:
 
   - name: Replace nulls on livestock predator table with unknown
     id: replace_livestock_nulls
-    task: replace_missing_with_label
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -2011,26 +1984,29 @@ workflow:
       columns: 
         - suspected_predator
         - livestock_species
-      label: Unknown 
+      replacement: Unknown 
+      strip_whitespace: true 
+      missing: ignore
   
   - name: Map others with Unknown 
     id: map_livestock_unknown
-    task: map_column_values
+    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.replace_livestock_nulls.return }}
-      columns: 
-        - suspected_predator
-      value_map: 
+      col: suspected_predator
+      new_col: predator
+      default: Unknown
+      mapping: 
         Other (specify in comments): Unknown
-      inplace: true 
+      keep_unmapped: false
 
   - name: Convert livestock_affected col to int 
     id: convert_livestock_int
-    task: convert_to_int
+    task: coerce_columns_to_int #convert_to_int
     skipif:
       conditions:
         - any_is_empty_df
@@ -2041,7 +2017,8 @@ workflow:
         - total_livestock_affected
       errors: coerce
       fill_value: 0
-      inplace: false
+      missing: ignore 
+      nullable: true 
 
   - name: Persist livestock summary table 
     id: persist_livestock_summary
@@ -2078,41 +2055,6 @@ workflow:
       raise_if_not_found: false 
 
 # Draw illegal grazing map 
-  - name: Exclude geom outliers from illegal grazing events
-    id: exclude_illegal_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_illegal_grazing.return }}
-      z_threshold: 3
-
-  - name: Remove illegal grazing invalid points 
-    id: remove_illegal_invalids 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_illegal_outliers.return }}
-      geometry_column: geometry 
-
-  - name: Apply colormap to illegal grazing events
-    id: illegal_colormap
-    task: apply_color_map
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      input_column_name: event_type
-      output_column_name: event_type_colors
-      colormap: tab20
-      df: ${{ workflow.remove_illegal_invalids.return }}
-
   - name: Generate illegal grazing point layers
     id: generate_illegal_layers
     task: create_scatterplot_layer
@@ -2122,19 +2064,20 @@ workflow:
         - any_dependency_skipped
     partial:
       layer_style:
-        get_fill_color: event_type_colors
-        get_line_color: event_type_colors
-        get_radius: 4
-        opacity: 0.75
+        get_fill_color: [0, 0, 128]
+        get_line_color: [0, 0, 128]
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Illegal grazing
-        label_column: event_type
-        color_column: event_type_colors
-        sort: ascending
+        values: 
+          - label: Illegal grazing
+            color: "#000080"
+        sort: null
         label_suffix: null
       data_url: null
-      geodataframe: ${{ workflow.illegal_colormap.return }}
+      geodataframe: ${{ workflow.map_illegal_grazing.return }}
   
   - name: Combine styled layers with illegal grazing layer
     id: combine_custom_illegal
@@ -2334,7 +2277,6 @@ workflow:
         - wildlife_treatment_rep
         - wildlife_carcass_rep
   
-
   # Process event details, normalize and drop_column_prefix -- elephants
   - name: Process elephant event details 
     id: process_elephant_details 
@@ -2674,11 +2616,11 @@ workflow:
         "Subadult":"sub_adult",
         "< 1 year":"underayear",
         }
-      raise_if_not_found: true
+      raise_if_not_found: false
 
   - name: Replace missing with label unspecified 
     id: replace_elephant_unspecified
-    task: replace_missing_with_label
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -2686,11 +2628,13 @@ workflow:
     partial: 
       df: ${{ workflow.map_elephant_sighting.return }}
       columns: ["herd_composition"]
-      label: "Unspecified"
+      replacement: "Unspecified"
+      strip_whitespace: true 
+      missing: ignore
   
   - name: Convert elephant values to integer 
     id: convert_elephant_int 
-    task: convert_to_int 
+    task: coerce_columns_to_int #convert_to_int 
     skipif:
       conditions:
         - any_is_empty_df
@@ -2698,27 +2642,30 @@ workflow:
     partial: 
       df: ${{ workflow.replace_elephant_unspecified.return }}
       columns: ["herd_size","female","male","sub_adult","underayear"]
-      errors: coerce 
-      fill_value: 0 
-      inplace: false 
+      errors: coerce
+      fill_value: 0
+      missing: ignore 
+      nullable: true 
   
   - name: Map elephant column values 
     id: map_ele_column_values 
-    task: map_column_values
+    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_elephant_int.return }}
-      columns: ["herd_composition"]
-      value_map: {
+      col: "herd_composition"
+      new_col: "mapped_herd_composition"
+      default: Unspecified 
+      mapping: {
         "bachelor":"Bachelor",
         "femalecalf":"Female/Calf",
         "mixed":"Mixed",
         "unspecified":"Unspecified"
         }
-      inplace: true
+      keep_unmapped: false
 
   - name: Total elephant observations summary table 
     id: elephant_obs_summary
@@ -2764,28 +2711,6 @@ workflow:
       df: ${{ workflow.include_elephant_totals.return }}
 
   # Elephant herd composition map
-  - name: Exclude geom outliers fom elephant events
-    id: exclude_ele_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_ele_column_values.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from elephant events
-    id: remove_ele_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_ele_outliers.return }}
-      geometry_column: geometry 
-
   - name: Apply Colormap to elephant events 
     id: apply_ele_events_colormap
     task: apply_color_map
@@ -2794,10 +2719,11 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: herd_composition
+      input_column_name: mapped_herd_composition
       output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_ele_invalid_geoms.return }}
+      colormap: tab10
+      df: ${{ workflow.map_ele_column_values.return }} 
+      #${{ workflow.remove_ele_invalid_geoms.return }}
 
   - name: Generate elephant sighting point layers
     id: generate_elephant_layers
@@ -2810,8 +2736,8 @@ workflow:
       layer_style:
         get_fill_color: colors
         get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Herd Types 
@@ -2847,7 +2773,7 @@ workflow:
       tile_layers: ${{ workflow.configure_base_maps.return }}
       static: false
       title: null
-      max_zoom: 15
+      max_zoom: 10
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_custom_ele.return }}
@@ -2881,6 +2807,7 @@ workflow:
         wait_for_timeout: 40000
         max_concurrent_pages: 1
 
+  # this needs to be fixed
   - name: Bin elephant herd size columns 
     id: bin_elephant_herd_col
     task: bin_columns
@@ -2975,28 +2902,6 @@ workflow:
       df: ${{ workflow.cat_elephant_bins.return }}
       col: herd_sizebins_sort 
 
-  - name: Exclude geom outliers fom elephant sight bins
-    id: exclude_ele_outlier_bins
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.drop_null_ele_bins.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from elephant events
-    id: drop_ele_bins_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_ele_outlier_bins.return }}
-      geometry_column: geometry 
-
   - name: clean elephant df 
     id: clean_ele_column_idx
     task: clean_dataframe_index 
@@ -3005,7 +2910,8 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
-      df: ${{ workflow.drop_ele_bins_invalid_geoms.return }}
+      df: ${{ workflow.drop_null_ele_bins.return }}
+      #${{ workflow.drop_ele_bins_invalid_geoms.return }}
       reset_index: true 
       drop_index: true
       rename_unnamed: true 
@@ -3021,7 +2927,7 @@ workflow:
     partial:
       input_column_name: herd_sizebins_sort 
       output_column_name: colors
-      colormap: Blues #tab20
+      colormap: BuPu #Blues #tab20
       df: ${{ workflow.clean_ele_column_idx.return }}
 
   - name: Generate elephant herd size point layers
@@ -3039,7 +2945,7 @@ workflow:
         line_width_min_pixels: 1
         radius_units: pixels
         radius_scale: 0.35
-        opacity: 0.75
+        opacity: 0.55
         stroked: true
       legend:
         title: Group Sizes
@@ -3074,7 +2980,7 @@ workflow:
       tile_layers: ${{ workflow.configure_base_maps.return }}
       static: false
       title: null
-      max_zoom: 15
+      max_zoom: 10
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_ele_bins.return }}
@@ -3127,18 +3033,14 @@ workflow:
         ]
       retain_columns: []
       rename_columns: {
-        # "Female":"female",
         "Herd Demographic": "herd_composition",
         "Herd Size":"herd_size",
-        # "Male":"male",
-        # "Subadult":"sub_adult",
-        # "< 1 year":"underayear",
         }
-      raise_if_not_found: true
+      raise_if_not_found: false
 
   - name: Replace missing buffalo events with label unspecified 
     id: replace_buffalo_unspecified
-    task: replace_missing_with_label
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -3146,7 +3048,9 @@ workflow:
     partial: 
       df: ${{ workflow.map_buffalo_sighting.return }}
       columns: ["herd_composition"]
-      label: "Unspecified"
+      replacement: "Unspecified"
+      strip_whitespace: true 
+      missing: ignore
   
   - name: Convert buffalo values to integer 
     id: convert_buffalo_int 
@@ -3157,33 +3061,30 @@ workflow:
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.replace_buffalo_unspecified.return }}
-      columns: [
-        "herd_size",
-        # "female",
-        # "male","sub_adult",
-        # "underayear"
-        ]
+      columns: ["herd_size"]
       errors: coerce 
       fill_value: 0 
       inplace: false 
   
   - name: Map buffalo column values 
     id: map_buff_column_values 
-    task: map_column_values
+    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_buffalo_int.return }}
-      columns: ["herd_composition"]
-      value_map: {
+      col: "herd_composition"
+      new_col: mapped_herd_composition
+      default: Unspecified
+      mapping: {
         "bachelor":"Bachelor",
         "femalecalf":"Female/Calf",
         "mixed":"Mixed",
         "unspecified":"Unspecified"
         }
-      inplace: true
+      keep_unmapped: false
 
   - name: Total buffalo observations summary table 
     id: buffalo_obs_summary
@@ -3229,28 +3130,6 @@ workflow:
       df: ${{ workflow.include_buffalo_totals.return }}
 
 # Buffalo herd composition map
-  - name: Exclude geom outliers fom buffalo events
-    id: exclude_buff_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_buff_column_values.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from buffalo events
-    id: remove_buff_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_buff_outliers.return }}
-      geometry_column: geometry 
-
   - name: Apply Colormap to buffalo events 
     id: apply_buff_events_colormap
     task: apply_color_map
@@ -3259,10 +3138,11 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: herd_composition
+      input_column_name: mapped_herd_composition
       output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_buff_invalid_geoms.return }}
+      colormap: tab10
+      df: ${{ workflow.map_buff_column_values.return }} 
+      #${{ workflow.remove_buff_invalid_geoms.return }}
 
   - name: Generate buffalo sighting point layers
     id: generate_buffalo_layers
@@ -3275,8 +3155,8 @@ workflow:
       layer_style:
         get_fill_color: colors
         get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Herd Types 
@@ -3346,6 +3226,7 @@ workflow:
         wait_for_timeout: 40000
         max_concurrent_pages: 1
 
+# Look into this and fix this
   - name: Bin buffalo herd size columns 
     id: bin_buffalo_herd_col
     task: bin_columns
@@ -3440,28 +3321,6 @@ workflow:
       df: ${{ workflow.cat_buffalo_bins.return }}
       col: herd_sizebins_sort 
 
-  - name: Exclude geom outliers from buffalo sight bins
-    id: exclude_buff_outlier_bins
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.drop_null_buff_bins.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from buffalo events
-    id: drop_buff_bins_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_buff_outlier_bins.return }}
-      geometry_column: geometry 
-
   - name: clean buffalo df 
     id: clean_buff_column_idx
     task: clean_dataframe_index 
@@ -3470,7 +3329,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
-      df: ${{ workflow.drop_buff_bins_invalid_geoms.return }}
+      df: ${{ workflow.drop_null_buff_bins.return }}
       reset_index: true 
       drop_index: true
       rename_unnamed: true 
@@ -3486,7 +3345,7 @@ workflow:
     partial:
       input_column_name: herd_sizebins_sort 
       output_column_name: colors
-      colormap: Blues #tab20
+      colormap: BuPu #Blues #tab20
       df: ${{ workflow.clean_buff_column_idx.return }}
 
   - name: Generate buffalo herd size point layers
@@ -3503,8 +3362,8 @@ workflow:
         get_radius: herd_size
         line_width_min_pixels: 1
         radius_units: pixels
-        radius_scale: 0.043
-        opacity: 0.75
+        radius_scale: 0.045
+        opacity: 0.55
         stroked: true
       legend:
         title: Group Sizes
@@ -3539,7 +3398,7 @@ workflow:
       tile_layers: ${{ workflow.configure_base_maps.return }}
       static: false
       title: null
-      max_zoom: 15
+      max_zoom: 10
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_buff_bins.return }}
@@ -3618,41 +3477,6 @@ workflow:
       df: ${{ workflow.include_rhino_totals.return }}
 
 # Rhino sighting map
-  - name: Exclude geom outliers fom rhino events
-    id: exclude_rhino_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.drop_rhino_prefix.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from rhino events
-    id: remove_rhino_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_rhino_outliers.return }}
-      geometry_column: geometry 
-
-  - name: Apply Colormap to rhino events 
-    id: apply_rhino_events_colormap
-    task: apply_color_map
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      input_column_name: event_type
-      output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_rhino_invalid_geoms.return }}
-
   - name: Generate rhino sighting point layers
     id: generate_rhino_layers
     task: create_scatterplot_layer
@@ -3662,18 +3486,22 @@ workflow:
         - any_dependency_skipped
     partial:
       layer_style:
-        get_fill_color: colors
-        get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_fill_color: [0, 0, 128]
+        get_line_color: [0, 0, 128]
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Rhino Sightings
+        values: 
+          - label: Sighting 
+            color: "#000080"
         label_column: event_type
         color_column: colors
-        sort: ascending
+        sort: null
       data_url: null
-      geodataframe: ${{ workflow.apply_rhino_events_colormap.return }}
+      geodataframe: ${{ workflow.drop_rhino_prefix.return }}
+      #${{ workflow.apply_rhino_events_colormap.return }}
 
   - name: Combine custom loaded map layers and elephant point layers
     id: combine_custom_rhino
@@ -3701,7 +3529,7 @@ workflow:
       tile_layers: ${{ workflow.configure_base_maps.return }}
       static: false
       title: null
-      max_zoom: 15
+      max_zoom: 10
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_custom_rhino.return }}
@@ -3763,11 +3591,11 @@ workflow:
         "Pride":"pride",
         "Young":"young"
       }
-      raise_if_not_found: true
+      raise_if_not_found: false
 
   - name: Replace missing lion events with label unspecified 
     id: replace_lion_unspecified
-    task: replace_missing_with_label
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -3775,11 +3603,13 @@ workflow:
     partial: 
       df: ${{ workflow.map_lion_sighting.return }}
       columns: ["pride"]
-      label: "Unspecified"
+      replacement: "Unspecified"
+      strip_whitespace: true 
+      missing: ignore
   
   - name: Convert lion values to integer 
     id: convert_lion_int 
-    task: convert_to_int 
+    task: coerce_columns_to_int #convert_to_int 
     skipif:
       conditions:
         - any_is_empty_df
@@ -3787,27 +3617,30 @@ workflow:
     partial: 
       df: ${{ workflow.replace_lion_unspecified.return }}
       columns: ["young","female","male","group_size"]
-      errors: coerce 
-      fill_value: 0 
-      inplace: false 
+      errors: coerce
+      fill_value: 0
+      missing: ignore 
+      nullable: true 
 
   - name: Map lion column values 
     id: map_lion_column_values 
-    task: map_column_values
+    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_lion_int.return }}
-      columns: ["pride"]
-      value_map: {
+      col: "pride"
+      new_col: mapped_pride 
+      default: Unknown 
+      mapping: {
         "Unknown":"Unknown",
         "unspecified":"Unknown",
         "Other (specify in comments)":"Unknown",
       }
-      inplace: true
-  
+      keep_unmapped: false
+
   - name: Total lion observations summary table 
     id: lion_obs_summary
     task: summarize_df 
@@ -3860,7 +3693,7 @@ workflow:
         - any_dependency_skipped
     partial:  
       groupby_cols:
-        - pride
+        - mapped_pride
       summary_params:
         - display_name: no_of_events
           aggregator: nunique
@@ -3882,28 +3715,6 @@ workflow:
       df: ${{ workflow.unique_lions_summary.return }}
 
 # Lion pride sighting map
-  - name: Exclude geom outliers from lion events
-    id: exclude_lion_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_lion_column_values.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from lion events
-    id: remove_lion_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_lion_outliers.return }}
-      geometry_column: geometry 
-
   - name: Apply Colormap to lion events 
     id: apply_lion_events_colormap
     task: apply_color_map
@@ -3914,8 +3725,9 @@ workflow:
     partial:
       input_column_name: pride
       output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_lion_invalid_geoms.return }}
+      colormap: tab10
+      df: ${{ workflow.map_lion_column_values.return }} 
+      #${{ workflow.remove_lion_invalid_geoms.return }}
 
   - name: Generate lion sighting point layers
     id: generate_lion_layers
@@ -3928,11 +3740,11 @@ workflow:
       layer_style:
         get_fill_color: colors
         get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
-        title: Pride
+        title: Lion Prides
         label_column: pride
         color_column: colors
         sort: ascending
@@ -3965,7 +3777,7 @@ workflow:
       tile_layers: ${{ workflow.configure_base_maps.return }}
       static: false
       title: null
-      max_zoom: 15
+      max_zoom: 10
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_custom_lion.return }}
@@ -4026,11 +3838,11 @@ workflow:
         "Male":"male",
         "Young":"young"
         }
-      raise_if_not_found: true
+      raise_if_not_found: false
 
   - name: Replace missing leopard events with label unspecified 
     id: replace_leopard_unspecified
-    task: replace_missing_with_label
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -4038,11 +3850,13 @@ workflow:
     partial: 
       df: ${{ workflow.map_leopard_sighting.return }}
       columns: ["individuals_present"]
-      label: "Unspecified"
+      replacement: "Unspecified"
+      strip_whitespace: true 
+      missing: ignore
   
   - name: Convert leopard values to integer 
     id: convert_leopard_int 
-    task: convert_to_int 
+    task: coerce_columns_to_int #convert_to_int 
     skipif:
       conditions:
         - any_is_empty_df
@@ -4050,26 +3864,29 @@ workflow:
     partial: 
       df: ${{ workflow.replace_leopard_unspecified.return }}
       columns: ["young","female","male","group_size"]
-      errors: coerce 
-      fill_value: 0 
-      inplace: false 
+      errors: coerce
+      fill_value: 0
+      missing: ignore 
+      nullable: true 
 
   - name: Map leopard column values 
     id: map_leopard_column_values 
-    task: map_column_values
+    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_leopard_int.return }}
-      columns: ["individuals_present"]
-      value_map: {
+      col: "individuals_present"
+      new_col: "mapped_individual_present"
+      default: Unknown 
+      mapping: {
         "Unknown":"Unknown",
         "Unspecified":"Unknown",
         "Other (specify in comments)":"Unknown",
       }
-      inplace: true
+      keep_unmapped: false
 
   - name: Total leopard observations summary table 
     id: leopard_obs_summary
@@ -4123,7 +3940,7 @@ workflow:
         - any_dependency_skipped
     partial:  
       groupby_cols:
-        - individuals_present
+        - mapped_individuals_present
       summary_params:
         - display_name: no_of_events
           aggregator: nunique
@@ -4145,28 +3962,6 @@ workflow:
       df: ${{ workflow.unique_leopards_summary.return }}
   
   # Leopard sighting by individual present 
-  - name: Exclude geom outliers from leopard events
-    id: exclude_leopard_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_leopard_column_values.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from leopard events
-    id: remove_leopard_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_leopard_outliers.return }}
-      geometry_column: geometry 
-
   - name: Apply Colormap to leopard events 
     id: apply_leopard_events_colormap
     task: apply_color_map
@@ -4175,10 +3970,11 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: individuals_present
+      input_column_name: mapped_individuals_present
       output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_leopard_invalid_geoms.return }}
+      colormap: tab10
+      df: ${{ workflow.map_leopard_column_values.return }}
+      #${{ workflow.remove_leopard_invalid_geoms.return }}
 
   - name: Generate leopard sighting point layers
     id: generate_leopard_layers
@@ -4191,12 +3987,12 @@ workflow:
       layer_style:
         get_fill_color: colors
         get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Individual
-        label_column: individuals_present
+        label_column: mapped_individuals_present
         color_column: colors
         sort: ascending
       data_url: null
@@ -4228,7 +4024,7 @@ workflow:
       tile_layers: ${{ workflow.configure_base_maps.return }}
       static: false
       title: null
-      max_zoom: 15
+      max_zoom: 10
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_custom_leopard.return }}
@@ -4289,11 +4085,11 @@ workflow:
         "Male":"male",
         "Young":"young"
         }
-      raise_if_not_found: true
+      raise_if_not_found: false
 
   - name: Replace missing cheetah events with label unspecified 
     id: replace_cheetah_unspecified
-    task: replace_missing_with_label
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -4301,11 +4097,13 @@ workflow:
     partial: 
       df: ${{ workflow.map_cheetah_sighting.return }}
       columns: ["individuals_present"]
-      label: "Unspecified"
+      replacement: "Unspecified"
+      strip_whitespace: true 
+      missing: ignore
   
   - name: Convert cheetah values to integer 
     id: convert_cheetah_int 
-    task: convert_to_int 
+    task: coerce_columns_to_int #convert_to_int 
     skipif:
       conditions:
         - any_is_empty_df
@@ -4313,26 +4111,29 @@ workflow:
     partial: 
       df: ${{ workflow.replace_cheetah_unspecified.return }}
       columns: ["young","female","male","group_size"]
-      errors: coerce 
-      fill_value: 0 
-      inplace: false 
+      errors: coerce
+      fill_value: 0
+      missing: ignore 
+      nullable: true 
 
   - name: Map cheetah column values 
     id: map_cheetah_column_values 
-    task: map_column_values
+    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_cheetah_int.return }}
-      columns: ["individuals_present"]
-      value_map: {
+      col: "individuals_present"
+      new_col: "mapped_individuals_present"
+      default: Unknown
+      mapping: {
         "Unknown":"Unknown",
         "Unspecified":"Unknown",
         "Other (specify in comments)":"Unknown",
       }
-      inplace: true
+      keep_unmapped: false
 
   - name: Total cheetah observations summary table 
     id: cheetah_obs_summary
@@ -4386,7 +4187,7 @@ workflow:
         - any_dependency_skipped
     partial:  
       groupby_cols:
-        - individuals_present
+        - mapped_individuals_present
       summary_params:
         - display_name: no_of_events
           aggregator: nunique
@@ -4408,28 +4209,6 @@ workflow:
       df: ${{ workflow.unique_cheetahs_summary.return }}
   
   # Cheetah sighting by individual present 
-  - name: Exclude geom outliers from cheetah events
-    id: exclude_cheetah_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_cheetah_column_values.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from cheetah events
-    id: remove_cheetah_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_cheetah_outliers.return }}
-      geometry_column: geometry 
-
   - name: Apply Colormap to cheetah events 
     id: apply_cheetah_events_colormap
     task: apply_color_map
@@ -4438,10 +4217,11 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: individuals_present
+      input_column_name: mapped_individuals_present
       output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_cheetah_invalid_geoms.return }}
+      colormap: tab10
+      df: ${{ workflow.map_cheetah_column_values.return }}
+      #${{ workflow.remove_cheetah_invalid_geoms.return }}
 
   - name: Generate cheetah sighting point layers
     id: generate_cheetah_layers
@@ -4454,12 +4234,12 @@ workflow:
       layer_style:
         get_fill_color: colors
         get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Individual
-        label_column: individuals_present
+        label_column: mapped_individuals_present
         color_column: colors
         sort: ascending
       data_url: null
@@ -4491,7 +4271,7 @@ workflow:
       tile_layers: ${{ workflow.configure_base_maps.return }}
       static: false
       title: null
-      max_zoom: 15
+      max_zoom: 10
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_custom_cheetah.return }}
@@ -4544,42 +4324,7 @@ workflow:
         ]
       retain_columns: []
       rename_columns: {}
-      raise_if_not_found: true
-
-  - name: Exclude geom outliers from giraffe events
-    id: exclude_giraffe_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_giraffe_sighting.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from giraffe events
-    id: remove_giraffe_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_giraffe_outliers.return }}
-      geometry_column: geometry 
-
-  - name: Apply Colormap to giraffe events 
-    id: apply_giraffe_events_colormap
-    task: apply_color_map
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      input_column_name: event_type
-      output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_giraffe_invalid_geoms.return }}
+      raise_if_not_found: false
 
   - name: Generate giraffe sighting point layers
     id: generate_giraffe_layers
@@ -4590,18 +4335,20 @@ workflow:
         - any_dependency_skipped
     partial:
       layer_style:
-        get_fill_color: colors
-        get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_fill_color: [0, 0, 128]
+        get_line_color: [0, 0, 128]
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Giraffe Sighting
-        label_column: event_type
-        color_column: colors
-        sort: ascending
+        values:
+          - label: Sighting 
+            color: "#000080"
+        sort: null
       data_url: null
-      geodataframe: ${{ workflow.apply_giraffe_events_colormap.return }}
+      geodataframe: ${{ workflow.map_giraffe_sighting.return }}
+      #${{ workflow.apply_giraffe_events_colormap.return }}
 
   - name: Combine custom loaded map layers and giraffe point layers
     id: combine_custom_giraffe
@@ -4682,42 +4429,7 @@ workflow:
         ]
       retain_columns: []
       rename_columns: {}
-      raise_if_not_found: true
-
-  - name: Exclude geom outliers from hartebeest events
-    id: exclude_hartebeest_outliers
-    task: exclude_geom_outliers
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.map_hartebeest_sighting.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from hartebeest events
-    id: remove_hartebeest_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_hartebeest_outliers.return }}
-      geometry_column: geometry 
-
-  - name: Apply Colormap to hartebeest events 
-    id: apply_hartebeest_events_colormap
-    task: apply_color_map
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      input_column_name: event_type
-      output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_hartebeest_invalid_geoms.return }}
+      raise_if_not_found: false
 
   - name: Generate hartebeest sighting point layers
     id: generate_hartebeest_layers
@@ -4728,18 +4440,19 @@ workflow:
         - any_dependency_skipped
     partial:
       layer_style:
-        get_fill_color: colors
-        get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_fill_color: [0, 0, 128]
+        get_line_color: [0, 0, 128]
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Hartebeest Sighting
-        label_column: event_type
-        color_column: colors
-        sort: ascending
+        values:
+          - label: Sighting 
+            color: "#000080"
+        sort: null
       data_url: null
-      geodataframe: ${{ workflow.apply_hartebeest_events_colormap.return }}
+      geodataframe: ${{ workflow.map_hartebeest_sighting.return }}
 
   - name: Combine custom loaded map layers and hartebeest point layers
     id: combine_custom_hartebeest
@@ -4816,7 +4529,7 @@ workflow:
 
   - name: Rename wildlife events columns 
     id: rename_wildlife_cols
-    task: transform_columns
+    task: map_columns
     skipif:
       conditions:
         - any_is_empty_df
@@ -4833,7 +4546,7 @@ workflow:
         event_details__wildlifetreatment_vetattending: wildlife_treatment_vet_attending
         event_details__wildlifetreatment_vetprognosis: wildlife_treatment_vet_prognosis
         event_details__wildlifecarcass_comments: wildlife_carcass_comments
-      skip_missing_rename: true 
+      raise_if_not_found: false
       required_columns: []
       df: ${{ workflow.normalize_wildlife_events.return }}
   
@@ -4927,27 +4640,26 @@ workflow:
       filename: wildlife_incidents_recorded_by_date
 
   # Draw map 
-  - name: Exclude geom outliers from wildlife events 
-    id: exclude_wildlife_events_outliers
-    task: exclude_geom_outliers
+  - name: Map wildlife values 
+    id: map_wildlife_values
+    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.rename_wildlife_cols.return }}
-      z_threshold: 3
-
-  - name: Remove invalid points from wildlife events 
-    id: remove_wildlife_invalid_geoms 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.drop_null_geometry
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      gdf: ${{ workflow.exclude_wildlife_events_outliers.return }}
-      geometry_column: geometry 
+      col: event_type
+      new_col: mapped_event_type
+      default: Illegal grazing 
+      mapping: 
+        fire_rep: Fire
+        snare_rep: Snare 
+        wildlife_carcass_rep: Wildlife carcass 
+        wildlife_injury_rep: Injured wildlife
+        wildlife_treatment_rep: Veterinary treatment
+        illegal_grazing_rep: Illegal grazing
+      keep_unmapped: false 
 
   - name: Apply Colormap to wildlife predation events
     id: apply_wildlife_colormap
@@ -4957,30 +4669,11 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: event_type
+      input_column_name: mapped_event_type
       output_column_name: colors
-      colormap: tab20
-      df: ${{ workflow.remove_wildlife_invalid_geoms.return }}
-  
-  - name: Map wildlife values 
-    id: map_wildlife_values
-    task: map_column_values
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.apply_wildlife_colormap.return }}
-      columns: 
-        - event_type
-      value_map: 
-        fire_rep: Fire
-        snare_rep: Snare 
-        wildlife_carcass_rep: Wildlife carcass 
-        wildlife_injury_rep: Injured wildlife
-        wildlife_treatment_rep: Veterinary treatment
-        illegal_grazing_rep: Illegal grazing
-      inplace: true 
+      colormap: tab10
+      df: ${{ workflow.map_wildlife_values.return }}
+      #{{ workflow.remove_wildlife_invalid_geoms.return }}
 
   - name: Generate wildlife predation point layers
     id: generate_wildlife_layers
@@ -4993,15 +4686,15 @@ workflow:
       layer_style:
         get_fill_color: colors
         get_line_color: colors
-        get_radius: 4
-        opacity: 0.75
+        get_radius: 3
+        opacity: 0.55
         stroked: true
       legend:
         title: Incidents
-        label_column: event_type
+        label_column: mapped_event_type
         color_column: colors
         sort: ascending
-      geodataframe: ${{ workflow.map_wildlife_values.return }}
+      geodataframe: ${{ workflow.apply_wildlife_colormap.return }}
       data_url: null
 
   - name: Combine styled layers with wildlife incident events 
@@ -5029,7 +4722,7 @@ workflow:
       tile_layers: ${{ workflow.configure_base_maps.return }}
       static: false
       title: null
-      max_zoom: 15
+      max_zoom: 10
       legend_style:
         placement: "bottom-right"
       geo_layers: ${{ workflow.combine_custom_wildlife.return }}
@@ -5251,7 +4944,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      raise_if_not_found: true
+      raise_if_not_found: false
       drop_columns: []
       retain_columns: []
       rename_columns:
@@ -5317,6 +5010,7 @@ workflow:
       df: ${{ workflow.include_pat_totals.return }}
 
   # patrol observations 
+  # this needs to be fixed
   - name: Rename column values in participants
     id: rename_participants 
     task: map_name_values 
@@ -5330,7 +5024,7 @@ workflow:
   
   - name: Filter non empty values from patrols info
     id: filter_null_patrols
-    task: filter_non_empty_values
+    task: filter_non_empty_values #upstream
     skipif:
       conditions:
         - any_is_empty_df
@@ -5341,7 +5035,7 @@ workflow:
     
   - name: Replace transport type nulls with unspecified
     id: replace_transport_unspecified 
-    task: replace_missing_with_label 
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -5350,11 +5044,13 @@ workflow:
       df: ${{ workflow.filter_null_patrols.return }}
       columns: 
         - transport_type 
-      label: unspecified 
+      replacement: unspecified 
+      strip_whitespace: true 
+      missing: ignore
 
   - name: Explode columns on patrols 
     id: explode_patrol_columns 
-    task: explode_multiple_columns 
+    task: explode_multiple_columns #upstream this 
     skipif:
       conditions:
         - any_is_empty_df
@@ -5377,7 +5073,7 @@ workflow:
       events_df : ${{ workflow.explode_patrol_columns.return }}
       patrols_column: patrol_id 
       client: ${{ workflow.er_client_name.return }}
-      max_workers: 10
+      max_workers: 15
 
   - name: Get patrol observations from patrol df 
     id: get_patrol_obs 
@@ -5391,7 +5087,7 @@ workflow:
       patrols_df : ${{ workflow.get_patrols_from_info.return }}
       include_patrol_details: true 
       raise_on_empty: true
-      sub_page_size: 150
+      sub_page_size: 750
 
   - name: Drop values from patrol information df 
     id: drop_values_patrol_info 
@@ -5401,7 +5097,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
-      raise_if_not_found: true
+      raise_if_not_found: false
       drop_columns: 
         - geometry 
         - reported_by
@@ -5634,7 +5330,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      raise_if_not_found: true
+      raise_if_not_found: false
       drop_columns:
         - heading
         - extra__created_at
@@ -5661,7 +5357,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      raise_if_not_found: true
+      raise_if_not_found: false
       drop_columns:
         - heading
         - extra__created_at
@@ -5688,7 +5384,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      raise_if_not_found: true
+      raise_if_not_found: false
       drop_columns:
         - heading
         - extra__created_at
@@ -5708,7 +5404,6 @@ workflow:
       df: ${{ workflow.temporal_motor_traj.return }}
 
   # ---- FOOT PATROLS ----
-
   - name: Summarize foot patrol metrics
     id: foot_patrol_metrics
     task: summarize_df
@@ -5767,13 +5462,15 @@ workflow:
 
   - name: Create foot patrol coverage grid
     id: foot_patrol_grid_visits 
-    task: create_patrol_coverage_grid 
+    task: ecoscope_workflows_ext_custom.tasks.spatial_ops.create_patrol_coverage_grid 
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
       grid_cell_size: 1000
+      keep_empty_cells: False 
+      aoi: null
       trajs: ${{ workflow.rename_foot_trajs.return }}
 
   - name: Apply bin classification on foot patrol grids
@@ -5821,9 +5518,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: [0, 0, 0]
-        opacity: 0.75 
-        get_line_width: 0.85
+        get_line_color: density_colors
+        opacity: 0.55 
+        get_line_width: 0.75
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -5956,13 +5653,15 @@ workflow:
 
   - name: Create vehicle patrol coverage grid
     id: vehicle_patrol_grid_visits 
-    task: create_patrol_coverage_grid 
+    task: ecoscope_workflows_ext_custom.tasks.spatial_ops.create_patrol_coverage_grid  
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
       grid_cell_size: 1000
+      aoi: null 
+      keep_empty_cells: false
       trajs: ${{ workflow.rename_vehicle_trajs.return }}
 
   - name: Apply bin classification on vehicle patrol grids
@@ -6010,9 +5709,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: [0, 0, 0]
-        opacity: 0.75 
-        get_line_width: 0.85
+        get_line_color: density_colors
+        opacity: 0.55 
+        get_line_width: 0.75
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -6145,13 +5844,15 @@ workflow:
 
   - name: Create motor patrol coverage grid
     id: motor_patrol_grid_visits 
-    task: create_patrol_coverage_grid 
+    task: ecoscope_workflows_ext_custom.tasks.spatial_ops.create_patrol_coverage_grid 
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
       grid_cell_size: 1000
+      aoi: null 
+      keep_empty_cells: false
       trajs: ${{ workflow.rename_motor_trajs.return }}
 
   - name: Apply bin classification on motor patrol grids
@@ -6199,9 +5900,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: [0, 0, 0]
-        opacity: 0.75 
-        get_line_width: 0.85
+        get_line_color: density_colors
+        opacity: 0.55 
+        get_line_width: 0.75
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -6274,6 +5975,7 @@ workflow:
         device_scale_factor: 2.0
         wait_for_timeout: 40000
         max_concurrent_pages: 1
+        
   # ---- COMBINED TRAJECTORIES ----
   - name: Merge motorbike, vehicle and foot patrol trajectories 
     id: merge_trajs 
@@ -6294,7 +5996,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      raise_if_not_found: true
+      raise_if_not_found: false
       drop_columns:
         - heading
         - extra__created_at
@@ -6359,7 +6061,7 @@ workflow:
 
   - name: Replace nulls with unspecified
     id: replace_ranger_nulls
-    task: replace_missing_with_label
+    task: replace_empty_strings_in_columns #replace_missing_with_label
     skipif:
       conditions:
         - any_is_empty_df
@@ -6368,7 +6070,9 @@ workflow:
       df: ${{ workflow.ranger_patrol_metrics.return }}
       columns: 
         - participants
-      label: Unspecified
+      replacement: Unspecified 
+      strip_whitespace: true 
+      missing: ignore
 
   - name: Add totals row to overall patrol metrics
     id: add_ranger_metrics_totals
@@ -6398,13 +6102,15 @@ workflow:
 
   - name: Compute patrol visits 
     id: patrol_grid_visits
-    task: create_patrol_coverage_grid
+    task: ecoscope_workflows_ext_custom.tasks.spatial_ops.create_patrol_coverage_grid 
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
       grid_cell_size: 1000
+      aoi: null 
+      keep_empty_cells: false
       trajs: ${{ workflow.rename_combined_trajs.return }}
 
   - name: Apply bin classification on grids
@@ -6452,9 +6158,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: [0, 0, 0]
-        opacity: 0.75 
-        get_line_width: 0.85
+        get_line_color: density_colors
+        opacity: 0.55 
+        get_line_width: 0.75
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -6571,7 +6277,7 @@ workflow:
       url: https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=fufzxuyy&dl=0
       output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       overwrite_existing: false
-      retries: 3
+      retries: 2
       unzip: false
   
   - name: Generate report 
