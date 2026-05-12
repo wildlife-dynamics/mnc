@@ -19,6 +19,144 @@ logging.basicConfig(
 )
 
 
+def _start_resource_sampler(results_dir) -> None:
+    """Background thread: sample process RSS and CPU every 0.5s, write resource_samples.json on exit."""
+    try:
+        import atexit
+        import json
+        import threading
+        from pathlib import Path
+
+        import psutil
+
+        proc = psutil.Process()
+        proc.cpu_percent(interval=None)  # prime — first call always returns 0.0
+
+        peak_rss = 0
+        peak_swap = 0
+        cpu_samples = []
+        stop_event = threading.Event()
+
+        def _sample():
+            nonlocal peak_rss, peak_swap
+            while not stop_event.wait(0.5):
+                try:
+                    rss = proc.memory_info().rss
+                    cpu = proc.cpu_percent(interval=None)
+                    swap = psutil.swap_memory().used
+                    if rss > peak_rss:
+                        peak_rss = rss
+                    if swap > peak_swap:
+                        peak_swap = swap
+                    if cpu > 0:
+                        cpu_samples.append(cpu)
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    break
+
+        thread = threading.Thread(target=_sample, daemon=True, name="resource-sampler")
+        thread.start()
+
+        try:
+            net_start = psutil.net_io_counters()
+        except Exception:
+            net_start = None
+        try:
+            io_start = proc.io_counters()
+        except Exception:
+            io_start = None
+
+        def _write():
+            stop_event.set()
+            thread.join(timeout=2)
+            out = {
+                "peak_rss_bytes": peak_rss,
+                "peak_swap_bytes": peak_swap,
+                "peak_cpu_pct": round(max(cpu_samples), 1) if cpu_samples else 0.0,
+                "avg_cpu_pct": round(sum(cpu_samples) / len(cpu_samples), 1) if cpu_samples else 0.0,
+                "sample_count": len(cpu_samples),
+            }
+            if net_start is not None:
+                try:
+                    net_end = psutil.net_io_counters()
+                    out["net_bytes_recv"] = net_end.bytes_recv - net_start.bytes_recv
+                    out["net_bytes_sent"] = net_end.bytes_sent - net_start.bytes_sent
+                except Exception:
+                    pass
+            if io_start is not None:
+                try:
+                    io_end = proc.io_counters()
+                    out["disk_read_bytes"] = io_end.read_bytes - io_start.read_bytes
+                    out["disk_write_bytes"] = io_end.write_bytes - io_start.write_bytes
+                except Exception:
+                    pass
+            Path(results_dir, "resource_samples.json").write_text(json.dumps(out, indent=2))
+
+        atexit.register(_write)
+
+    except ImportError:
+        pass
+
+
+def _write_machine_spec(results_dir) -> None:
+    """Write machine hardware/OS info to machine_spec.json in the results directory."""
+    import json
+    import os
+    import platform
+    import sys
+    from pathlib import Path
+
+    spec = {
+        "hostname": platform.node(),
+        "os": platform.platform(),
+        "python": sys.version.split()[0],
+        "cpu": platform.processor() or platform.machine(),
+        "cpu_count_logical": os.cpu_count(),
+    }
+
+    try:
+        import psutil
+
+        spec["cpu_count_physical"] = psutil.cpu_count(logical=False)
+        mem = psutil.virtual_memory()
+        spec["ram_gb"] = round(mem.total / (1024**3), 1)
+        spec["ram_available_gb"] = round(mem.available / (1024**3), 1)
+        try:
+            freq = psutil.cpu_freq(percpu=False)
+            if freq and freq.max:
+                spec["cpu_freq_max_ghz"] = round(freq.max / 1000, 2)
+        except Exception:
+            pass
+        try:
+            disk = psutil.disk_usage(str(results_dir))
+            spec["disk_free_gb"] = round(disk.free / (1024**3), 1)
+        except Exception:
+            pass
+    except ImportError:
+        try:
+            if platform.system() == "Darwin":
+                import subprocess
+
+                mem = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).decode().strip())
+                spec["ram_gb"] = round(mem / (1024**3), 1)
+            elif platform.system() == "Linux":
+                with open("/proc/meminfo") as fh:
+                    for line in fh:
+                        if line.startswith("MemTotal:"):
+                            spec["ram_gb"] = round(int(line.split()[1]) / (1024**2), 1)
+                            break
+        except Exception:
+            pass
+        try:
+            import shutil
+
+            disk = shutil.disk_usage(str(results_dir))
+            spec["disk_free_gb"] = round(disk.free / (1024**3), 1)
+        except Exception:
+            pass
+
+    Path(results_dir, "machine_spec.json").write_text(json.dumps(spec, indent=2))
+
+
 def _patch_configure_tracer():
     """Patch configure_tracer to auto-enable file-based tracing.
 
@@ -37,13 +175,16 @@ def _patch_configure_tracer():
         _original = _config_mod.configure_tracer
 
         def _patched(name, version="", exporter=None, exporter_kws=None):
-            if exporter is None:
-                results_url = os.environ.get("ECOSCOPE_WORKFLOWS_RESULTS", "")
-                if results_url.startswith("file://"):
+            results_url = os.environ.get("ECOSCOPE_WORKFLOWS_RESULTS", "")
+            if results_url.startswith("file://"):
+                results_dir = Path(urlparse(results_url).path)
+                _write_machine_spec(results_dir)
+                _start_resource_sampler(results_dir)
+                if exporter is None:
                     from ecoscope_workflows_core.tracing import make_otel_console_exporter_file_dst_kws
 
                     exporter = "console"
-                    exporter_kws = make_otel_console_exporter_file_dst_kws(Path(urlparse(results_url).path))
+                    exporter_kws = make_otel_console_exporter_file_dst_kws(results_dir)
             _original(name, version=version, exporter=exporter, exporter_kws=exporter_kws or {})
 
         _config_mod.configure_tracer = _patched

@@ -96,33 +96,6 @@ def replace_missing_with_label(df: AnyDataFrame, columns: str | list[str], label
 
 
 @task
-def convert_to_int(
-    df: AnyDataFrame, columns: Union[str, List[str]], errors: str = "coerce", fill_value: int = 0, inplace: bool = False
-) -> AnyDataFrame:
-    if not inplace:
-        df = df.copy()
-    if isinstance(columns, str):
-        columns = [columns]
-
-    for column in columns:
-        if column not in df.columns:
-            print(f"Warning: Column '{column}' not found in DataFrame. Skipping.")
-            continue
-
-        try:
-            if errors == "coerce":
-                df[column] = pd.to_numeric(df[column], errors="coerce").fillna(fill_value).astype(int)
-            else:
-                df[column] = df[column].astype(int)
-        except Exception as e:
-            print(f"Error converting column '{column}' to int: {e}")
-            if errors == "raise":
-                raise
-
-    return df
-
-
-@task
 def to_sentence_case(df: AnyDataFrame, columns: str | list[str]) -> AnyDataFrame:
     if df.empty:
         raise ValueError("DataFrame is empty.")

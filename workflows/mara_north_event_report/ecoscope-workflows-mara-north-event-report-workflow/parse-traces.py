@@ -4,10 +4,17 @@
 import json
 import sys
 from datetime import datetime
+from pathlib import Path
 
 
 def parse_ts(ts: str) -> datetime:
     return datetime.fromisoformat(ts.replace("Z", "+00:00"))
+
+
+def fmt_bytes(n: int) -> str:
+    if n >= 1024**3:
+        return f"{n / 1024**3:.1f} GB"
+    return f"{n / 1024**2:.0f} MB"
 
 
 def fmt_duration(seconds: float) -> str:
@@ -15,8 +22,65 @@ def fmt_duration(seconds: float) -> str:
         return f"{seconds * 1000:.1f}ms"
     elif seconds < 1:
         return f"{seconds * 1000:.0f}ms"
-    else:
+    elif seconds < 60:
         return f"{seconds:.2f}s"
+    else:
+        m = int(seconds // 60)
+        s = seconds % 60
+        return f"{m}m {s:.0f}s"
+
+
+def print_machine_spec(traces_path: str, run_start: datetime | None = None) -> dict:
+    """Print machine and environment info. Returns the spec dict for later use."""
+    spec_path = Path(traces_path).parent / "machine_spec.json"
+    if not spec_path.exists():
+        return {}
+    spec = json.loads(spec_path.read_text())
+
+    rows = []
+    if run_start:
+        rows.append(("run started", run_start.strftime("%Y-%m-%d %H:%M:%S UTC")))
+    if "hostname" in spec:
+        rows.append(("machine name", spec["hostname"]))
+    if "os" in spec:
+        rows.append(("operating system", spec["os"]))
+    if "python" in spec:
+        rows.append(("python version", spec["python"]))
+
+    cpu = spec.get("cpu", "")
+    logical = spec.get("cpu_count_logical")
+    physical = spec.get("cpu_count_physical")
+    cpu_freq = spec.get("cpu_freq_max_ghz")
+    if cpu or logical or cpu_freq:
+        parts = []
+        if logical and physical:
+            parts.append(f"{logical} logical, {physical} physical cores")
+        elif logical:
+            parts.append(f"{logical} cores")
+        if cpu_freq:
+            parts.append(f"{cpu_freq} GHz max")
+        cores = f"  ({', '.join(parts)})" if parts else ""
+        rows.append(("processor", f"{cpu}{cores}"))
+
+    if "ram_gb" in spec:
+        ram = f"{spec['ram_gb']} GB total"
+        if "ram_available_gb" in spec:
+            ram += f",  {spec['ram_available_gb']} GB free at start"
+        rows.append(("memory (RAM)", ram))
+
+    if "disk_free_gb" in spec:
+        rows.append(("disk free at start", f"{spec['disk_free_gb']} GB"))
+
+    if not rows:
+        return spec
+
+    key_width = max(len(k) for k, _ in rows)
+    print("Machine:")
+    for key, val in rows:
+        print(f"  {key:<{key_width}}  {val}")
+
+    print()
+    return spec
 
 
 def main(traces_path: str) -> int:
@@ -59,6 +123,8 @@ def main(traces_path: str) -> int:
 
     workflow_start = parse_ts(tasks[0]["start_time"])
 
+    spec = print_machine_spec(traces_path, run_start=workflow_start)
+
     name_width = max(len(t["name"]) for t in tasks)
     func_width = max(
         (len(func_name_by_task_id.get(t["context"]["span_id"], "")) for t in tasks),
@@ -69,7 +135,6 @@ def main(traces_path: str) -> int:
     total = 0.0
     failed = 0
 
-    print()
     for t in tasks:
         start = parse_ts(t["start_time"])
         end = parse_ts(t["end_time"])
@@ -107,13 +172,74 @@ def main(traces_path: str) -> int:
                 for ln in detail.splitlines()[:5]:
                     print(f"    {ln}")
 
+    # Load resource samples once for use in all sections below
+    rs = {}
+    samples_path = Path(traces_path).parent / "resource_samples.json"
+    if samples_path.exists():
+        rs = json.loads(samples_path.read_text())
+
+    wall = (parse_ts(tasks[-1]["end_time"]) - workflow_start).total_seconds()
+    parallelism = total / wall if wall > 0 else 1.0
+
+    # ── Timing section ──────────────────────────────────────────────────────
+    time_rows = [
+        ("time spent running tasks",   f"{fmt_duration(total)}  ({total:.1f}s)"),
+        ("total time start to finish", f"{fmt_duration(wall)}  ({wall:.1f}s)"),
+        ("tasks ran at the same time", f"{parallelism:.2f}x  ({'yes — some tasks overlapped' if parallelism > 1.05 else 'no — one task at a time'})"),
+    ]
+    avg_cpu = rs.get("avg_cpu_pct")
+    if avg_cpu:
+        time_rows.append(("average CPU usage", f"{avg_cpu}%"))
+    peak_swap = rs.get("peak_swap_bytes", 0)
+    if peak_swap:
+        time_rows.append(("memory swapped to disk", f"{fmt_bytes(peak_swap)}  (this slows things down — more free RAM would help)"))
+
+    tw = max(len(k) for k, _ in time_rows)
+    print()
+    print("Timing:")
+    for key, val in time_rows:
+        print(f"  {key:<{tw}}  {val}")
+
+    # ── Slowest tasks ────────────────────────────────────────────────────────
+    def task_duration(t) -> float:
+        return (parse_ts(t["end_time"]) - parse_ts(t["start_time"])).total_seconds()
+
+    slowest = sorted(tasks, key=task_duration, reverse=True)[:3]
+    print()
+    print("Slowest tasks:")
+    sw = max(len(t["name"]) for t in slowest)
+    for t in slowest:
+        print(f"  {t['name']:<{sw}}  {fmt_duration(task_duration(t))}")
+
+    # ── Memory pressure warning ───────────────────────────────────────────────
+    peak_rss = rs.get("peak_rss_bytes", 0)
+    ram_available_gb = spec.get("ram_available_gb")
+    if ram_available_gb and peak_rss:
+        used_pct = peak_rss / (ram_available_gb * 1024**3) * 100
+        if used_pct > 80:
+            print()
+            print(f"  Warning: the workflow used {used_pct:.0f}% of the memory that was free when it started")
+            print(f"           ({fmt_bytes(peak_rss)} used out of {ram_available_gb} GB available).")
+            print("           Running on a machine with more free memory will likely make it faster.")
+
+    # ── Summary bar ──────────────────────────────────────────────────────────
     passed_count = len(tasks) - failed
     summary = f"{passed_count} passed"
     if failed:
         summary += f", {failed} failed"
-    summary += f"  |  total task time {fmt_duration(total)}"
-    wall = (parse_ts(tasks[-1]["end_time"]) - workflow_start).total_seconds()
-    summary += f"  |  wall clock {fmt_duration(wall)}"
+    summary += f"  |  total {fmt_duration(total)}  wall {fmt_duration(wall)}"
+    if rs.get("peak_rss_bytes"):
+        summary += f"  |  peak memory {fmt_bytes(rs['peak_rss_bytes'])}"
+    if rs.get("peak_cpu_pct"):
+        summary += f"  |  peak CPU {rs['peak_cpu_pct']}%"
+    disk_r = rs.get("disk_read_bytes")
+    disk_w = rs.get("disk_write_bytes")
+    if disk_r is not None and disk_w is not None:
+        summary += f"  |  disk read {fmt_bytes(disk_r)}  written {fmt_bytes(disk_w)}"
+    net_rx = rs.get("net_bytes_recv")
+    net_tx = rs.get("net_bytes_sent")
+    if net_rx is not None and net_tx is not None:
+        summary += f"  |  network downloaded {fmt_bytes(net_rx)}  uploaded {fmt_bytes(net_tx)}"
 
     pad = max(2, (line_width - len(summary) - 2) // 2)
     bar = "=" * pad

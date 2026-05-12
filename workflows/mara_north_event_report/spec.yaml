@@ -1151,7 +1151,7 @@ workflow:
           max_zoom: 20
 
         - url: https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places_Alternate/MapServer/tile/{z}/{y}/{x}
-          opacity: 0.30
+          opacity: 0.35
           max_zoom: 20
 
   - name: Download MNC community conservancy boundaries
@@ -1669,7 +1669,6 @@ workflow:
         label_suffix: null
       data_url: null
       geodataframe: ${{ workflow.map_mobile_boma.return }} 
-      #${{ workflow.mobile_colormap.return }}
   
   # global zoom value 
   - name: Global map zoom value
@@ -1858,7 +1857,7 @@ workflow:
     partial:
       input_column_name: "Livestock Species"
       output_column_name: colors
-      colormap: tab10
+      colormap: Set3
       df: ${{ workflow.map_livestock_predation.return }}
 
   - name: Generate livestock predation point layers
@@ -1990,19 +1989,18 @@ workflow:
   
   - name: Map others with Unknown 
     id: map_livestock_unknown
-    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
+    task: map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.replace_livestock_nulls.return }}
-      col: suspected_predator
-      new_col: predator
-      default: Unknown
-      mapping: 
+      columns: 
+        - suspected_predator
+      value_map: 
         Other (specify in comments): Unknown
-      keep_unmapped: false
+      inplace: true 
 
   - name: Convert livestock_affected col to int 
     id: convert_livestock_int
@@ -2649,23 +2647,21 @@ workflow:
   
   - name: Map elephant column values 
     id: map_ele_column_values 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
+    task: map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_elephant_int.return }}
-      col: "herd_composition"
-      new_col: "mapped_herd_composition"
-      default: Unspecified 
-      mapping: {
+      columns: ["herd_composition"]
+      value_map: {
         "bachelor":"Bachelor",
         "femalecalf":"Female/Calf",
         "mixed":"Mixed",
         "unspecified":"Unspecified"
         }
-      keep_unmapped: false
+      inplace: true
 
   - name: Total elephant observations summary table 
     id: elephant_obs_summary
@@ -2719,11 +2715,10 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: mapped_herd_composition
+      input_column_name: herd_composition
       output_column_name: colors
-      colormap: tab10
+      colormap: Set3
       df: ${{ workflow.map_ele_column_values.return }} 
-      #${{ workflow.remove_ele_invalid_geoms.return }}
 
   - name: Generate elephant sighting point layers
     id: generate_elephant_layers
@@ -2911,7 +2906,6 @@ workflow:
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.drop_null_ele_bins.return }}
-      #${{ workflow.drop_ele_bins_invalid_geoms.return }}
       reset_index: true 
       drop_index: true
       rename_unnamed: true 
@@ -2948,7 +2942,7 @@ workflow:
         opacity: 0.55
         stroked: true
       legend:
-        title: Group Sizes
+        title: Elephant Herd Sizes
         label_column: herd_sizebins_sort
         color_column: colors
         sort: ascending
@@ -3054,7 +3048,7 @@ workflow:
   
   - name: Convert buffalo values to integer 
     id: convert_buffalo_int 
-    task: convert_to_int 
+    task: coerce_columns_to_int #convert_to_int 
     skipif:
       conditions:
         - any_is_empty_df
@@ -3062,29 +3056,28 @@ workflow:
     partial: 
       df: ${{ workflow.replace_buffalo_unspecified.return }}
       columns: ["herd_size"]
-      errors: coerce 
-      fill_value: 0 
-      inplace: false 
+      errors: coerce
+      fill_value: 0
+      missing: ignore 
+      nullable: true 
   
   - name: Map buffalo column values 
     id: map_buff_column_values 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
+    task: map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_buffalo_int.return }}
-      col: "herd_composition"
-      new_col: mapped_herd_composition
-      default: Unspecified
-      mapping: {
+      columns: ["herd_composition"]
+      value_map: {
         "bachelor":"Bachelor",
         "femalecalf":"Female/Calf",
         "mixed":"Mixed",
         "unspecified":"Unspecified"
         }
-      keep_unmapped: false
+      inplace: true
 
   - name: Total buffalo observations summary table 
     id: buffalo_obs_summary
@@ -3138,11 +3131,10 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: mapped_herd_composition
+      input_column_name: herd_composition
       output_column_name: colors
-      colormap: tab10
+      colormap: Set3
       df: ${{ workflow.map_buff_column_values.return }} 
-      #${{ workflow.remove_buff_invalid_geoms.return }}
 
   - name: Generate buffalo sighting point layers
     id: generate_buffalo_layers
@@ -3159,7 +3151,7 @@ workflow:
         opacity: 0.55
         stroked: true
       legend:
-        title: Herd Types 
+        title: Buffalo Herd Types 
         label_column: herd_composition
         color_column: colors
         sort: ascending
@@ -3501,7 +3493,6 @@ workflow:
         sort: null
       data_url: null
       geodataframe: ${{ workflow.drop_rhino_prefix.return }}
-      #${{ workflow.apply_rhino_events_colormap.return }}
 
   - name: Combine custom loaded map layers and elephant point layers
     id: combine_custom_rhino
@@ -3624,22 +3615,20 @@ workflow:
 
   - name: Map lion column values 
     id: map_lion_column_values 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
+    task: map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_lion_int.return }}
-      col: "pride"
-      new_col: mapped_pride 
-      default: Unknown 
-      mapping: {
+      columns: ["pride"]
+      value_map: {
         "Unknown":"Unknown",
         "unspecified":"Unknown",
         "Other (specify in comments)":"Unknown",
       }
-      keep_unmapped: false
+      inplace: true
 
   - name: Total lion observations summary table 
     id: lion_obs_summary
@@ -3693,7 +3682,7 @@ workflow:
         - any_dependency_skipped
     partial:  
       groupby_cols:
-        - mapped_pride
+        - pride
       summary_params:
         - display_name: no_of_events
           aggregator: nunique
@@ -3725,9 +3714,8 @@ workflow:
     partial:
       input_column_name: pride
       output_column_name: colors
-      colormap: tab10
+      colormap: Set3
       df: ${{ workflow.map_lion_column_values.return }} 
-      #${{ workflow.remove_lion_invalid_geoms.return }}
 
   - name: Generate lion sighting point layers
     id: generate_lion_layers
@@ -3871,22 +3859,20 @@ workflow:
 
   - name: Map leopard column values 
     id: map_leopard_column_values 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
+    task: map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_leopard_int.return }}
-      col: "individuals_present"
-      new_col: "mapped_individual_present"
-      default: Unknown 
-      mapping: {
+      columns: ["individuals_present"]
+      value_map: {
         "Unknown":"Unknown",
         "Unspecified":"Unknown",
         "Other (specify in comments)":"Unknown",
       }
-      keep_unmapped: false
+      inplace: true
 
   - name: Total leopard observations summary table 
     id: leopard_obs_summary
@@ -3940,7 +3926,7 @@ workflow:
         - any_dependency_skipped
     partial:  
       groupby_cols:
-        - mapped_individuals_present
+        - individuals_present
       summary_params:
         - display_name: no_of_events
           aggregator: nunique
@@ -3970,11 +3956,10 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: mapped_individuals_present
+      input_column_name: individuals_present
       output_column_name: colors
-      colormap: tab10
+      colormap: Set3
       df: ${{ workflow.map_leopard_column_values.return }}
-      #${{ workflow.remove_leopard_invalid_geoms.return }}
 
   - name: Generate leopard sighting point layers
     id: generate_leopard_layers
@@ -3991,8 +3976,8 @@ workflow:
         opacity: 0.55
         stroked: true
       legend:
-        title: Individual
-        label_column: mapped_individuals_present
+        title: Leopard Individuals
+        label_column: individuals_present
         color_column: colors
         sort: ascending
       data_url: null
@@ -4118,22 +4103,20 @@ workflow:
 
   - name: Map cheetah column values 
     id: map_cheetah_column_values 
-    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value #map_column_values
+    task: map_column_values
     skipif:
       conditions:
         - any_is_empty_df
         - any_dependency_skipped
     partial: 
       df: ${{ workflow.convert_cheetah_int.return }}
-      col: "individuals_present"
-      new_col: "mapped_individuals_present"
-      default: Unknown
-      mapping: {
+      columns: ["individuals_present"]
+      value_map: {
         "Unknown":"Unknown",
         "Unspecified":"Unknown",
         "Other (specify in comments)":"Unknown",
       }
-      keep_unmapped: false
+      inplace: true
 
   - name: Total cheetah observations summary table 
     id: cheetah_obs_summary
@@ -4187,7 +4170,7 @@ workflow:
         - any_dependency_skipped
     partial:  
       groupby_cols:
-        - mapped_individuals_present
+        - individuals_present
       summary_params:
         - display_name: no_of_events
           aggregator: nunique
@@ -4217,11 +4200,10 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: mapped_individuals_present
+      input_column_name: individuals_present
       output_column_name: colors
-      colormap: tab10
+      colormap: Set3
       df: ${{ workflow.map_cheetah_column_values.return }}
-      #${{ workflow.remove_cheetah_invalid_geoms.return }}
 
   - name: Generate cheetah sighting point layers
     id: generate_cheetah_layers
@@ -4238,8 +4220,8 @@ workflow:
         opacity: 0.55
         stroked: true
       legend:
-        title: Individual
-        label_column: mapped_individuals_present
+        title: Cheetah Individuals
+        label_column: individuals_present
         color_column: colors
         sort: ascending
       data_url: null
@@ -4348,7 +4330,6 @@ workflow:
         sort: null
       data_url: null
       geodataframe: ${{ workflow.map_giraffe_sighting.return }}
-      #${{ workflow.apply_giraffe_events_colormap.return }}
 
   - name: Combine custom loaded map layers and giraffe point layers
     id: combine_custom_giraffe
@@ -4547,7 +4528,6 @@ workflow:
         event_details__wildlifetreatment_vetprognosis: wildlife_treatment_vet_prognosis
         event_details__wildlifecarcass_comments: wildlife_carcass_comments
       raise_if_not_found: false
-      required_columns: []
       df: ${{ workflow.normalize_wildlife_events.return }}
   
   - name: Persist  wildlife events as csv 
@@ -4640,27 +4620,6 @@ workflow:
       filename: wildlife_incidents_recorded_by_date
 
   # Draw map 
-  - name: Map wildlife values 
-    id: map_wildlife_values
-    task: ecoscope_workflows_ext_custom.tasks.transformation.map_column_value
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.rename_wildlife_cols.return }}
-      col: event_type
-      new_col: mapped_event_type
-      default: Illegal grazing 
-      mapping: 
-        fire_rep: Fire
-        snare_rep: Snare 
-        wildlife_carcass_rep: Wildlife carcass 
-        wildlife_injury_rep: Injured wildlife
-        wildlife_treatment_rep: Veterinary treatment
-        illegal_grazing_rep: Illegal grazing
-      keep_unmapped: false 
-
   - name: Apply Colormap to wildlife predation events
     id: apply_wildlife_colormap
     task: apply_color_map
@@ -4669,11 +4628,30 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      input_column_name: mapped_event_type
+      input_column_name: event_type
       output_column_name: colors
-      colormap: tab10
-      df: ${{ workflow.map_wildlife_values.return }}
-      #{{ workflow.remove_wildlife_invalid_geoms.return }}
+      colormap: Set3
+      df: ${{ workflow.rename_wildlife_cols.return }}
+
+  - name: Map wildlife values 
+    id: map_wildlife_values
+    task: map_column_values
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.apply_wildlife_colormap.return }}
+      columns: 
+        - event_type
+      value_map: 
+        fire_rep: Fire
+        snare_rep: Snare 
+        wildlife_carcass_rep: Wildlife carcass 
+        wildlife_injury_rep: Injured wildlife
+        wildlife_treatment_rep: Veterinary treatment
+        illegal_grazing_rep: Illegal grazing
+      inplace: true 
 
   - name: Generate wildlife predation point layers
     id: generate_wildlife_layers
@@ -4691,10 +4669,10 @@ workflow:
         stroked: true
       legend:
         title: Incidents
-        label_column: mapped_event_type
+        label_column: event_type
         color_column: colors
         sort: ascending
-      geodataframe: ${{ workflow.apply_wildlife_colormap.return }}
+      geodataframe: ${{ workflow.map_wildlife_values.return }}
       data_url: null
 
   - name: Combine styled layers with wildlife incident events 
@@ -5087,7 +5065,7 @@ workflow:
       patrols_df : ${{ workflow.get_patrols_from_info.return }}
       include_patrol_details: true 
       raise_on_empty: true
-      sub_page_size: 750
+      sub_page_size: 750 #set to 1000
 
   - name: Drop values from patrol information df 
     id: drop_values_patrol_info 
@@ -5518,9 +5496,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: density_colors
+        get_line_color: [0, 0, 0]
         opacity: 0.55 
-        get_line_width: 0.75
+        get_line_width: 0.95
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -5528,7 +5506,7 @@ workflow:
         line_width_min_pixels: 1
         line_width_max_pixels: 5
       legend:
-        title: Visits
+        title: Grid Cell Visits
         label_column: density_bins
         color_column: density_colors
       geodataframe: ${{ workflow.apply_foot_grid_colormap.return }}
@@ -5709,9 +5687,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: density_colors
+        get_line_color: [0, 0, 0]
         opacity: 0.55 
-        get_line_width: 0.75
+        get_line_width: 0.95
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -5719,7 +5697,7 @@ workflow:
         line_width_min_pixels: 1
         line_width_max_pixels: 5
       legend:
-        title: Visits
+        title: Grid Cell Visits
         label_column: density_bins
         color_column: density_colors
       geodataframe: ${{ workflow.apply_vehicle_grid_colormap.return }}
@@ -5900,9 +5878,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: density_colors
+        get_line_color: [0, 0, 0]
         opacity: 0.55 
-        get_line_width: 0.75
+        get_line_width: 0.95
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -5910,7 +5888,7 @@ workflow:
         line_width_min_pixels: 1
         line_width_max_pixels: 5
       legend:
-        title: Visits
+        title: Grid Cell Visits
         label_column: density_bins
         color_column: density_colors
       geodataframe: ${{ workflow.apply_motor_grid_colormap.return }}
@@ -6158,9 +6136,9 @@ workflow:
         extruded: false 
         wireframe: false
         get_fill_color: density_colors
-        get_line_color: density_colors
+        get_line_color: [0, 0, 0]
         opacity: 0.55 
-        get_line_width: 0.75
+        get_line_width: 0.95
         get_elevation: 0
         get_point_radius: 1
         line_width_units: pixels 
@@ -6168,7 +6146,7 @@ workflow:
         line_width_min_pixels: 1
         line_width_max_pixels: 5
       legend:
-        title: Visits
+        title: Grid Cell Visits
         label_column: density_bins
         color_column: density_colors
       geodataframe: ${{ workflow.apply_grid_colormap.return }}

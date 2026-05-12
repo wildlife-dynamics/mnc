@@ -146,13 +146,11 @@ from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     filter_row_values as filter_row_values,
 )
-from ecoscope_workflows_ext_custom.tasks.transformation import (
-    map_column_value as map_column_value,
-)
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     apply_color_map as apply_color_map,
 )
 from ecoscope_workflows_ext_mnc.tasks import add_totals_row as add_totals_row
+from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_values
 from ecoscope_workflows_ext_ste.tasks import (
     combine_deckgl_map_layers as combine_deckgl_map_layers,
 )
@@ -226,7 +224,6 @@ from ecoscope_workflows_ext_mnc.tasks import (
     clean_dataframe_index as clean_dataframe_index,
 )
 from ecoscope_workflows_ext_mnc.tasks import compute_occupancy as compute_occupancy
-from ecoscope_workflows_ext_mnc.tasks import convert_to_int as convert_to_int
 from ecoscope_workflows_ext_mnc.tasks import (
     custom_get_patrol_observations_from_patrols_df as custom_get_patrol_observations_from_patrols_df,
 )
@@ -666,9 +663,9 @@ def main(params: Params):
         "wildlife_events_recorded": ["rename_wildlife_cols"],
         "add_total_wildlife": ["wildlife_events_recorded"],
         "wildlife_events_df": ["add_total_wildlife"],
-        "map_wildlife_values": ["rename_wildlife_cols"],
-        "apply_wildlife_colormap": ["map_wildlife_values"],
-        "generate_wildlife_layers": ["apply_wildlife_colormap"],
+        "apply_wildlife_colormap": ["rename_wildlife_cols"],
+        "map_wildlife_values": ["apply_wildlife_colormap"],
+        "generate_wildlife_layers": ["map_wildlife_values"],
         "combine_custom_wildlife": [
             "create_conservancy_boundaries",
             "create_mnc_parcels_layers",
@@ -2539,7 +2536,7 @@ def main(params: Params):
                     },
                     {
                         "url": "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places_Alternate/MapServer/tile/{z}/{y}/{x}",
-                        "opacity": 0.3,
+                        "opacity": 0.35,
                         "max_zoom": 20,
                     },
                 ],
@@ -3735,7 +3732,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "Livestock Species",
                 "output_column_name": "colors",
-                "colormap": "tab10",
+                "colormap": "Set3",
                 "df": DependsOn("map_livestock_predation"),
             }
             | (params_dict.get("apply_livestock_colormap") or {}),
@@ -3937,7 +3934,7 @@ def main(params: Params):
             method="call",
         ),
         "map_livestock_unknown": Node(
-            async_task=map_column_value.validate()
+            async_task=map_column_values.validate()
             .set_task_instance_id("map_livestock_unknown")
             .handle_errors()
             .with_tracing()
@@ -3951,13 +3948,13 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("replace_livestock_nulls"),
-                "col": "suspected_predator",
-                "new_col": "predator",
-                "default": "Unknown",
-                "mapping": {
+                "columns": [
+                    "suspected_predator",
+                ],
+                "value_map": {
                     "Other (specify in comments)": "Unknown",
                 },
-                "keep_unmapped": False,
+                "inplace": True,
             }
             | (params_dict.get("map_livestock_unknown") or {}),
             method="call",
@@ -5004,7 +5001,7 @@ def main(params: Params):
             method="call",
         ),
         "map_ele_column_values": Node(
-            async_task=map_column_value.validate()
+            async_task=map_column_values.validate()
             .set_task_instance_id("map_ele_column_values")
             .handle_errors()
             .with_tracing()
@@ -5018,16 +5015,16 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_elephant_int"),
-                "col": "herd_composition",
-                "new_col": "mapped_herd_composition",
-                "default": "Unspecified",
-                "mapping": {
+                "columns": [
+                    "herd_composition",
+                ],
+                "value_map": {
                     "bachelor": "Bachelor",
                     "femalecalf": "Female/Calf",
                     "mixed": "Mixed",
                     "unspecified": "Unspecified",
                 },
-                "keep_unmapped": False,
+                "inplace": True,
             }
             | (params_dict.get("map_ele_column_values") or {}),
             method="call",
@@ -5121,9 +5118,9 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "mapped_herd_composition",
+                "input_column_name": "herd_composition",
                 "output_column_name": "colors",
-                "colormap": "tab10",
+                "colormap": "Set3",
                 "df": DependsOn("map_ele_column_values"),
             }
             | (params_dict.get("apply_ele_events_colormap") or {}),
@@ -5486,7 +5483,7 @@ def main(params: Params):
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Group Sizes",
+                    "title": "Elephant Herd Sizes",
                     "label_column": "herd_sizebins_sort",
                     "color_column": "colors",
                     "sort": "ascending",
@@ -5652,7 +5649,7 @@ def main(params: Params):
             method="call",
         ),
         "convert_buffalo_int": Node(
-            async_task=convert_to_int.validate()
+            async_task=coerce_columns_to_int.validate()
             .set_task_instance_id("convert_buffalo_int")
             .handle_errors()
             .with_tracing()
@@ -5671,13 +5668,14 @@ def main(params: Params):
                 ],
                 "errors": "coerce",
                 "fill_value": 0,
-                "inplace": False,
+                "missing": "ignore",
+                "nullable": True,
             }
             | (params_dict.get("convert_buffalo_int") or {}),
             method="call",
         ),
         "map_buff_column_values": Node(
-            async_task=map_column_value.validate()
+            async_task=map_column_values.validate()
             .set_task_instance_id("map_buff_column_values")
             .handle_errors()
             .with_tracing()
@@ -5691,16 +5689,16 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_buffalo_int"),
-                "col": "herd_composition",
-                "new_col": "mapped_herd_composition",
-                "default": "Unspecified",
-                "mapping": {
+                "columns": [
+                    "herd_composition",
+                ],
+                "value_map": {
                     "bachelor": "Bachelor",
                     "femalecalf": "Female/Calf",
                     "mixed": "Mixed",
                     "unspecified": "Unspecified",
                 },
-                "keep_unmapped": False,
+                "inplace": True,
             }
             | (params_dict.get("map_buff_column_values") or {}),
             method="call",
@@ -5794,9 +5792,9 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "mapped_herd_composition",
+                "input_column_name": "herd_composition",
                 "output_column_name": "colors",
-                "colormap": "tab10",
+                "colormap": "Set3",
                 "df": DependsOn("map_buff_column_values"),
             }
             | (params_dict.get("apply_buff_events_colormap") or {}),
@@ -5824,7 +5822,7 @@ def main(params: Params):
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Herd Types",
+                    "title": "Buffalo Herd Types",
                     "label_column": "herd_composition",
                     "color_column": "colors",
                     "sort": "ascending",
@@ -6580,7 +6578,7 @@ def main(params: Params):
             method="call",
         ),
         "map_lion_column_values": Node(
-            async_task=map_column_value.validate()
+            async_task=map_column_values.validate()
             .set_task_instance_id("map_lion_column_values")
             .handle_errors()
             .with_tracing()
@@ -6594,15 +6592,15 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_lion_int"),
-                "col": "pride",
-                "new_col": "mapped_pride",
-                "default": "Unknown",
-                "mapping": {
+                "columns": [
+                    "pride",
+                ],
+                "value_map": {
                     "Unknown": "Unknown",
                     "unspecified": "Unknown",
                     "Other (specify in comments)": "Unknown",
                 },
-                "keep_unmapped": False,
+                "inplace": True,
             }
             | (params_dict.get("map_lion_column_values") or {}),
             method="call",
@@ -6697,7 +6695,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "groupby_cols": [
-                    "mapped_pride",
+                    "pride",
                 ],
                 "summary_params": [
                     {
@@ -6750,7 +6748,7 @@ def main(params: Params):
             partial={
                 "input_column_name": "pride",
                 "output_column_name": "colors",
-                "colormap": "tab10",
+                "colormap": "Set3",
                 "df": DependsOn("map_lion_column_values"),
             }
             | (params_dict.get("apply_lion_events_colormap") or {}),
@@ -6978,7 +6976,7 @@ def main(params: Params):
             method="call",
         ),
         "map_leopard_column_values": Node(
-            async_task=map_column_value.validate()
+            async_task=map_column_values.validate()
             .set_task_instance_id("map_leopard_column_values")
             .handle_errors()
             .with_tracing()
@@ -6992,15 +6990,15 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_leopard_int"),
-                "col": "individuals_present",
-                "new_col": "mapped_individual_present",
-                "default": "Unknown",
-                "mapping": {
+                "columns": [
+                    "individuals_present",
+                ],
+                "value_map": {
                     "Unknown": "Unknown",
                     "Unspecified": "Unknown",
                     "Other (specify in comments)": "Unknown",
                 },
-                "keep_unmapped": False,
+                "inplace": True,
             }
             | (params_dict.get("map_leopard_column_values") or {}),
             method="call",
@@ -7095,7 +7093,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "groupby_cols": [
-                    "mapped_individuals_present",
+                    "individuals_present",
                 ],
                 "summary_params": [
                     {
@@ -7146,9 +7144,9 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "mapped_individuals_present",
+                "input_column_name": "individuals_present",
                 "output_column_name": "colors",
-                "colormap": "tab10",
+                "colormap": "Set3",
                 "df": DependsOn("map_leopard_column_values"),
             }
             | (params_dict.get("apply_leopard_events_colormap") or {}),
@@ -7176,8 +7174,8 @@ def main(params: Params):
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Individual",
-                    "label_column": "mapped_individuals_present",
+                    "title": "Leopard Individuals",
+                    "label_column": "individuals_present",
                     "color_column": "colors",
                     "sort": "ascending",
                 },
@@ -7376,7 +7374,7 @@ def main(params: Params):
             method="call",
         ),
         "map_cheetah_column_values": Node(
-            async_task=map_column_value.validate()
+            async_task=map_column_values.validate()
             .set_task_instance_id("map_cheetah_column_values")
             .handle_errors()
             .with_tracing()
@@ -7390,15 +7388,15 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "df": DependsOn("convert_cheetah_int"),
-                "col": "individuals_present",
-                "new_col": "mapped_individuals_present",
-                "default": "Unknown",
-                "mapping": {
+                "columns": [
+                    "individuals_present",
+                ],
+                "value_map": {
                     "Unknown": "Unknown",
                     "Unspecified": "Unknown",
                     "Other (specify in comments)": "Unknown",
                 },
-                "keep_unmapped": False,
+                "inplace": True,
             }
             | (params_dict.get("map_cheetah_column_values") or {}),
             method="call",
@@ -7493,7 +7491,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "groupby_cols": [
-                    "mapped_individuals_present",
+                    "individuals_present",
                 ],
                 "summary_params": [
                     {
@@ -7544,9 +7542,9 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "mapped_individuals_present",
+                "input_column_name": "individuals_present",
                 "output_column_name": "colors",
-                "colormap": "tab10",
+                "colormap": "Set3",
                 "df": DependsOn("map_cheetah_column_values"),
             }
             | (params_dict.get("apply_cheetah_events_colormap") or {}),
@@ -7574,8 +7572,8 @@ def main(params: Params):
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Individual",
-                    "label_column": "mapped_individuals_present",
+                    "title": "Cheetah Individuals",
+                    "label_column": "individuals_present",
                     "color_column": "colors",
                     "sort": "ascending",
                 },
@@ -8224,37 +8222,6 @@ def main(params: Params):
             | (params_dict.get("wildlife_events_df") or {}),
             method="call",
         ),
-        "map_wildlife_values": Node(
-            async_task=map_column_value.validate()
-            .set_task_instance_id("map_wildlife_values")
-            .handle_errors()
-            .with_tracing()
-            .skipif(
-                conditions=[
-                    any_is_empty_df,
-                    any_dependency_skipped,
-                ],
-                unpack_depth=1,
-            )
-            .set_executor("lithops"),
-            partial={
-                "df": DependsOn("rename_wildlife_cols"),
-                "col": "event_type",
-                "new_col": "mapped_event_type",
-                "default": "Illegal grazing",
-                "mapping": {
-                    "fire_rep": "Fire",
-                    "snare_rep": "Snare",
-                    "wildlife_carcass_rep": "Wildlife carcass",
-                    "wildlife_injury_rep": "Injured wildlife",
-                    "wildlife_treatment_rep": "Veterinary treatment",
-                    "illegal_grazing_rep": "Illegal grazing",
-                },
-                "keep_unmapped": False,
-            }
-            | (params_dict.get("map_wildlife_values") or {}),
-            method="call",
-        ),
         "apply_wildlife_colormap": Node(
             async_task=apply_color_map.validate()
             .set_task_instance_id("apply_wildlife_colormap")
@@ -8269,12 +8236,43 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "input_column_name": "mapped_event_type",
+                "input_column_name": "event_type",
                 "output_column_name": "colors",
-                "colormap": "tab10",
-                "df": DependsOn("map_wildlife_values"),
+                "colormap": "Set3",
+                "df": DependsOn("rename_wildlife_cols"),
             }
             | (params_dict.get("apply_wildlife_colormap") or {}),
+            method="call",
+        ),
+        "map_wildlife_values": Node(
+            async_task=map_column_values.validate()
+            .set_task_instance_id("map_wildlife_values")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("apply_wildlife_colormap"),
+                "columns": [
+                    "event_type",
+                ],
+                "value_map": {
+                    "fire_rep": "Fire",
+                    "snare_rep": "Snare",
+                    "wildlife_carcass_rep": "Wildlife carcass",
+                    "wildlife_injury_rep": "Injured wildlife",
+                    "wildlife_treatment_rep": "Veterinary treatment",
+                    "illegal_grazing_rep": "Illegal grazing",
+                },
+                "inplace": True,
+            }
+            | (params_dict.get("map_wildlife_values") or {}),
             method="call",
         ),
         "generate_wildlife_layers": Node(
@@ -8300,11 +8298,11 @@ def main(params: Params):
                 },
                 "legend": {
                     "title": "Incidents",
-                    "label_column": "mapped_event_type",
+                    "label_column": "event_type",
                     "color_column": "colors",
                     "sort": "ascending",
                 },
-                "geodataframe": DependsOn("apply_wildlife_colormap"),
+                "geodataframe": DependsOn("map_wildlife_values"),
                 "data_url": None,
             }
             | (params_dict.get("generate_wildlife_layers") or {}),
@@ -9626,9 +9624,13 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": "density_colors",
+                    "get_line_color": [
+                        0,
+                        0,
+                        0,
+                    ],
                     "opacity": 0.55,
-                    "get_line_width": 0.75,
+                    "get_line_width": 0.95,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -9637,7 +9639,7 @@ def main(params: Params):
                     "line_width_max_pixels": 5,
                 },
                 "legend": {
-                    "title": "Visits",
+                    "title": "Grid Cell Visits",
                     "label_column": "density_bins",
                     "color_column": "density_colors",
                 },
@@ -9932,9 +9934,13 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": "density_colors",
+                    "get_line_color": [
+                        0,
+                        0,
+                        0,
+                    ],
                     "opacity": 0.55,
-                    "get_line_width": 0.75,
+                    "get_line_width": 0.95,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -9943,7 +9949,7 @@ def main(params: Params):
                     "line_width_max_pixels": 5,
                 },
                 "legend": {
-                    "title": "Visits",
+                    "title": "Grid Cell Visits",
                     "label_column": "density_bins",
                     "color_column": "density_colors",
                 },
@@ -10238,9 +10244,13 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": "density_colors",
+                    "get_line_color": [
+                        0,
+                        0,
+                        0,
+                    ],
                     "opacity": 0.55,
-                    "get_line_width": 0.75,
+                    "get_line_width": 0.95,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -10249,7 +10259,7 @@ def main(params: Params):
                     "line_width_max_pixels": 5,
                 },
                 "legend": {
-                    "title": "Visits",
+                    "title": "Grid Cell Visits",
                     "label_column": "density_bins",
                     "color_column": "density_colors",
                 },
@@ -10645,9 +10655,13 @@ def main(params: Params):
                     "extruded": False,
                     "wireframe": False,
                     "get_fill_color": "density_colors",
-                    "get_line_color": "density_colors",
+                    "get_line_color": [
+                        0,
+                        0,
+                        0,
+                    ],
                     "opacity": 0.55,
-                    "get_line_width": 0.75,
+                    "get_line_width": 0.95,
                     "get_elevation": 0,
                     "get_point_radius": 1,
                     "line_width_units": "pixels",
@@ -10656,7 +10670,7 @@ def main(params: Params):
                     "line_width_max_pixels": 5,
                 },
                 "legend": {
-                    "title": "Visits",
+                    "title": "Grid Cell Visits",
                     "label_column": "density_bins",
                     "color_column": "density_colors",
                 },
