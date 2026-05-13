@@ -51,7 +51,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
 from ecoscope_workflows_ext_custom.tasks.spatial_ops import (
-    create_patrol_coverage_grid as create_patrol_coverage_grid_1,
+    create_patrol_coverage_grid as create_patrol_coverage_grid,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     coerce_columns_to_int as coerce_columns_to_int,
@@ -3996,7 +3996,7 @@ convert_mobile_boma_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_mobile_boma_png_params,
@@ -4461,7 +4461,7 @@ convert_livestock_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_livestock_png_params,
@@ -4875,7 +4875,7 @@ convert_illegal_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_illegal_png_params,
@@ -6276,6 +6276,41 @@ persist_ele_df = (
 
 
 # %% [markdown]
+# ## Replace empty strings in elephant herd types
+
+# %%
+# parameters
+
+replace_elephant_herds_params = dict()
+
+# %%
+# call the task
+
+
+replace_elephant_herds = (
+    replace_empty_strings_in_columns.set_task_instance_id("replace_elephant_herds")
+    .handle_errors()
+    .with_tracing()
+    .skipif(
+        conditions=[
+            any_is_empty_df,
+            any_dependency_skipped,
+        ],
+        unpack_depth=1,
+    )
+    .partial(
+        df=map_ele_column_values,
+        columns=["herd_composition"],
+        replacement="Unspecified",
+        strip_whitespace=True,
+        missing="ignore",
+        **replace_elephant_herds_params,
+    )
+    .call()
+)
+
+
+# %% [markdown]
 # ## Apply Colormap to elephant events
 
 # %%
@@ -6302,7 +6337,7 @@ apply_ele_events_colormap = (
         input_column_name="herd_composition",
         output_column_name="colors",
         colormap="Set3",
-        df=map_ele_column_values,
+        df=replace_elephant_herds,
         **apply_ele_events_colormap_params,
     )
     .call()
@@ -6341,7 +6376,7 @@ generate_elephant_layers = (
             "stroked": True,
         },
         legend={
-            "title": "Herd Types",
+            "title": "Elephant Herd Types",
             "label_column": "herd_composition",
             "color_column": "colors",
             "sort": "ascending",
@@ -6493,7 +6528,7 @@ convert_elephant_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_elephant_png_params,
@@ -6976,7 +7011,7 @@ convert_ele_herd_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_ele_herd_png_params,
@@ -7460,7 +7495,7 @@ convert_buffalo_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_buffalo_png_params,
@@ -7943,7 +7978,7 @@ convert_buff_herd_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_buff_herd_png_params,
@@ -8240,7 +8275,7 @@ convert_rhino_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_rhino_png_params,
@@ -8799,7 +8834,7 @@ convert_lion_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_lion_png_params,
@@ -9357,7 +9392,7 @@ convert_leopard_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_leopard_png_params,
@@ -9915,7 +9950,7 @@ convert_cheetah_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_cheetah_png_params,
@@ -10148,7 +10183,7 @@ convert_giraffe_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_giraffe_png_params,
@@ -10381,7 +10416,7 @@ convert_hartebeest_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_hartebeest_png_params,
@@ -10940,7 +10975,7 @@ convert_wildlife_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_wildlife_png_params,
@@ -12529,7 +12564,7 @@ foot_patrol_grid_visits_params = dict()
 
 
 foot_patrol_grid_visits = (
-    create_patrol_coverage_grid_1.set_task_instance_id("foot_patrol_grid_visits")
+    create_patrol_coverage_grid.set_task_instance_id("foot_patrol_grid_visits")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -12811,7 +12846,7 @@ convert_foot_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_foot_png_params,
@@ -12959,7 +12994,7 @@ vehicle_patrol_grid_visits_params = dict()
 
 
 vehicle_patrol_grid_visits = (
-    create_patrol_coverage_grid_1.set_task_instance_id("vehicle_patrol_grid_visits")
+    create_patrol_coverage_grid.set_task_instance_id("vehicle_patrol_grid_visits")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -13241,7 +13276,7 @@ convert_vehicle_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_vehicle_png_params,
@@ -13389,7 +13424,7 @@ motor_patrol_grid_visits_params = dict()
 
 
 motor_patrol_grid_visits = (
-    create_patrol_coverage_grid_1.set_task_instance_id("motor_patrol_grid_visits")
+    create_patrol_coverage_grid.set_task_instance_id("motor_patrol_grid_visits")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -13671,7 +13706,7 @@ convert_motor_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_motor_png_params,
@@ -13959,7 +13994,7 @@ patrol_grid_visits_params = dict()
 
 
 patrol_grid_visits = (
-    create_patrol_coverage_grid_1.set_task_instance_id("patrol_grid_visits")
+    create_patrol_coverage_grid.set_task_instance_id("patrol_grid_visits")
     .handle_errors()
     .with_tracing()
     .skipif(
@@ -14341,7 +14376,7 @@ convert_grid_png = (
         config={
             "full_page": False,
             "device_scale_factor": 2.0,
-            "wait_for_timeout": 40000,
+            "wait_for_timeout": 100,
             "max_concurrent_pages": 1,
         },
         **convert_grid_png_params,

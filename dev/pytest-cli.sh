@@ -92,13 +92,13 @@ echo ""
 cd "$workflow_dir"
 workflow_underscore=$(echo $workflow_name | tr '-' '_')
 
-# PYTHONPATH includes dev/ so sitecustomize.py activates Python logging at startup.
+# resource-sampler.py wraps the CLI to track peak memory, CPU, disk and network.
 # ECOSCOPE_LOG_LEVEL controls verbosity: INFO shows task execution order, DEBUG shows internals.
 # stdout+stderr are piped through tee so they appear in terminal AND are saved to workflow.log.
 # OTEL flags are always on: traces are written to otel_traces.jsonl in the results dir.
 export ECOSCOPE_LOG_LEVEL="${ECOSCOPE_LOG_LEVEL:-INFO}"
-PYTHONPATH="${repo_root}/dev${PYTHONPATH:+:$PYTHONPATH}" \
 pixi run --manifest-path $manifest_path -e default \
+    python "${repo_root}/dev/resource-sampler.py" "$results_dir" \
     python -u -m ecoscope_workflows_${workflow_underscore}_workflow.cli run \
     --config-file "$params_file" --execution-mode sequential \
     --mock-io \

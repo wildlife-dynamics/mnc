@@ -1740,7 +1740,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
     
   - name: Map cattle count columns 
@@ -1945,7 +1945,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   - name: Map livestock predation for summary table 
@@ -2133,7 +2133,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
   
   # 4 -- Wildlife report 
@@ -2707,6 +2707,21 @@ workflow:
       df: ${{ workflow.include_elephant_totals.return }}
 
   # Elephant herd composition map
+  - name: Replace empty strings in elephant herd types 
+    id: replace_elephant_herds 
+    task: replace_empty_strings_in_columns
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial: 
+      df: ${{ workflow.map_ele_column_values.return }} 
+      columns: 
+        - herd_composition 
+      replacement: Unspecified 
+      strip_whitespace: true 
+      missing: ignore 
+
   - name: Apply Colormap to elephant events 
     id: apply_ele_events_colormap
     task: apply_color_map
@@ -2718,7 +2733,7 @@ workflow:
       input_column_name: herd_composition
       output_column_name: colors
       colormap: Set3
-      df: ${{ workflow.map_ele_column_values.return }} 
+      df: ${{ workflow.replace_elephant_herds.return }} 
 
   - name: Generate elephant sighting point layers
     id: generate_elephant_layers
@@ -2735,7 +2750,7 @@ workflow:
         opacity: 0.55
         stroked: true
       legend:
-        title: Herd Types 
+        title: Elephant Herd Types 
         label_column: herd_composition
         color_column: colors
         sort: ascending
@@ -2799,7 +2814,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # this needs to be fixed
@@ -3005,7 +3020,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # buffalo
@@ -3215,7 +3230,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
 # Look into this and fix this
@@ -3421,7 +3436,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # Rhino sighting 
@@ -3551,7 +3566,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # Lion sighting 
@@ -3796,7 +3811,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # Leopard sighting
@@ -4040,7 +4055,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # cheetah sightings
@@ -4284,7 +4299,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # giraffe sightings
@@ -4388,7 +4403,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # hartebeest sightings 
@@ -4492,7 +4507,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   - name: Normalize wildlife events 
@@ -4731,7 +4746,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
         
   # 5 -- Patrol report 
@@ -5569,7 +5584,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # ---- VEHICLE PATROLS ----
@@ -5760,7 +5775,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   # ---- MOTORBIKE PATROLS ----
@@ -5951,7 +5966,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
         
   # ---- COMBINED TRAJECTORIES ----
@@ -6245,7 +6260,7 @@ workflow:
       config:
         full_page: false
         device_scale_factor: 2.0
-        wait_for_timeout: 40000
+        wait_for_timeout: 100 #40000
         max_concurrent_pages: 1
 
   - name: Download MNC Template and persist

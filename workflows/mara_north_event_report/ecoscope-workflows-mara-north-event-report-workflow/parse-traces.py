@@ -30,12 +30,67 @@ def fmt_duration(seconds: float) -> str:
         return f"{m}m {s:.0f}s"
 
 
+def _collect_machine_spec(results_dir: Path) -> dict:
+    """Gather machine info at parse time — mirrors sitecustomize._write_machine_spec."""
+    import os
+    import platform
+    import sys
+
+    spec = {
+        "hostname": platform.node(),
+        "os": platform.platform(),
+        "python": sys.version.split()[0],
+        "cpu": platform.processor() or platform.machine(),
+        "cpu_count_logical": os.cpu_count(),
+    }
+    try:
+        import psutil
+
+        spec["cpu_count_physical"] = psutil.cpu_count(logical=False)
+        mem = psutil.virtual_memory()
+        spec["ram_gb"] = round(mem.total / (1024**3), 1)
+        spec["ram_available_gb"] = round(mem.available / (1024**3), 1)
+        try:
+            freq = psutil.cpu_freq(percpu=False)
+            if freq and freq.max:
+                spec["cpu_freq_max_ghz"] = round(freq.max / 1000, 2)
+        except Exception:
+            pass
+        try:
+            disk = psutil.disk_usage(str(results_dir))
+            spec["disk_free_gb"] = round(disk.free / (1024**3), 1)
+        except Exception:
+            pass
+    except ImportError:
+        try:
+            if platform.system() == "Darwin":
+                import subprocess
+                mem = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).decode().strip())
+                spec["ram_gb"] = round(mem / (1024**3), 1)
+            elif platform.system() == "Linux":
+                with open("/proc/meminfo") as fh:
+                    for line in fh:
+                        if line.startswith("MemTotal:"):
+                            spec["ram_gb"] = round(int(line.split()[1]) / (1024**2), 1)
+                            break
+        except Exception:
+            pass
+        try:
+            import shutil
+            disk = shutil.disk_usage(str(results_dir))
+            spec["disk_free_gb"] = round(disk.free / (1024**3), 1)
+        except Exception:
+            pass
+    return spec
+
+
 def print_machine_spec(traces_path: str, run_start: datetime | None = None) -> dict:
     """Print machine and environment info. Returns the spec dict for later use."""
     spec_path = Path(traces_path).parent / "machine_spec.json"
-    if not spec_path.exists():
-        return {}
-    spec = json.loads(spec_path.read_text())
+    if spec_path.exists():
+        spec = json.loads(spec_path.read_text())
+    else:
+        spec = _collect_machine_spec(spec_path.parent)
 
     rows = []
     if run_start:
@@ -123,8 +178,6 @@ def main(traces_path: str) -> int:
 
     workflow_start = parse_ts(tasks[0]["start_time"])
 
-    spec = print_machine_spec(traces_path, run_start=workflow_start)
-
     name_width = max(len(t["name"]) for t in tasks)
     func_width = max(
         (len(func_name_by_task_id.get(t["context"]["span_id"], "")) for t in tasks),
@@ -137,7 +190,8 @@ def main(traces_path: str) -> int:
 
     for t in tasks:
         start = parse_ts(t["start_time"])
-        end = parse_ts(t["end_time"])
+        end_ts = t.get("end_time") or t.get("start_time")
+        end = parse_ts(end_ts)
         duration = (end - start).total_seconds()
         offset = (start - workflow_start).total_seconds()
         total += duration
@@ -178,21 +232,30 @@ def main(traces_path: str) -> int:
     if samples_path.exists():
         rs = json.loads(samples_path.read_text())
 
-    wall = (parse_ts(tasks[-1]["end_time"]) - workflow_start).total_seconds()
+    last_end_ts = tasks[-1].get("end_time") or tasks[-1].get("start_time")
+    wall = (parse_ts(last_end_ts) - workflow_start).total_seconds() if last_end_ts else total
+
+    print()
+    spec = print_machine_spec(traces_path, run_start=workflow_start)
     parallelism = total / wall if wall > 0 else 1.0
 
     # ── Timing section ──────────────────────────────────────────────────────
     time_rows = [
-        ("time spent running tasks",   f"{fmt_duration(total)}  ({total:.1f}s)"),
+        ("time spent running tasks", f"{fmt_duration(total)}  ({total:.1f}s)"),
         ("total time start to finish", f"{fmt_duration(wall)}  ({wall:.1f}s)"),
-        ("tasks ran at the same time", f"{parallelism:.2f}x  ({'yes — some tasks overlapped' if parallelism > 1.05 else 'no — one task at a time'})"),
+        (
+            "tasks ran at the same time",
+            f"{parallelism:.2f}x  ({'yes—some tasks overlapped' if parallelism > 1.05 else 'no — one task at a time'})",
+        ),
     ]
     avg_cpu = rs.get("avg_cpu_pct")
     if avg_cpu:
         time_rows.append(("average CPU usage", f"{avg_cpu}%"))
     peak_swap = rs.get("peak_swap_bytes", 0)
     if peak_swap:
-        time_rows.append(("memory swapped to disk", f"{fmt_bytes(peak_swap)}  (this slows things down — more free RAM would help)"))
+        time_rows.append(
+            ("memory swapped to disk", f"{fmt_bytes(peak_swap)}  (this slows things down — more free RAM would help)")
+        )
 
     tw = max(len(k) for k, _ in time_rows)
     print()
@@ -204,7 +267,7 @@ def main(traces_path: str) -> int:
     def task_duration(t) -> float:
         return (parse_ts(t["end_time"]) - parse_ts(t["start_time"])).total_seconds()
 
-    slowest = sorted(tasks, key=task_duration, reverse=True)[:3]
+    slowest = sorted(tasks, key=task_duration, reverse=True)[:5]
     print()
     print("Slowest tasks:")
     sw = max(len(t["name"]) for t in slowest)

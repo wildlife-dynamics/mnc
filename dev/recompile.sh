@@ -34,19 +34,25 @@ if [ -f "$cli_py" ]; then
   echo "Patched. Per-task timing will be written to otel_traces.jsonl in ECOSCOPE_WORKFLOWS_RESULTS."
 fi
 
-# Copy parse-traces.py into the workflow package directory so it travels with
+# Copy dev scripts into the workflow package directory so they travel with
 # the workflow when the desktop app deploys it to its own template location.
 cp "$(dirname "$0")/parse-traces.py" "${workflow_dir}/parse-traces.py"
 echo "Copied parse-traces.py into ${workflow_dir}/"
+cp "$(dirname "$0")/resource-sampler.py" "${workflow_dir}/resource-sampler.py"
+echo "Copied resource-sampler.py into ${workflow_dir}/"
 
-# Generate run-with-traces.sh referencing the co-located parse-traces.py via
+# Generate run-with-traces.sh referencing co-located scripts via
 # PIXI_PROJECT_ROOT (set by pixi to the workflow package directory at runtime).
 wrapper="${workflow_dir}/run-with-traces.sh"
 cat > "$wrapper" << WRAPPER_EOF
 #!/bin/bash
-python -m ecoscope_workflows_${workflow}_workflow.cli "\$@"
-ec=\$?
 rp="\${ECOSCOPE_WORKFLOWS_RESULTS#file://}"
+if [ -n "\$rp" ]; then
+    python "\$PIXI_PROJECT_ROOT/resource-sampler.py" "\$rp" python -m ecoscope_workflows_${workflow}_workflow.cli "\$@"
+else
+    python -m ecoscope_workflows_${workflow}_workflow.cli "\$@"
+fi
+ec=\$?
 traces="\$rp/otel_traces.jsonl"
 if [ -f "\$traces" ]; then
     python "\$PIXI_PROJECT_ROOT/parse-traces.py" "\$traces"

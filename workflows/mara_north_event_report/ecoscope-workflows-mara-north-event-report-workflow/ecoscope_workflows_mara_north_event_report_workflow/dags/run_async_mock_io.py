@@ -200,7 +200,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     create_geojson_layer as create_geojson_layer,
 )
 from ecoscope_workflows_ext_custom.tasks.spatial_ops import (
-    create_patrol_coverage_grid as create_patrol_coverage_grid_1,
+    create_patrol_coverage_grid as create_patrol_coverage_grid,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     exclude_row_values as exclude_row_values,
@@ -455,7 +455,8 @@ def main(params: Params):
         "elephant_obs_summary": ["map_ele_column_values"],
         "include_elephant_totals": ["elephant_obs_summary"],
         "persist_ele_df": ["include_elephant_totals"],
-        "apply_ele_events_colormap": ["map_ele_column_values"],
+        "replace_elephant_herds": ["map_ele_column_values"],
+        "apply_ele_events_colormap": ["replace_elephant_herds"],
         "generate_elephant_layers": ["apply_ele_events_colormap"],
         "combine_custom_ele": [
             "create_conservancy_boundaries",
@@ -3549,7 +3550,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -3869,7 +3870,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -4171,7 +4172,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -5104,6 +5105,31 @@ def main(params: Params):
             | (params_dict.get("persist_ele_df") or {}),
             method="call",
         ),
+        "replace_elephant_herds": Node(
+            async_task=replace_empty_strings_in_columns.validate()
+            .set_task_instance_id("replace_elephant_herds")
+            .handle_errors()
+            .with_tracing()
+            .skipif(
+                conditions=[
+                    any_is_empty_df,
+                    any_dependency_skipped,
+                ],
+                unpack_depth=1,
+            )
+            .set_executor("lithops"),
+            partial={
+                "df": DependsOn("map_ele_column_values"),
+                "columns": [
+                    "herd_composition",
+                ],
+                "replacement": "Unspecified",
+                "strip_whitespace": True,
+                "missing": "ignore",
+            }
+            | (params_dict.get("replace_elephant_herds") or {}),
+            method="call",
+        ),
         "apply_ele_events_colormap": Node(
             async_task=apply_color_map.validate()
             .set_task_instance_id("apply_ele_events_colormap")
@@ -5121,7 +5147,7 @@ def main(params: Params):
                 "input_column_name": "herd_composition",
                 "output_column_name": "colors",
                 "colormap": "Set3",
-                "df": DependsOn("map_ele_column_values"),
+                "df": DependsOn("replace_elephant_herds"),
             }
             | (params_dict.get("apply_ele_events_colormap") or {}),
             method="call",
@@ -5148,7 +5174,7 @@ def main(params: Params):
                     "stroked": True,
                 },
                 "legend": {
-                    "title": "Herd Types",
+                    "title": "Elephant Herd Types",
                     "label_column": "herd_composition",
                     "color_column": "colors",
                     "sort": "ascending",
@@ -5250,7 +5276,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -5585,7 +5611,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -5924,7 +5950,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -6259,7 +6285,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -6479,7 +6505,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -6878,7 +6904,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -7276,7 +7302,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -7674,7 +7700,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -7844,7 +7870,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -8014,7 +8040,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -8399,7 +8425,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -9532,7 +9558,7 @@ def main(params: Params):
             method="call",
         ),
         "foot_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid_1.validate()
+            async_task=create_patrol_coverage_grid.validate()
             .set_task_instance_id("foot_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -9740,7 +9766,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -9842,7 +9868,7 @@ def main(params: Params):
             method="call",
         ),
         "vehicle_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid_1.validate()
+            async_task=create_patrol_coverage_grid.validate()
             .set_task_instance_id("vehicle_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -10050,7 +10076,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -10152,7 +10178,7 @@ def main(params: Params):
             method="call",
         ),
         "motor_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid_1.validate()
+            async_task=create_patrol_coverage_grid.validate()
             .set_task_instance_id("motor_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -10360,7 +10386,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
@@ -10563,7 +10589,7 @@ def main(params: Params):
             method="call",
         ),
         "patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid_1.validate()
+            async_task=create_patrol_coverage_grid.validate()
             .set_task_instance_id("patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -10835,7 +10861,7 @@ def main(params: Params):
                 "config": {
                     "full_page": False,
                     "device_scale_factor": 2.0,
-                    "wait_for_timeout": 40000,
+                    "wait_for_timeout": 100,
                     "max_concurrent_pages": 1,
                 },
             }
