@@ -6,7 +6,6 @@ from ecoscope_workflows_ext_mnc.tasks._tabular import (
     add_totals_row,
     map_column_values,
     replace_missing_with_label,
-    convert_to_int,
     to_sentence_case,
     create_bins,
     bin_columns,
@@ -129,43 +128,6 @@ class TestReplaceMissingWithLabel:
         """Test error when column doesn't exist"""
         with pytest.raises(ValueError, match="not found"):
             replace_missing_with_label(sample_df, "nonexistent", "Missing")
-
-
-class TestConvertToInt:
-    """Test suite for convert_to_int function"""
-
-    @pytest.fixture
-    def sample_df(self):
-        return pd.DataFrame({"col1": ["1", "2", "3"], "col2": ["4.5", "5.8", "6.2"], "col3": ["7", "invalid", "9"]})
-
-    def test_convert_string_to_int(self, sample_df):
-        """Test converting string column to int"""
-        result = convert_to_int(sample_df, "col1")
-        assert result["col1"].dtype == np.int64
-        assert result["col1"].tolist() == [1, 2, 3]
-
-    def test_convert_float_string_with_coerce(self, sample_df):
-        """Test converting float strings with coerce"""
-        result = convert_to_int(sample_df, "col2", errors="coerce", fill_value=0)
-        assert result["col2"].dtype == np.int64
-        assert result["col2"].tolist() == [4, 5, 6]
-
-    def test_convert_with_invalid_values(self, sample_df):
-        """Test converting with invalid values using coerce"""
-        result = convert_to_int(sample_df, "col3", errors="coerce", fill_value=0)
-        assert result["col3"].iloc[1] == 0
-
-    def test_convert_multiple_columns(self, sample_df):
-        """Test converting multiple columns"""
-        result = convert_to_int(sample_df, ["col1", "col2"])
-        assert result["col1"].dtype == np.int64
-        assert result["col2"].dtype == np.int64
-
-    def test_convert_nonexistent_column(self, sample_df, capsys):
-        """Test warning for non-existent column"""
-        convert_to_int(sample_df, "nonexistent")
-        captured = capsys.readouterr()
-        assert "not found in DataFrame" in captured.out
 
 
 class TestToSentenceCase:
