@@ -11,7 +11,7 @@ import json
 import os
 import warnings  # 🧪
 
-from ecoscope_workflows_core.graph import DependsOn, Graph, Node
+from ecoscope_workflows_core.graph import DependsOn, DependsOnSequence, Graph, Node
 from ecoscope_workflows_core.tasks.config import (
     set_workflow_details as set_workflow_details,
 )
@@ -200,7 +200,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     create_geojson_layer as create_geojson_layer,
 )
 from ecoscope_workflows_ext_custom.tasks.spatial_ops import (
-    create_patrol_coverage_grid as create_patrol_coverage_grid,
+    create_patrol_coverage_grid as create_patrol_coverage_grid_1,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     exclude_row_values as exclude_row_values,
@@ -807,8 +807,39 @@ def main(params: Params):
         "persist_occupancy_df": ["round_off_patrol"],
         "convert_grid_png": ["persist_grid_urls"],
         "fetch_mnc_template": [],
-        "generate_report": ["fetch_mnc_template", "time_range"],
-        "mnc_events_dashboard": ["workflow_details", "time_range", "groupers"],
+        "generate_report": [
+            "fetch_mnc_template",
+            "time_range",
+            "convert_chart_html_png",
+            "convert_mobile_boma_png",
+            "convert_livestock_png",
+            "convert_illegal_png",
+            "persist_tevents_df",
+            "persist_balloon_landing",
+            "persist_airstrip_operations",
+            "persist_airstrip_maintenance",
+            "convert_elephant_png",
+            "convert_elechart_png",
+            "convert_ele_herd_png",
+            "convert_buffalo_png",
+            "convert_buff_chart_png",
+            "convert_buff_herd_png",
+            "convert_rhino_png",
+            "convert_lion_png",
+            "convert_leopard_png",
+            "convert_cheetah_png",
+            "convert_giraffe_png",
+            "convert_hartebeest_png",
+            "convert_wildlife_png",
+            "convert_tevents_png",
+            "convert_foot_png",
+            "convert_vehicle_png",
+            "convert_motor_png",
+            "convert_grid_png",
+            "persist_total_df",
+            "persist_patrol_df",
+        ],
+        "mnc_events_dashboard": ["workflow_details", "time_range", "groupers", "generate_report"],
     }
 
     nodes = {
@@ -1693,7 +1724,7 @@ def main(params: Params):
             .set_executor("lithops"),
             partial={
                 "output_dir": os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-                "html_path": [
+                "html_path": DependsOnSequence([
                     DependsOn("persist_precipitation"),
                     DependsOn("persist_temperature"),
                     DependsOn("persist_wind_speed"),
@@ -1701,7 +1732,7 @@ def main(params: Params):
                     DependsOn("persist_soil_temp"),
                     DependsOn("persist_rel_humidity"),
                     DependsOn("persist_pressure"),
-                ],
+                ]),
                 "config": {
                     "width": 1280,
                     "height": 720,
@@ -1748,6 +1779,7 @@ def main(params: Params):
                 "include_updates": False,
                 "include_related_events": False,
                 "include_null_geometry": False,
+                                "event_types": [],
                 "include_display_values": False,
             }
             | (params_dict.get("get_events_data") or {}),
@@ -3473,11 +3505,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_mnc_styled_layers"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_mobile_layers"),
             }
             | (params_dict.get("combine_custom_mobile_boma") or {}),
@@ -3787,11 +3819,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_livestock_layers"),
             }
             | (params_dict.get("combine_custom_livestock") or {}),
@@ -4096,10 +4128,10 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_mnc_styled_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_illegal_layers"),
             }
             | (params_dict.get("combine_custom_illegal") or {}),
@@ -5199,11 +5231,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_elephant_layers"),
             }
             | (params_dict.get("combine_custom_ele") or {}),
@@ -5534,11 +5566,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_ele_herd_layers"),
             }
             | (params_dict.get("combine_ele_bins") or {}),
@@ -5873,11 +5905,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_buffalo_layers"),
             }
             | (params_dict.get("combine_custom_buff") or {}),
@@ -6208,11 +6240,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_buff_herd_layers"),
             }
             | (params_dict.get("combine_buff_bins") or {}),
@@ -6428,11 +6460,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_rhino_layers"),
             }
             | (params_dict.get("combine_custom_rhino") or {}),
@@ -6827,11 +6859,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_lion_layers"),
             }
             | (params_dict.get("combine_custom_lion") or {}),
@@ -7225,11 +7257,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_leopard_layers"),
             }
             | (params_dict.get("combine_custom_leopard") or {}),
@@ -7623,11 +7655,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_cheetah_layers"),
             }
             | (params_dict.get("combine_custom_cheetah") or {}),
@@ -7793,11 +7825,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_giraffe_layers"),
             }
             | (params_dict.get("combine_custom_giraffe") or {}),
@@ -7963,11 +7995,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_hartebeest_layers"),
             }
             | (params_dict.get("combine_custom_hartebeest") or {}),
@@ -8348,11 +8380,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_wildlife_layers"),
             }
             | (params_dict.get("combine_custom_wildlife") or {}),
@@ -9558,7 +9590,7 @@ def main(params: Params):
             method="call",
         ),
         "foot_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid.validate()
+            async_task=create_patrol_coverage_grid_1.validate()
             .set_task_instance_id("foot_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -9689,11 +9721,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_foot_grid_layers"),
             }
             | (params_dict.get("combine_foot_grid_layers") or {}),
@@ -9868,7 +9900,7 @@ def main(params: Params):
             method="call",
         ),
         "vehicle_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid.validate()
+            async_task=create_patrol_coverage_grid_1.validate()
             .set_task_instance_id("vehicle_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -9999,11 +10031,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_vehicle_grid_layers"),
             }
             | (params_dict.get("combine_vehicle_grid_layers") or {}),
@@ -10178,7 +10210,7 @@ def main(params: Params):
             method="call",
         ),
         "motor_patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid.validate()
+            async_task=create_patrol_coverage_grid_1.validate()
             .set_task_instance_id("motor_patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -10309,11 +10341,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_motor_grid_layers"),
             }
             | (params_dict.get("combine_motor_grid_layers") or {}),
@@ -10400,11 +10432,11 @@ def main(params: Params):
             .with_tracing()
             .set_executor("lithops"),
             partial={
-                "list_df": [
+                "list_df": DependsOnSequence([
                     DependsOn("foot_trajs"),
                     DependsOn("vehicle_trajs"),
                     DependsOn("motor_trajs"),
-                ],
+                ]),
                 "ignore_index": True,
                 "sort": False,
             }
@@ -10589,7 +10621,7 @@ def main(params: Params):
             method="call",
         ),
         "patrol_grid_visits": Node(
-            async_task=create_patrol_coverage_grid.validate()
+            async_task=create_patrol_coverage_grid_1.validate()
             .set_task_instance_id("patrol_grid_visits")
             .handle_errors()
             .with_tracing()
@@ -10720,11 +10752,11 @@ def main(params: Params):
             )
             .set_executor("lithops"),
             partial={
-                "static_layers": [
+                "static_layers": DependsOnSequence([
                     DependsOn("create_conservancy_boundaries"),
                     DependsOn("create_mnc_parcels_layers"),
                     DependsOn("conservancy_text_layer"),
-                ],
+                ]),
                 "grouped_layers": DependsOn("generate_grid_layers"),
             }
             | (params_dict.get("combine_grid_layers") or {}),
@@ -10897,6 +10929,36 @@ def main(params: Params):
                 "validate_images": True,
                 "time_period": DependsOn("time_range"),
                 "filename": "overall_report.docx",
+                "wait_for": DependsOnSequence([
+                    DependsOn("convert_chart_html_png"),
+                    DependsOn("convert_mobile_boma_png"),
+                    DependsOn("convert_livestock_png"),
+                    DependsOn("convert_illegal_png"),
+                    DependsOn("persist_tevents_df"),
+                    DependsOn("persist_balloon_landing"),
+                    DependsOn("persist_airstrip_operations"),
+                    DependsOn("persist_airstrip_maintenance"),
+                    DependsOn("convert_elephant_png"),
+                    DependsOn("convert_elechart_png"),
+                    DependsOn("convert_ele_herd_png"),
+                    DependsOn("convert_buffalo_png"),
+                    DependsOn("convert_buff_chart_png"),
+                    DependsOn("convert_buff_herd_png"),
+                    DependsOn("convert_rhino_png"),
+                    DependsOn("convert_lion_png"),
+                    DependsOn("convert_leopard_png"),
+                    DependsOn("convert_cheetah_png"),
+                    DependsOn("convert_giraffe_png"),
+                    DependsOn("convert_hartebeest_png"),
+                    DependsOn("convert_wildlife_png"),
+                    DependsOn("convert_tevents_png"),
+                    DependsOn("convert_foot_png"),
+                    DependsOn("convert_vehicle_png"),
+                    DependsOn("convert_motor_png"),
+                    DependsOn("convert_grid_png"),
+                    DependsOn("persist_total_df"),
+                    DependsOn("persist_patrol_df"),
+                ]),
             }
             | (params_dict.get("generate_report") or {}),
             method="call",
@@ -10908,6 +10970,7 @@ def main(params: Params):
             .with_tracing()
             .set_executor("lithops"),
             partial={
+                                "widgets": [],
                 "details": DependsOn("workflow_details"),
                 "time_range": DependsOn("time_range"),
                 "groupers": DependsOn("groupers"),

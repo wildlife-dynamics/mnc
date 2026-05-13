@@ -4,6 +4,7 @@
 Usage: resource-sampler.py <results_dir> <command> [args...]
 If results_dir is empty, the command is run without monitoring.
 """
+
 import json
 import subprocess
 import sys
@@ -89,6 +90,7 @@ def main() -> int:
         if net_start is not None:
             try:
                 import psutil
+
                 net_end = psutil.net_io_counters()
                 out["net_bytes_recv"] = net_end.bytes_recv - net_start.bytes_recv
                 out["net_bytes_sent"] = net_end.bytes_sent - net_start.bytes_sent

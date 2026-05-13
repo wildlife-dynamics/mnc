@@ -93,14 +93,17 @@ cd "$workflow_dir"
 workflow_underscore=$(echo $workflow_name | tr '-' '_')
 
 # resource-sampler.py wraps the CLI to track peak memory, CPU, disk and network.
+# thread-executor.py replaces LithopsExecutor with a local ThreadPoolExecutor.
+# Set ECOSCOPE_EXECUTION_MODE=async to run independent task branches in parallel.
+# Set ECOSCOPE_MAX_WORKERS=N to control thread count (default: os.cpu_count()).
 # ECOSCOPE_LOG_LEVEL controls verbosity: INFO shows task execution order, DEBUG shows internals.
 # stdout+stderr are piped through tee so they appear in terminal AND are saved to workflow.log.
 # OTEL flags are always on: traces are written to otel_traces.jsonl in the results dir.
 export ECOSCOPE_LOG_LEVEL="${ECOSCOPE_LOG_LEVEL:-INFO}"
 pixi run --manifest-path $manifest_path -e default \
     python "${repo_root}/dev/resource-sampler.py" "$results_dir" \
-    python -u -m ecoscope_workflows_${workflow_underscore}_workflow.cli run \
-    --config-file "$params_file" --execution-mode sequential \
+    python -u "${repo_root}/dev/thread-executor.py" "ecoscope_workflows_${workflow_underscore}_workflow" run \
+    --config-file "$params_file" --execution-mode "${ECOSCOPE_EXECUTION_MODE:-sequential}" \
     --mock-io \
     --otel-exporter console --otel-console-exporter-dst file \
     2>&1 | tee "$log_file"

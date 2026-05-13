@@ -41,7 +41,7 @@ from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
 from ecoscope_workflows_ext_custom.tasks.spatial_ops import (
-    create_patrol_coverage_grid as create_patrol_coverage_grid,
+    create_patrol_coverage_grid as create_patrol_coverage_grid_1,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     coerce_columns_to_int as coerce_columns_to_int,
@@ -8485,7 +8485,7 @@ def main(params: Params):
     )
 
     foot_patrol_grid_visits = (
-        create_patrol_coverage_grid.validate()
+        create_patrol_coverage_grid_1.validate()
         .set_task_instance_id("foot_patrol_grid_visits")
         .handle_errors()
         .with_tracing()
@@ -8779,7 +8779,7 @@ def main(params: Params):
     )
 
     vehicle_patrol_grid_visits = (
-        create_patrol_coverage_grid.validate()
+        create_patrol_coverage_grid_1.validate()
         .set_task_instance_id("vehicle_patrol_grid_visits")
         .handle_errors()
         .with_tracing()
@@ -9073,7 +9073,7 @@ def main(params: Params):
     )
 
     motor_patrol_grid_visits = (
-        create_patrol_coverage_grid.validate()
+        create_patrol_coverage_grid_1.validate()
         .set_task_instance_id("motor_patrol_grid_visits")
         .handle_errors()
         .with_tracing()
@@ -9459,7 +9459,7 @@ def main(params: Params):
     )
 
     patrol_grid_visits = (
-        create_patrol_coverage_grid.validate()
+        create_patrol_coverage_grid_1.validate()
         .set_task_instance_id("patrol_grid_visits")
         .handle_errors()
         .with_tracing()
@@ -9754,6 +9754,36 @@ def main(params: Params):
             validate_images=True,
             time_period=time_range,
             filename="overall_report.docx",
+            wait_for=[
+                convert_chart_html_png,
+                convert_mobile_boma_png,
+                convert_livestock_png,
+                convert_illegal_png,
+                persist_tevents_df,
+                persist_balloon_landing,
+                persist_airstrip_operations,
+                persist_airstrip_maintenance,
+                convert_elephant_png,
+                convert_elechart_png,
+                convert_ele_herd_png,
+                convert_buffalo_png,
+                convert_buff_chart_png,
+                convert_buff_herd_png,
+                convert_rhino_png,
+                convert_lion_png,
+                convert_leopard_png,
+                convert_cheetah_png,
+                convert_giraffe_png,
+                convert_hartebeest_png,
+                convert_wildlife_png,
+                convert_tevents_png,
+                convert_foot_png,
+                convert_vehicle_png,
+                convert_motor_png,
+                convert_grid_png,
+                persist_total_df,
+                persist_patrol_df,
+            ],
             **(params_dict.get("generate_report") or {}),
         )
         .call()
