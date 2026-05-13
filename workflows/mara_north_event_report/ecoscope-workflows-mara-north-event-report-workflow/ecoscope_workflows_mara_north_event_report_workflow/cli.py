@@ -60,7 +60,7 @@ def cli() -> None:
     "--otel-exporter",
     type=click.Choice(["console", "gcp"]),
     required=False,
-    default=None,
+    default="console",
     help=(
         "OpenTelemetry exporter backend. Options: gcp (Google Cloud Trace), console (for testing/development). "
         "Leave unset to disable export of traces."
@@ -70,7 +70,7 @@ def cli() -> None:
     "--otel-console-exporter-dst",
     type=click.Choice(["stdout", "file"]),
     required=False,
-    default="stdout",
+    default="file",
     help=(
         "Destination for console exporter output. Options: stdout or file. "
         "If 'file' is chosen, the output file will be 'otel_traces.jsonl' in the "

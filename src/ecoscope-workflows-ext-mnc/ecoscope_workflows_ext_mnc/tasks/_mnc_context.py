@@ -9,6 +9,74 @@ from ecoscope_workflows_core.tasks.filter._filter import TimeRange
 from ecoscope_workflows_ext_custom.tasks.io._path_utils import remove_file_scheme
 
 
+def _read_csv_safe(csvs_found: dict, file_stem: str) -> Optional[pd.DataFrame]:
+    """Return a DataFrame for the given file stem, or None if missing/unreadable."""
+    if file_stem not in csvs_found:
+        return None
+    try:
+        return pd.read_csv(csvs_found[file_stem])
+    except Exception as e:
+        print(f"Warning: Could not read {file_stem}: {e}")
+        return None
+
+
+def _has_cols(df: Optional[pd.DataFrame], *cols: str) -> bool:
+    """True only if df is a non-empty DataFrame containing every named column."""
+    if df is None or df.empty:
+        return False
+    return all(c in df.columns for c in cols)
+
+
+def _safe_int(value, default: int = 0) -> int:
+    try:
+        if pd.isna(value):
+            return default
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _safe_float(value, default: float = 0.0, ndigits: int = 2) -> float:
+    try:
+        if pd.isna(value):
+            return default
+        return round(float(value), ndigits)
+    except (TypeError, ValueError):
+        return default
+
+
+def _last(df: pd.DataFrame, col: str):
+    """Last value in a column, or None if missing/empty."""
+    if not _has_cols(df, col):
+        return None
+    s = df[col].dropna()
+    return s.iloc[-1] if not s.empty else None
+
+
+def _total_row_value(df: pd.DataFrame, value_col: str, date_col: str = "date", total_label: str = "Total"):
+    """Value from the row where date_col == 'Total', or None."""
+    if not _has_cols(df, date_col, value_col):
+        return None
+    total_row = df[df[date_col] == total_label]
+    if total_row.empty:
+        return None
+    return total_row[value_col].iloc[0]
+
+
+def _normalize_cols(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
+    """
+    Case-insensitive rename. mapping is {desired_lowercase_name: desired_lowercase_name}.
+    Any column whose .lower() matches a key gets renamed to that key.
+    """
+    rename_map = {}
+    targets = {k.lower(): k for k in mapping}
+    for col in df.columns:
+        key = col.lower()
+        if key in targets:
+            rename_map[col] = targets[key]
+    return df.rename(columns=rename_map)
+
+
 @task
 def generate_mnc_report(
     template_path: str,
@@ -44,19 +112,15 @@ def generate_mnc_report(
         for f in files:
             p = Path(root) / f
             if p.suffix.lower() in IMAGE_EXTS:
-                var_name = p.stem
-                images_found[var_name] = str(p)
+                images_found[p.stem] = str(p)
             elif p.suffix.lower() == ".csv":
-                var_name = p.stem
-                csvs_found[var_name] = str(p)
+                csvs_found[p.stem] = str(p)
 
     print(f"Found {len(images_found)} images and {len(csvs_found)} CSV files")
-    # Load template
     tpl = DocxTemplate(template_path)
-
-    # Build context dictionary
     context = {}
 
+    # IMAGES
     weather_images = {
         "temperature_chart": "temperature_readings_over_time",
         "precipitation_chart": "precipitation_readings_over_time",
@@ -94,10 +158,8 @@ def generate_mnc_report(
         "hartebeest_events_sightings": "hartebeest_sightings_events",
     }
 
-    # Combine all image mappings
     all_image_mappings = {**weather_images, **patrol_images, **livestock_images, **wildlife_images}
 
-    # Add images to context
     for template_var, file_stem in all_image_mappings.items():
         if file_stem in images_found:
             img_path = images_found[file_stem]
@@ -111,6 +173,7 @@ def generate_mnc_report(
             if validate_images:
                 print(f"Warning: Image not found for {template_var} (expected: {file_stem})")
 
+    # TABLES (CSV -> list of dicts)
     table_mappings = {
         # Patrol effort tables
         "patrol_efforts": "overall_patrol_efforts",
@@ -138,259 +201,191 @@ def generate_mnc_report(
         "balloon_observations": "balloon_landing_summary_table",
         "airstrip_maintenance_observations": "airstrip_maintenance_summary_table",
     }
-    # Add tables to context
+
     for template_var, file_stem in table_mappings.items():
-        if file_stem in csvs_found:
-            csv_path = csvs_found[file_stem]
-            try:
-                df = pd.read_csv(csv_path)
-                df = df.fillna(0)
-                context[template_var] = df.to_dict(orient="records")
-            except Exception as e:
-                print(f"Warning: Could not load CSV {template_var}: {e}")
-                context[template_var] = []
-        else:
+        df = _read_csv_safe(csvs_found, file_stem)
+        if df is None:
             context[template_var] = []
             print(f"Info: CSV not found for {template_var} (expected: {file_stem})")
+            continue
+        try:
+            df = df.fillna(0)
+            context[template_var] = df.to_dict(orient="records")
+        except Exception as e:
+            print(f"Warning: Could not load CSV {template_var}: {e}")
+            context[template_var] = []
 
-    # ==========================
     # EXTRACT SPECIFIC VALUES FROM CSVs
-    # ==========================
+    # Patrol efforts (overall)
+    df = _read_csv_safe(csvs_found, "overall_patrol_efforts")
+    if df is not None and not df.empty:
+        if "no_of_patrols" in df.columns:
+            df["no_of_patrols"] = df["no_of_patrols"].fillna(0).astype(int)
+        if "distance_km" in df.columns:
+            df["distance_km"] = df["distance_km"].round(2)
+        if "duration_hrs" in df.columns:
+            df["duration_hrs"] = df["duration_hrs"].round(2)
+        context["patrol_efforts"] = df.to_dict(orient="records")
 
-    # Helper function to safely read CSV
-    def read_csv_safe(file_stem):
-        if file_stem in csvs_found:
-            try:
-                return pd.read_csv(csvs_found[file_stem])
-            except Exception as e:
-                print(f"Warning: Could not read {file_stem}: {e}")
-        return None
-
-    # Patrol efforts processing
-    patrol_efforts_df = read_csv_safe("overall_patrol_efforts")
-    if patrol_efforts_df is not None:
-        patrol_efforts_df["no_of_patrols"] = patrol_efforts_df["no_of_patrols"].fillna(0).astype(int)
-        patrol_efforts_df["distance_km"] = patrol_efforts_df["distance_km"].round(2)
-        patrol_efforts_df["duration_hrs"] = patrol_efforts_df["duration_hrs"].round(2)
-        context["patrol_efforts"] = patrol_efforts_df.to_dict(orient="records")
-
-    # Airstrip processing - overwrites the key from table_mappings
-    air_df = read_csv_safe("airstrip_operations_summary_table")
-    if air_df is not None:
-        air_df = air_df.rename(columns={"Arrival": "arrival", "Departure": "departure"})
-        air_df["arrival"] = air_df["arrival"].fillna(0).astype(int)
-        air_df["departure"] = air_df["departure"].fillna(0).astype(int)
+    # Airstrip operations
+    air_df = _read_csv_safe(csvs_found, "airstrip_operations_summary_table")
+    if air_df is not None and not air_df.empty:
+        # air_df = _normalize_cols(air_df, {"arrival": "arrival", "departure": "departure"})
+        air_df = _normalize_cols(
+            air_df,
+            {
+                "no_of_clients_Arrival": "arrival",
+                "no_of_clients_Departure": "departure",
+            },
+        )
+        if "arrival" in air_df.columns:
+            air_df["arrival"] = air_df["arrival"].fillna(0).astype(int)
+        if "departure" in air_df.columns:
+            air_df["departure"] = air_df["departure"].fillna(0).astype(int)
         context["airstrip_observations"] = air_df.to_dict(orient="records")
 
-    df = read_csv_safe("total_events_recorded_by_date")
-    if df is not None and "no_of_events" in df.columns:
-        context["total_events"] = int(df["no_of_events"].iloc[-1])
-    else:
-        context["total_events"] = 0
+    # Total events
+    df = _read_csv_safe(csvs_found, "total_events_recorded_by_date")
+    context["total_events"] = _safe_int(_last(df, "no_of_events")) if df is not None else 0
 
     # Foot patrol summary
-    df = read_csv_safe("foot_patrol_efforts")
-    if df is not None:
-        context["no_of_foot_patrols"] = int(df["no_of_patrols"].iloc[-1]) if "no_of_patrols" in df.columns else 0
-        context["total_foot_patrol_hours"] = (
-            round(float(df["duration_hrs"].iloc[-1]), 2) if "duration_hrs" in df.columns else 0.0
-        )
-        context["total_foot_patrol_distance"] = (
-            round(float(df["distance_km"].iloc[-1]), 2) if "distance_km" in df.columns else 0.0
-        )
-        context["average_foot_patrol_speed"] = (
-            round(float(df["average_speed"].iloc[-1]), 2) if "average_speed" in df.columns else 0.0
-        )
+    df = _read_csv_safe(csvs_found, "foot_patrol_efforts")
+    context["no_of_foot_patrols"] = _safe_int(_last(df, "no_of_patrols")) if df is not None else 0
+    context["total_foot_patrol_hours"] = _safe_float(_last(df, "duration_hrs")) if df is not None else 0.0
+    context["total_foot_patrol_distance"] = _safe_float(_last(df, "distance_km")) if df is not None else 0.0
+    context["average_foot_patrol_speed"] = _safe_float(_last(df, "average_speed")) if df is not None else 0.0
 
     # Vehicle patrol summary
-    df = read_csv_safe("vehicle_patrol_efforts")
-    if df is not None:
-        context["no_of_vehicle_patrols"] = int(df["no_of_patrols"].iloc[-1]) if "no_of_patrols" in df.columns else 0
-        context["total_vehicle_patrol_hours"] = (
-            round(float(df["duration_hrs"].iloc[-1]), 2) if "duration_hrs" in df.columns else 0.0
-        )
-        context["total_vehicle_patrol_distance"] = (
-            round(float(df["distance_km"].iloc[-1]), 2) if "distance_km" in df.columns else 0.0
-        )
-        context["average_vehicle_patrol_speed"] = (
-            round(float(df["average_speed"].iloc[-1]), 2) if "average_speed" in df.columns else 0.0
-        )
+    df = _read_csv_safe(csvs_found, "vehicle_patrol_efforts")
+    context["no_of_vehicle_patrols"] = _safe_int(_last(df, "no_of_patrols")) if df is not None else 0
+    context["total_vehicle_patrol_hours"] = _safe_float(_last(df, "duration_hrs")) if df is not None else 0.0
+    context["total_vehicle_patrol_distance"] = _safe_float(_last(df, "distance_km")) if df is not None else 0.0
+    context["average_vehicle_patrol_speed"] = _safe_float(_last(df, "average_speed")) if df is not None else 0.0
 
     # Motorbike patrol summary
-    df = read_csv_safe("motorbike_patrol_efforts")
-    if df is not None:
-        context["no_of_motor_patrols"] = int(df["no_of_patrols"].iloc[-1]) if "no_of_patrols" in df.columns else 0
-        context["total_motor_patrol_distance"] = (
-            round(float(df["distance_km"].iloc[-1]), 2) if "distance_km" in df.columns else 0.0
-        )
-        context["total_motor_patrol_hours"] = (
-            round(float(df["duration_hrs"].iloc[-1]), 2) if "duration_hrs" in df.columns else 0.0
-        )
-        context["average_motor_patrol_speed"] = (
-            round(float(df["average_speed"].iloc[-1]), 2) if "average_speed" in df.columns else 0.0
-        )
+    df = _read_csv_safe(csvs_found, "motorbike_patrol_efforts")
+    context["no_of_motor_patrols"] = _safe_int(_last(df, "no_of_patrols")) if df is not None else 0
+    context["total_motor_patrol_distance"] = _safe_float(_last(df, "distance_km")) if df is not None else 0.0
+    context["total_motor_patrol_hours"] = _safe_float(_last(df, "duration_hrs")) if df is not None else 0.0
+    context["average_motor_patrol_speed"] = _safe_float(_last(df, "average_speed")) if df is not None else 0.0
 
     # Patrol coverage - Mara North Conservancy percentage
-    df = read_csv_safe("patrol_coverage")
-    if df is not None and "conservancy_name" in df.columns and "occupancy_percentage" in df.columns:
+    context["mara_conservancy_percentage"] = 0.0
+    df = _read_csv_safe(csvs_found, "patrol_coverage")
+    if _has_cols(df, "conservancy_name", "occupancy_percentage"):
         mnc_row = df[df["conservancy_name"] == "Mara North Conservancy"]
-        context["mara_conservancy_percentage"] = (
-            round(float(mnc_row["occupancy_percentage"].iloc[0]), 2) if not mnc_row.empty else 0.0
-        )
-    else:
-        context["mara_conservancy_percentage"] = 0.0
+        if not mnc_row.empty:
+            context["mara_conservancy_percentage"] = _safe_float(mnc_row["occupancy_percentage"].iloc[0])
 
     # Patrol purpose percentages
-    df = read_csv_safe("patrol_purpose_summary")
-    if df is not None and "purpose" in df.columns and "no_of_patrols" in df.columns:
-        total_patrols = df["no_of_patrols"].iloc[-1]
-
-        night_row = df[df["purpose"] == "night"]
-        context["night_patrols_percent"] = (
-            float((night_row["no_of_patrols"].iloc[0] / total_patrols * 100))
-            if not night_row.empty and total_patrols > 0
-            else 0.0
-        )
-
-        routine_row = df[df["purpose"] == "routine"]
-        context["routine_patrols_percent"] = (
-            float((routine_row["no_of_patrols"].iloc[0] / total_patrols * 100))
-            if not routine_row.empty and total_patrols > 0
-            else 0.0
-        )
-
-        joint_row = df[df["purpose"] == "joint"]
-        context["joint_patrols_percent"] = (
-            float((joint_row["no_of_patrols"].iloc[0] / total_patrols * 100))
-            if not joint_row.empty and total_patrols > 0
-            else 0.0
-        )
-    else:
-        context["night_patrols_percent"] = 0.0
-        context["routine_patrols_percent"] = 0.0
-        context["joint_patrols_percent"] = 0.0
+    context["night_patrols_percent"] = 0.0
+    context["routine_patrols_percent"] = 0.0
+    context["joint_patrols_percent"] = 0.0
+    df = _read_csv_safe(csvs_found, "patrol_purpose_summary")
+    if _has_cols(df, "purpose", "no_of_patrols"):
+        total_patrols = _safe_float(_last(df, "no_of_patrols"), default=0.0, ndigits=4)
+        if total_patrols > 0:
+            for key, label in (
+                ("night_patrols_percent", "night"),
+                ("routine_patrols_percent", "routine"),
+                ("joint_patrols_percent", "joint"),
+            ):
+                row = df[df["purpose"] == label]
+                if not row.empty:
+                    context[key] = float(row["no_of_patrols"].iloc[0]) / total_patrols * 100
 
     # Boma movements
-    df = read_csv_safe("mobile_boma_movement_summary_table")
-    if df is not None and "date" in df.columns and "boma_events" in df.columns:
-        total_row = df[df["date"] == "Total"]
-        context["no_of_boma_movements"] = int(total_row["boma_events"].iloc[0]) if not total_row.empty else 0
-    else:
-        context["no_of_boma_movements"] = 0
+    df = _read_csv_safe(csvs_found, "mobile_boma_movement_summary_table")
+    context["no_of_boma_movements"] = _safe_int(_total_row_value(df, "boma_events")) if df is not None else 0
 
     # Livestock predation events
-    df = read_csv_safe("livestock_predation_summary_table")
-    if df is not None and "date" in df.columns:
-        total_events = int(df["total_livestock_affected"].count())
-        context["total_livestock_predation_events"] = total_events
-    else:
-        context["total_livestock_predation_events"] = 0
+    context["total_livestock_predation_events"] = 0
+    df = _read_csv_safe(csvs_found, "livestock_predation_summary_table")
+    if _has_cols(df, "date", "total_livestock_affected"):
+        context["total_livestock_predation_events"] = int(df["total_livestock_affected"].count())
 
     # Total wildlife incidents
-    df = read_csv_safe("wildlife_incidents_summary_table")
-    if df is not None and "event_type" in df.columns:
-        total_events = int(df["records"].sum())
-        context["total_wildlife_incidents"] = total_events
-    else:
-        context["total_wildlife_incidents"] = 0
+    context["total_wildlife_incidents"] = 0
+    df = _read_csv_safe(csvs_found, "wildlife_incidents_summary_table")
+    if _has_cols(df, "event_type", "records"):
+        try:
+            context["total_wildlife_incidents"] = int(df["records"].fillna(0).sum())
+        except Exception as e:
+            print(f"Warning: Could not sum wildlife incidents: {e}")
 
     # Elephant events
-    df = read_csv_safe("total_elephants_events_recorded")
-    if df is not None and "date" in df.columns and "no_of_events" in df.columns:
-        total_row = df[df["date"] == "Total"]
-        context["no_of_elephant_events"] = int(total_row["no_of_events"].iloc[0]) if not total_row.empty else 0
-    else:
-        context["no_of_elephant_events"] = 0
+    df = _read_csv_safe(csvs_found, "total_elephants_events_recorded")
+    context["no_of_elephant_events"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
 
     # Buffalo events
-    df = read_csv_safe("total_buffalo_events_recorded")
-    if df is not None and "date" in df.columns and "no_of_events" in df.columns:
-        total_row = df[df["date"] == "Total"]
-        context["no_of_buffalo_sightings"] = int(total_row["no_of_events"].iloc[0]) if not total_row.empty else 0
-    else:
-        context["no_of_buffalo_sightings"] = 0
+    df = _read_csv_safe(csvs_found, "total_buffalo_events_recorded")
+    context["no_of_buffalo_sightings"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
 
     # Rhino events
-    df = read_csv_safe("total_rhino_events_recorded")
-    if df is not None and "date" in df.columns and "no_of_events" in df.columns:
-        total_row = df[df["date"] == "Total"]
-        context["no_of_rhino_events"] = int(total_row["no_of_events"].iloc[0]) if not total_row.empty else 0
-    else:
-        context["no_of_rhino_events"] = 0
+    df = _read_csv_safe(csvs_found, "total_rhino_events_recorded")
+    context["no_of_rhino_events"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
 
-    # Lion events and top 3 prides
-    df = read_csv_safe("total_lion_events_recorded")
-    if df is not None and "date" in df.columns and "no_of_events" in df.columns:
-        total_row = df[df["date"] == "Total"]
-        context["no_of_lion_events"] = int(total_row["no_of_events"].iloc[0]) if not total_row.empty else 0
-    else:
-        context["no_of_lion_events"] = 0
+    # Lion events + top 3 prides
+    df = _read_csv_safe(csvs_found, "total_lion_events_recorded")
+    context["no_of_lion_events"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
 
-    df = read_csv_safe("individual_lions_summary")
-    if df is not None and "pride" in df.columns and "no_of_events" in df.columns:
-        top_prides = df.nlargest(3, "no_of_events")["pride"].tolist()
-        context["common_lion_prides"] = ", ".join(top_prides) if top_prides else "N/A"
-    else:
-        context["common_lion_prides"] = "N/A"
+    context["common_lion_prides"] = "N/A"
+    df = _read_csv_safe(csvs_found, "individual_lions_summary")
+    if _has_cols(df, "pride", "no_of_events"):
+        top_prides = df.nlargest(3, "no_of_events")["pride"].dropna().astype(str).tolist()
+        if top_prides:
+            context["common_lion_prides"] = ", ".join(top_prides)
 
-    # Leopard sightings and top 3 individuals
-    df = read_csv_safe("total_leopard_events_recorded")
-    if df is not None and "date" in df.columns and "no_of_events" in df.columns:
-        total_row = df[df["date"] == "Total"]
-        context["no_of_leopard_sightings"] = int(total_row["no_of_events"].iloc[0]) if not total_row.empty else 0
-    else:
-        context["no_of_leopard_sightings"] = 0
+    # Leopard sightings + top 3 individuals
+    df = _read_csv_safe(csvs_found, "total_leopard_events_recorded")
+    context["no_of_leopard_sightings"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
 
-    df = read_csv_safe("individual_leopard_summary")
-    if df is not None and "individuals_present" in df.columns and "no_of_events" in df.columns:
-        top_individuals = df.nlargest(3, "no_of_events")["individuals_present"].tolist()
-        context["common_leopard_individuals"] = ", ".join(top_individuals) if top_individuals else "N/A"
-    else:
-        context["common_leopard_individuals"] = "N/A"
+    context["common_leopard_individuals"] = "N/A"
+    df = _read_csv_safe(csvs_found, "individual_leopard_summary")
+    if _has_cols(df, "individuals_present", "no_of_events"):
+        top = df.nlargest(3, "no_of_events")["individuals_present"].dropna().astype(str).tolist()
+        if top:
+            context["common_leopard_individuals"] = ", ".join(top)
 
-    # Cheetah events and common individuals
-    df = read_csv_safe("total_cheetah_events_recorded")
-    if df is not None and "date" in df.columns and "no_of_events" in df.columns:
-        total_row = df[df["date"] == "Total"]
-        context["no_of_cheetah_events"] = int(total_row["no_of_events"].iloc[0]) if not total_row.empty else 0
-    else:
-        context["no_of_cheetah_events"] = 0
+    # Cheetah events + common individuals
+    df = _read_csv_safe(csvs_found, "total_cheetah_events_recorded")
+    context["no_of_cheetah_events"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
 
-    df = read_csv_safe("individual_cheetah_summary")
-    if df is not None and "individuals_present" in df.columns and "no_of_events" in df.columns:
-        df = df.sort_values(by="no_of_events", ascending=False)
-        top_individuals = df.nlargest(3, "no_of_events")["individuals_present"].tolist()
-        context["common_cheetah_individuals"] = ", ".join(top_individuals) if top_individuals else "N/A"
-    else:
-        context["common_cheetah_individuals"] = "N/A"
-    context["individual_cheetah_summary"] = df.to_dict(orient="records")
+    context["common_cheetah_individuals"] = "N/A"
+    context["individual_cheetah_summary"] = []
+    cheetah_df = _read_csv_safe(csvs_found, "individual_cheetah_summary")
+    if _has_cols(cheetah_df, "individuals_present", "no_of_events"):
+        cheetah_df = cheetah_df.sort_values(by="no_of_events", ascending=False)
+        top = cheetah_df.nlargest(3, "no_of_events")["individuals_present"].dropna().astype(str).tolist()
+        if top:
+            context["common_cheetah_individuals"] = ", ".join(top)
+        context["individual_cheetah_summary"] = cheetah_df.fillna(0).to_dict(orient="records")
+    elif cheetah_df is not None and not cheetah_df.empty:
+        context["individual_cheetah_summary"] = cheetah_df.fillna(0).to_dict(orient="records")
 
-    df = read_csv_safe("total_cattle_count_summary_table")
-    if df is not None and "date" in df.columns:
-        total_events = int(df["date"].count())
-        context["no_of_cow_events"] = total_events
-    else:
-        context["no_of_cow_events"] = 0
-
-    # ==========================
-    # METADATA
-    # ==========================
+    # Cattle / cow events
+    context["no_of_cow_events"] = 0
+    df = _read_csv_safe(csvs_found, "total_cattle_count_summary_table")
+    if _has_cols(df, "date"):
+        context["no_of_cow_events"] = int(df["date"].count())
 
     if generated_by:
         context["er_user"] = generated_by
 
     time_period_str = None
-    if time_period:
-        fmt = getattr(time_period, "time_format", "%Y-%m-%d")
-        time_period_str = f"{time_period.since.strftime(fmt)} to {time_period.until.strftime(fmt)}"
+    time_period_short = None
+    if time_period is not None:
+        try:
+            fmt = getattr(time_period, "time_format", "%Y-%m-%d")
+            time_period_str = f"{time_period.since.strftime(fmt)} to {time_period.until.strftime(fmt)}"
+            time_period_short = f"{time_period.since.date()} - {time_period.until.date()}"
+        except Exception as e:
+            print(f"Warning: Could not format time_period: {e}")
 
     context["time_range"] = time_period_str
-    context["time_period"] = f"{time_period.since.date()} - {time_period.until.date()}"
+    context["time_period"] = time_period_short
     context["generated_on"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    # ==========================
-    # RENDER AND SAVE
-    # ==========================
     output_filename = filename or f"Overall_Report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.docx"
     output_path = os.path.join(output_dir, output_filename)
     tpl.render(context)

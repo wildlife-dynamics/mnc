@@ -134,4 +134,4 @@ no-default-feature = true
 
 [tasks]
 docker-build = "docker buildx build -t ecoscope-workflows-livestock-monitoring-workflow ."
-ecoscope-workflows-livestock-monitoring-workflow = "python -m ecoscope_workflows_livestock_monitoring_workflow.cli"
+ecoscope-workflows-livestock-monitoring-workflow = "bash run-with-traces.sh"

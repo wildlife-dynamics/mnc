@@ -27,11 +27,11 @@ from ecoscope_workflows_core.tasks.transformation import filter_df as filter_df
 from ecoscope_workflows_core.tasks.transformation import map_columns as map_columns
 from ecoscope_workflows_ext_custom.tasks.io import html_to_png as html_to_png
 from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
-from ecoscope_workflows_ext_custom.tasks.results import (
-    create_geojson_layer as create_geojson_layer,
+from ecoscope_workflows_ext_custom.tasks.io import (
+    process_events_details as process_events_details,
 )
 from ecoscope_workflows_ext_custom.tasks.results import (
-    create_path_layer as create_path_layer,
+    create_geojson_layer as create_geojson_layer,
 )
 from ecoscope_workflows_ext_custom.tasks.results import (
     create_scatterplot_layer as create_scatterplot_layer,
@@ -40,14 +40,29 @@ from ecoscope_workflows_ext_custom.tasks.results import draw_map as draw_map
 from ecoscope_workflows_ext_custom.tasks.results import (
     set_base_maps_pydeck as set_base_maps_pydeck,
 )
+from ecoscope_workflows_ext_custom.tasks.spatial_ops import (
+    create_patrol_coverage_grid as create_patrol_coverage_grid,
+)
 from ecoscope_workflows_ext_custom.tasks.transformation import (
-    drop_null_geometry as drop_null_geometry,
+    coerce_columns_to_int as coerce_columns_to_int,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    drop_column_prefix as drop_column_prefix,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     exclude_row_values as exclude_row_values,
 )
 from ecoscope_workflows_ext_custom.tasks.transformation import (
     filter_row_values as filter_row_values,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    format_text_column as format_text_column,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    pivot_dataframe as pivot_dataframe,
+)
+from ecoscope_workflows_ext_custom.tasks.transformation import (
+    replace_empty_strings_in_columns as replace_empty_strings_in_columns,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.analysis import summarize_df as summarize_df
 from ecoscope_workflows_ext_ecoscope.tasks.io import get_events as get_events
@@ -74,6 +89,9 @@ from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     apply_color_map as apply_color_map,
 )
 from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
+    apply_reloc_coord_filter as apply_reloc_coord_filter,
+)
+from ecoscope_workflows_ext_ecoscope.tasks.transformation import (
     normalize_json_column as normalize_json_column,
 )
 from ecoscope_workflows_ext_mnc.tasks import add_totals_row as add_totals_row
@@ -84,24 +102,16 @@ from ecoscope_workflows_ext_mnc.tasks import (
     clean_dataframe_index as clean_dataframe_index,
 )
 from ecoscope_workflows_ext_mnc.tasks import compute_occupancy as compute_occupancy
-from ecoscope_workflows_ext_mnc.tasks import convert_to_int as convert_to_int
 from ecoscope_workflows_ext_mnc.tasks import (
     create_gdf_from_dict as create_gdf_from_dict,
-)
-from ecoscope_workflows_ext_mnc.tasks import (
-    create_patrol_coverage_grid as create_patrol_coverage_grid,
 )
 from ecoscope_workflows_ext_mnc.tasks import (
     custom_get_patrol_observations_from_patrols_df as custom_get_patrol_observations_from_patrols_df,
 )
 from ecoscope_workflows_ext_mnc.tasks import drop_null_values as drop_null_values
 from ecoscope_workflows_ext_mnc.tasks import (
-    exclude_geom_outliers as exclude_geom_outliers,
-)
-from ecoscope_workflows_ext_mnc.tasks import (
     explode_multiple_columns as explode_multiple_columns,
 )
-from ecoscope_workflows_ext_mnc.tasks import filter_columns as filter_columns
 from ecoscope_workflows_ext_mnc.tasks import (
     filter_non_empty_values as filter_non_empty_values,
 )
@@ -114,19 +124,12 @@ from ecoscope_workflows_ext_mnc.tasks import map_column_values as map_column_val
 from ecoscope_workflows_ext_mnc.tasks import map_name_values as map_name_values
 from ecoscope_workflows_ext_mnc.tasks import merge_dataframes as merge_dataframes
 from ecoscope_workflows_ext_mnc.tasks import merge_multiple_df as merge_multiple_df
-from ecoscope_workflows_ext_mnc.tasks import pivot_df as pivot_df
 from ecoscope_workflows_ext_mnc.tasks import (
     remove_brackets_from_column as remove_brackets_from_column,
 )
-from ecoscope_workflows_ext_mnc.tasks import remove_substring as remove_substring
-from ecoscope_workflows_ext_mnc.tasks import (
-    replace_missing_with_label as replace_missing_with_label,
-)
 from ecoscope_workflows_ext_mnc.tasks import round_values as round_values
-from ecoscope_workflows_ext_mnc.tasks import to_sentence_case as to_sentence_case
-from ecoscope_workflows_ext_mnc.tasks import transform_columns as transform_columns
 from ecoscope_workflows_ext_ste.tasks import (
-    annotate_gdf_dict_with_geom_type as annotate_gdf_dict_with_geom_type,
+    annotate_gdf_dict_with_geom_type as annotate_gdf_dict_with_geom_type_1,
 )
 from ecoscope_workflows_ext_ste.tasks import (
     combine_deckgl_map_layers as combine_deckgl_map_layers,
@@ -143,7 +146,7 @@ from ecoscope_workflows_ext_ste.tasks import (
 from ecoscope_workflows_ext_ste.tasks import (
     fetch_and_persist_file as fetch_and_persist_file,
 )
-from ecoscope_workflows_ext_ste.tasks import get_gdf_geom_type as get_gdf_geom_type
+from ecoscope_workflows_ext_ste.tasks import get_gdf_geom_type as get_gdf_geom_type_1
 from ecoscope_workflows_ext_ste.tasks import split_gdf_by_column as split_gdf_by_column
 from ecoscope_workflows_ext_ste.tasks import view_state_deck_gdf as view_state_deck_gdf
 
@@ -186,322 +189,6 @@ def main(params: Params):
         .handle_errors()
         .with_tracing()
         .partial(**(params_dict.get("er_client_name") or {}))
-        .call()
-    )
-
-    configure_base_maps = (
-        set_base_maps_pydeck.validate()
-        .set_task_instance_id("configure_base_maps")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            base_maps=[
-                {
-                    "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
-                    "opacity": 1,
-                    "max_zoom": 20,
-                }
-            ],
-            **(params_dict.get("configure_base_maps") or {}),
-        )
-        .call()
-    )
-
-    persist_mnc_tpt = (
-        fetch_and_persist_file.validate()
-        .set_task_instance_id("persist_mnc_tpt")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            url="https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=iuurvvfp&dl=0",
-            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            overwrite_existing=False,
-            retries=3,
-            unzip=False,
-            **(params_dict.get("persist_mnc_tpt") or {}),
-        )
-        .call()
-    )
-
-    persist_mnc_gpkg = (
-        fetch_and_persist_file.validate()
-        .set_task_instance_id("persist_mnc_gpkg")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            url="https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=gtdi4vv0&dl=0",
-            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            overwrite_existing=False,
-            retries=3,
-            unzip=False,
-            **(params_dict.get("persist_mnc_gpkg") or {}),
-        )
-        .call()
-    )
-
-    download_mnc_parcels = (
-        fetch_and_persist_file.validate()
-        .set_task_instance_id("download_mnc_parcels")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            url="https://www.dropbox.com/scl/fi/33rdzy896rh91gtkfs2j3/mnc_across_the_river_parcels.gpkg?rlkey=xima1v0rozc0h9h78esfogx6q&st=o3gkk5p1&dl=0",
-            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            overwrite_existing=False,
-            retries=3,
-            unzip=False,
-            **(params_dict.get("download_mnc_parcels") or {}),
-        )
-        .call()
-    )
-
-    load_comm_shp = (
-        load_df.validate()
-        .set_task_instance_id("load_comm_shp")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            file_path=persist_mnc_gpkg,
-            layer=None,
-            deserialize_json=False,
-            **(params_dict.get("load_comm_shp") or {}),
-        )
-        .call()
-    )
-
-    split_gdf_by_zone = (
-        split_gdf_by_column.validate()
-        .set_task_instance_id("split_gdf_by_zone")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            gdf=load_comm_shp,
-            column="grazing_zone",
-            **(params_dict.get("split_gdf_by_zone") or {}),
-        )
-        .call()
-    )
-
-    annotate_comm_gdf_dict = (
-        annotate_gdf_dict_with_geom_type.validate()
-        .set_task_instance_id("annotate_comm_gdf_dict")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            gdf_dict=split_gdf_by_zone,
-            **(params_dict.get("annotate_comm_gdf_dict") or {}),
-        )
-        .call()
-    )
-
-    create_mnc_styled_layers = (
-        create_deckgl_layers_from_gdf_dict.validate()
-        .set_task_instance_id("create_mnc_styled_layers")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            gdf_dict=annotate_comm_gdf_dict,
-            styles={
-                "Conservancy": {
-                    "extruded": False,
-                    "get_fill_color": [169, 169, 169],
-                    "get_line_color": [169, 169, 169],
-                    "get_line_width": 4.0,
-                    "stroked": True,
-                    "filled": False,
-                    "opacity": 0.95,
-                },
-                "Conservancy Herd Zone": {
-                    "extruded": False,
-                    "get_fill_color": [173, 255, 47],
-                    "get_line_color": [173, 255, 47],
-                    "get_line_width": 1.95,
-                    "stroked": True,
-                    "filled": True,
-                    "opacity": 0.15,
-                },
-                "Grazing Zone 1": {
-                    "extruded": False,
-                    "get_fill_color": [85, 107, 47],
-                    "get_line_color": [85, 107, 47],
-                    "get_line_width": 1.95,
-                    "stroked": True,
-                    "filled": True,
-                    "opacity": 0.15,
-                },
-                "Grazing Zone 2": {
-                    "extruded": False,
-                    "get_fill_color": [0, 139, 139],
-                    "get_line_color": [0, 139, 139],
-                    "get_line_width": 1.95,
-                    "stroked": True,
-                    "filled": True,
-                    "opacity": 0.15,
-                },
-                "Grazing Zone 3": {
-                    "extruded": False,
-                    "get_fill_color": [0, 100, 0],
-                    "get_line_color": [0, 100, 0],
-                    "get_line_width": 1.95,
-                    "stroked": True,
-                    "filled": True,
-                    "opacity": 0.15,
-                },
-                "Grazing Zone 4": {
-                    "extruded": False,
-                    "get_fill_color": [143, 188, 139],
-                    "get_line_color": [143, 188, 139],
-                    "get_line_width": 1.95,
-                    "stroked": True,
-                    "filled": True,
-                    "opacity": 0.15,
-                },
-            },
-            legends={
-                "title": "Legend",
-                "values": [
-                    {"label": "Conservancy", "color": "#a9a9a9"},
-                    {"label": "Conservancy Herd Zone", "color": "#adff2f"},
-                    {"label": "Grazing Zone 1", "color": "#556b2f"},
-                    {"label": "Grazing Zone 2", "color": "#008b8b"},
-                    {"label": "Grazing Zone 3", "color": "#006400"},
-                    {"label": "Grazing Zone 4", "color": "#8fbc8b"},
-                ],
-            },
-            **(params_dict.get("create_mnc_styled_layers") or {}),
-        )
-        .call()
-    )
-
-    create_conservancy_boundaries = (
-        create_deckgl_layers_from_gdf_dict.validate()
-        .set_task_instance_id("create_conservancy_boundaries")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            gdf_dict=annotate_comm_gdf_dict,
-            styles={
-                "Conservancy": {
-                    "extruded": False,
-                    "get_fill_color": [169, 169, 169],
-                    "get_line_color": [169, 169, 169],
-                    "get_line_width": 4.0,
-                    "stroked": True,
-                    "filled": False,
-                    "opacity": 0.95,
-                }
-            },
-            legends={
-                "title": "Legend",
-                "values": [{"label": "Boundaries", "color": "#a9a9a9"}],
-            },
-            **(params_dict.get("create_conservancy_boundaries") or {}),
-        )
-        .call()
-    )
-
-    conservancy_gdf = (
-        create_gdf_from_dict.validate()
-        .set_task_instance_id("conservancy_gdf")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            gdf_dict=split_gdf_by_zone,
-            key="Conservancy",
-            **(params_dict.get("conservancy_gdf") or {}),
-        )
-        .call()
-    )
-
-    overall_grazing_zones = (
-        filter_df.validate()
-        .set_task_instance_id("overall_grazing_zones")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            column_name="grazing_zone",
-            op="ne",
-            value="Conservancy",
-            df=load_comm_shp,
-            reset_index=False,
-            **(params_dict.get("overall_grazing_zones") or {}),
-        )
-        .call()
-    )
-
-    conservancy_text_layer = (
-        create_custom_text_layer.validate()
-        .set_task_instance_id("conservancy_text_layer")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            geodataframe=conservancy_gdf,
-            layer_style={
-                "get_text": "name",
-                "get_color": [0, 0, 0, 255],
-                "get_size": 1500,
-                "size_units": "meters",
-                "size_min_pixels": 70,
-                "size_max_pixels": 100,
-                "size_scale": 2.25,
-                "font_family": "Calibri",
-                "font_weight": "700",
-                "get_text_anchor": "middle",
-                "get_alignment_baseline": "center",
-                "billboard": True,
-                "background_padding": [4, 8],
-                "pickable": True,
-                "auto_highlight": False,
-            },
-            use_centroid=True,
-            legend=None,
-            **(params_dict.get("conservancy_text_layer") or {}),
-        )
-        .call()
-    )
-
-    load_mnc_parcels = (
-        load_df.validate()
-        .set_task_instance_id("load_mnc_parcels")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            file_path=download_mnc_parcels,
-            layer=None,
-            deserialize_json=False,
-            **(params_dict.get("load_mnc_parcels") or {}),
-        )
-        .call()
-    )
-
-    assign_mnc_geom = (
-        get_gdf_geom_type.validate()
-        .set_task_instance_id("assign_mnc_geom")
-        .handle_errors()
-        .with_tracing()
-        .partial(gdf=load_mnc_parcels, **(params_dict.get("assign_mnc_geom") or {}))
-        .call()
-    )
-
-    create_mnc_parcels_layers = (
-        create_deckgl_layer_from_gdf.validate()
-        .set_task_instance_id("create_mnc_parcels_layers")
-        .handle_errors()
-        .with_tracing()
-        .partial(
-            gdf=assign_mnc_geom,
-            style={
-                "extruded": False,
-                "get_fill_color": [189, 183, 107],
-                "get_line_color": [189, 183, 107],
-                "get_line_width": 1.95,
-                "stroked": True,
-                "filled": True,
-                "opacity": 0.15,
-            },
-            legend={"title": "", "values": [{"label": "Parcels", "color": "#bdb76b"}]},
-            **(params_dict.get("create_mnc_parcels_layers") or {}),
-        )
         .call()
     )
 
@@ -691,9 +378,9 @@ def main(params: Params):
         .call()
     )
 
-    extract_date = (
+    extract_obs_date = (
         extract_column_as_type.validate()
-        .set_task_instance_id("extract_date")
+        .set_task_instance_id("extract_obs_date")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -708,7 +395,7 @@ def main(params: Params):
             column_name="fixtime",
             output_type="date",
             output_column_name="date",
-            **(params_dict.get("extract_date") or {}),
+            **(params_dict.get("extract_obs_date") or {}),
         )
         .call()
     )
@@ -727,7 +414,7 @@ def main(params: Params):
         )
         .partial(
             raise_if_not_found=True,
-            df=extract_date,
+            df=extract_obs_date,
             drop_columns=[],
             retain_columns=[],
             rename_columns={"extra__subject__name": "weather_station"},
@@ -1283,6 +970,43 @@ def main(params: Params):
         .call()
     )
 
+    convert_chart_html_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_chart_html_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=[
+                persist_precipitation,
+                persist_temperature,
+                persist_wind_speed,
+                persist_wind_gusts,
+                persist_soil_temp,
+                persist_rel_humidity,
+                persist_pressure,
+            ],
+            config={
+                "width": 1280,
+                "height": 720,
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 2,
+                "timeout": 0,
+                "max_concurrent_pages": 10,
+            },
+            **(params_dict.get("convert_chart_html_png") or {}),
+        )
+        .call()
+    )
+
     get_events_data = (
         get_events.validate()
         .set_task_instance_id("get_events_data")
@@ -1322,6 +1046,28 @@ def main(params: Params):
         .call()
     )
 
+    filter_mnc_aois = (
+        apply_reloc_coord_filter.validate()
+        .set_task_instance_id("filter_mnc_aois")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            df=get_events_data,
+            bounding_box={
+                "min_y": -1.47207297799997,
+                "max_y": -1.04360818399994,
+                "min_x": 34.9973709710001,
+                "max_x": 35.4212162050001,
+            },
+            filter_point_coords=None,
+            roi_gdf=None,
+            roi_name=None,
+            reset_index=True,
+            **(params_dict.get("filter_mnc_aois") or {}),
+        )
+        .call()
+    )
+
     extract_event_date = (
         extract_column_as_type.validate()
         .set_task_instance_id("extract_event_date")
@@ -1335,7 +1081,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            df=get_events_data,
+            df=filter_mnc_aois,
             column_name="time",
             output_type="date",
             output_column_name="date",
@@ -1367,6 +1113,6298 @@ def main(params: Params):
         .call()
     )
 
+    filter_balloon_events = (
+        filter_df.validate()
+        .set_task_instance_id("filter_balloon_events")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="balloon_landing",
+            df=events_temporal,
+            reset_index=False,
+            **(params_dict.get("filter_balloon_events") or {}),
+        )
+        .call()
+    )
+
+    filter_airstrip_operations = (
+        filter_df.validate()
+        .set_task_instance_id("filter_airstrip_operations")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="airstrip_operations",
+            df=events_temporal,
+            reset_index=False,
+            **(params_dict.get("filter_airstrip_operations") or {}),
+        )
+        .call()
+    )
+
+    filter_airstrip_maintenance = (
+        filter_df.validate()
+        .set_task_instance_id("filter_airstrip_maintenance")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="airstrip_maintenance",
+            df=events_temporal,
+            reset_index=False,
+            **(params_dict.get("filter_airstrip_maintenance") or {}),
+        )
+        .call()
+    )
+
+    filter_airline_complaints = (
+        filter_df.validate()
+        .set_task_instance_id("filter_airline_complaints")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column_name="event_type",
+            op="equal",
+            value="airline_complaint",
+            df=events_temporal,
+            reset_index=False,
+            **(params_dict.get("filter_airline_complaints") or {}),
+        )
+        .call()
+    )
+
+    process_balloon_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_balloon_details")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            df=filter_balloon_events,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_balloon_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_balloon_values = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_balloon_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=process_balloon_details,
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_balloon_values") or {}),
+        )
+        .call()
+    )
+
+    drop_balloon_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_balloon_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_balloon_values,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_balloon_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_airstrip_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_airstrip_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_airstrip_operations,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_airstrip_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_airstrip_op_values = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_airstrip_op_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=process_airstrip_details,
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_airstrip_op_values") or {}),
+        )
+        .call()
+    )
+
+    drop_airstrip_op_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_airstrip_op_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_airstrip_op_values,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_airstrip_op_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_airstrip_maint_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_airstrip_maint_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_airstrip_maintenance,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_airstrip_maint_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_airstrip_maint_vals = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_airstrip_maint_vals")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=process_airstrip_maint_details,
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_airstrip_maint_vals") or {}),
+        )
+        .call()
+    )
+
+    drop_airstrip_maintenance_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_airstrip_maintenance_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_airstrip_maint_vals,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_airstrip_maintenance_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_airline_comp_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_airline_comp_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_airline_complaints,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_airline_comp_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_airline_comp_vals = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_airline_comp_vals")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=process_airline_comp_details,
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_airline_comp_vals") or {}),
+        )
+        .call()
+    )
+
+    drop_airline_complaint_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_airline_complaint_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_airline_comp_vals,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_airline_complaint_prefix") or {}),
+        )
+        .call()
+    )
+
+    map_balloon_columns = (
+        map_columns.validate()
+        .set_task_instance_id("map_balloon_columns")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_balloon_prefix,
+            drop_columns=[],
+            retain_columns=[
+                "date",
+                "Balloon Company",
+                "Where are clients staying?",
+                "# of passengers",
+            ],
+            rename_columns={
+                "Balloon Company": "balloon_company",
+                "Where are clients staying?": "where_are_clients_staying",
+                "# of passengers": "no_of_passengers",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_balloon_columns") or {}),
+        )
+        .call()
+    )
+
+    remove_balloon_brackets = (
+        remove_brackets_from_column.validate()
+        .set_task_instance_id("remove_balloon_brackets")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_balloon_columns,
+            columns=["balloon_company", "where_are_clients_staying"],
+            **(params_dict.get("remove_balloon_brackets") or {}),
+        )
+        .call()
+    )
+
+    persist_balloon_landing = (
+        persist_df.validate()
+        .set_task_instance_id("persist_balloon_landing")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=remove_balloon_brackets,
+            filename="balloon_landing_summary_table",
+            **(params_dict.get("persist_balloon_landing") or {}),
+        )
+        .call()
+    )
+
+    map_airstrip_op_columns = (
+        map_columns.validate()
+        .set_task_instance_id("map_airstrip_op_columns")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_airstrip_op_prefix,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "Airline": "airline",
+                "Arrival or departure": "arrival_departure",
+                "Attendant": "attendant",
+                "Camp/Lodge": "camp_lodge",
+                "Number of clients": "no_of_clients",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_airstrip_op_columns") or {}),
+        )
+        .call()
+    )
+
+    remove_airstrip_op_brackets = (
+        remove_brackets_from_column.validate()
+        .set_task_instance_id("remove_airstrip_op_brackets")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_airstrip_op_columns,
+            columns=["airline", "arrival_departure", "attendant", "camp_lodge"],
+            **(params_dict.get("remove_airstrip_op_brackets") or {}),
+        )
+        .call()
+    )
+
+    replace_airstrip_op_nulls = (
+        replace_empty_strings_in_columns.validate()
+        .set_task_instance_id("replace_airstrip_op_nulls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=remove_airstrip_op_brackets,
+            columns=["camp_lodge"],
+            replacement="Other",
+            strip_whitespace=True,
+            missing="ignore",
+            **(params_dict.get("replace_airstrip_op_nulls") or {}),
+        )
+        .call()
+    )
+
+    convert_airstrip_op_ints = (
+        coerce_columns_to_int.validate()
+        .set_task_instance_id("convert_airstrip_op_ints")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_airstrip_op_nulls,
+            columns=["no_of_clients"],
+            errors="coerce",
+            fill_value=0,
+            missing="ignore",
+            nullable=True,
+            **(params_dict.get("convert_airstrip_op_ints") or {}),
+        )
+        .call()
+    )
+
+    capitalize_camp_lodge = (
+        format_text_column.validate()
+        .set_task_instance_id("capitalize_camp_lodge")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_airstrip_op_ints,
+            column="camp_lodge",
+            method="capitalize",
+            **(params_dict.get("capitalize_camp_lodge") or {}),
+        )
+        .call()
+    )
+
+    airstrip_op_summary_table = (
+        summarize_df.validate()
+        .set_task_instance_id("airstrip_op_summary_table")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=capitalize_camp_lodge,
+            groupby_cols=["camp_lodge", "arrival_departure"],
+            summary_params=[
+                {
+                    "display_name": "no_of_clients",
+                    "aggregator": "sum",
+                    "column": "no_of_clients",
+                    "decimal_places": 0,
+                }
+            ],
+            reset_index=True,
+            **(params_dict.get("airstrip_op_summary_table") or {}),
+        )
+        .call()
+    )
+
+    pivot_airstrip_ops = (
+        pivot_dataframe.validate()
+        .set_task_instance_id("pivot_airstrip_ops")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=airstrip_op_summary_table,
+            index="camp_lodge",
+            columns=["arrival_departure"],
+            values=["no_of_clients"],
+            fill_value=0,
+            **(params_dict.get("pivot_airstrip_ops") or {}),
+        )
+        .call()
+    )
+
+    convert_pivot_int = (
+        coerce_columns_to_int.validate()
+        .set_task_instance_id("convert_pivot_int")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=pivot_airstrip_ops,
+            columns=["arrival", "departure"],
+            errors="coerce",
+            fill_value=0,
+            missing="ignore",
+            nullable=True,
+            **(params_dict.get("convert_pivot_int") or {}),
+        )
+        .call()
+    )
+
+    persist_airstrip_operations = (
+        persist_df.validate()
+        .set_task_instance_id("persist_airstrip_operations")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=convert_pivot_int,
+            filename="airstrip_operations_summary_table",
+            **(params_dict.get("persist_airstrip_operations") or {}),
+        )
+        .call()
+    )
+
+    map_airstrip_maintenance = (
+        map_columns.validate()
+        .set_task_instance_id("map_airstrip_maintenance")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_airstrip_maintenance_prefix,
+            drop_columns=[],
+            retain_columns=["date", "Maintenance type"],
+            rename_columns={"Maintenance type": "maintenance_type"},
+            raise_if_not_found=False,
+            **(params_dict.get("map_airstrip_maintenance") or {}),
+        )
+        .call()
+    )
+
+    persist_airstrip_maintenance = (
+        persist_df.validate()
+        .set_task_instance_id("persist_airstrip_maintenance")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=map_airstrip_maintenance,
+            filename="airstrip_maintenance_summary_table",
+            **(params_dict.get("persist_airstrip_maintenance") or {}),
+        )
+        .call()
+    )
+
+    configure_base_maps = (
+        set_base_maps_pydeck.validate()
+        .set_task_instance_id("configure_base_maps")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            base_maps=[
+                {
+                    "url": "https://server.arcgisonline.com/arcgis/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}",
+                    "opacity": 0.8,
+                    "max_zoom": 20,
+                },
+                {
+                    "url": "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places_Alternate/MapServer/tile/{z}/{y}/{x}",
+                    "opacity": 0.35,
+                    "max_zoom": 20,
+                },
+            ],
+            **(params_dict.get("configure_base_maps") or {}),
+        )
+        .call()
+    )
+
+    persist_mnc_gpkg = (
+        fetch_and_persist_file.validate()
+        .set_task_instance_id("persist_mnc_gpkg")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            url="https://www.dropbox.com/scl/fi/14rcy4lkwp7xgewj3xf7k/mnc_conservancy.gpkg?rlkey=mtqo7ivxrnvjonm2z1zez6h6f&st=gtdi4vv0&dl=0",
+            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            overwrite_existing=False,
+            retries=2,
+            unzip=False,
+            **(params_dict.get("persist_mnc_gpkg") or {}),
+        )
+        .call()
+    )
+
+    download_mnc_parcels = (
+        fetch_and_persist_file.validate()
+        .set_task_instance_id("download_mnc_parcels")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            url="https://www.dropbox.com/scl/fi/33rdzy896rh91gtkfs2j3/mnc_across_the_river_parcels.gpkg?rlkey=xima1v0rozc0h9h78esfogx6q&st=o3gkk5p1&dl=0",
+            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            overwrite_existing=False,
+            retries=2,
+            unzip=False,
+            **(params_dict.get("download_mnc_parcels") or {}),
+        )
+        .call()
+    )
+
+    load_comm_shp = (
+        load_df.validate()
+        .set_task_instance_id("load_comm_shp")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            file_path=persist_mnc_gpkg,
+            layer=None,
+            deserialize_json=False,
+            **(params_dict.get("load_comm_shp") or {}),
+        )
+        .call()
+    )
+
+    split_gdf_by_zone = (
+        split_gdf_by_column.validate()
+        .set_task_instance_id("split_gdf_by_zone")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            gdf=load_comm_shp,
+            column="grazing_zone",
+            **(params_dict.get("split_gdf_by_zone") or {}),
+        )
+        .call()
+    )
+
+    annotate_comm_gdf_dict = (
+        annotate_gdf_dict_with_geom_type_1.validate()
+        .set_task_instance_id("annotate_comm_gdf_dict")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            gdf_dict=split_gdf_by_zone,
+            **(params_dict.get("annotate_comm_gdf_dict") or {}),
+        )
+        .call()
+    )
+
+    create_mnc_styled_layers = (
+        create_deckgl_layers_from_gdf_dict.validate()
+        .set_task_instance_id("create_mnc_styled_layers")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            gdf_dict=annotate_comm_gdf_dict,
+            styles={
+                "Conservancy": {
+                    "extruded": False,
+                    "get_fill_color": [119, 136, 153],
+                    "get_line_color": [119, 136, 153],
+                    "get_line_width": 1.55,
+                    "stroked": True,
+                    "filled": False,
+                    "opacity": 0.7,
+                },
+                "Conservancy Herd Zone": {
+                    "extruded": False,
+                    "get_fill_color": [173, 255, 47],
+                    "get_line_color": [173, 255, 47],
+                    "get_line_width": 1.25,
+                    "stroked": True,
+                    "filled": True,
+                    "opacity": 0.1,
+                },
+                "Grazing Zone 1": {
+                    "extruded": False,
+                    "get_fill_color": [85, 107, 47],
+                    "get_line_color": [85, 107, 47],
+                    "get_line_width": 1.25,
+                    "stroked": True,
+                    "filled": True,
+                    "opacity": 0.1,
+                },
+                "Grazing Zone 2": {
+                    "extruded": False,
+                    "get_fill_color": [0, 139, 139],
+                    "get_line_color": [0, 139, 139],
+                    "get_line_width": 1.25,
+                    "stroked": True,
+                    "filled": True,
+                    "opacity": 0.1,
+                },
+                "Grazing Zone 3": {
+                    "extruded": False,
+                    "get_fill_color": [0, 100, 0],
+                    "get_line_color": [0, 100, 0],
+                    "get_line_width": 1.25,
+                    "stroked": True,
+                    "filled": True,
+                    "opacity": 0.1,
+                },
+                "Grazing Zone 4": {
+                    "extruded": False,
+                    "get_fill_color": [143, 188, 139],
+                    "get_line_color": [143, 188, 139],
+                    "get_line_width": 1.25,
+                    "stroked": True,
+                    "filled": True,
+                    "opacity": 0.7,
+                },
+            },
+            legends={
+                "title": "Legend",
+                "values": [
+                    {"label": "Conservancy Boundaries", "color": "#778899"},
+                    {"label": "Conservancy Herd Zone", "color": "#adff2f"},
+                    {"label": "Grazing Zone 1", "color": "#556b2f"},
+                    {"label": "Grazing Zone 2", "color": "#008b8b"},
+                    {"label": "Grazing Zone 3", "color": "#006400"},
+                    {"label": "Grazing Zone 4", "color": "#8fbc8b"},
+                ],
+            },
+            **(params_dict.get("create_mnc_styled_layers") or {}),
+        )
+        .call()
+    )
+
+    create_conservancy_boundaries = (
+        create_deckgl_layers_from_gdf_dict.validate()
+        .set_task_instance_id("create_conservancy_boundaries")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            gdf_dict=annotate_comm_gdf_dict,
+            styles={
+                "Conservancy": {
+                    "extruded": False,
+                    "get_fill_color": [119, 136, 153],
+                    "get_line_color": [119, 136, 153],
+                    "get_line_width": 1.55,
+                    "stroked": True,
+                    "filled": False,
+                    "opacity": 0.7,
+                }
+            },
+            legends={
+                "title": "Legend",
+                "values": [{"label": "Conservancy Boundaries", "color": "#778899"}],
+            },
+            **(params_dict.get("create_conservancy_boundaries") or {}),
+        )
+        .call()
+    )
+
+    conservancy_gdf = (
+        create_gdf_from_dict.validate()
+        .set_task_instance_id("conservancy_gdf")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            gdf_dict=split_gdf_by_zone,
+            key="Conservancy",
+            **(params_dict.get("conservancy_gdf") or {}),
+        )
+        .call()
+    )
+
+    overall_grazing_zones = (
+        filter_df.validate()
+        .set_task_instance_id("overall_grazing_zones")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            column_name="grazing_zone",
+            op="ne",
+            value="Conservancy",
+            df=load_comm_shp,
+            reset_index=False,
+            **(params_dict.get("overall_grazing_zones") or {}),
+        )
+        .call()
+    )
+
+    conservancy_text_layer = (
+        create_custom_text_layer.validate()
+        .set_task_instance_id("conservancy_text_layer")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            geodataframe=conservancy_gdf,
+            layer_style={
+                "get_text": "name",
+                "get_color": [0, 0, 0, 255],
+                "get_size": 1500,
+                "size_units": "meters",
+                "size_min_pixels": 70,
+                "size_max_pixels": 100,
+                "size_scale": 2.25,
+                "font_family": "Calibri",
+                "font_weight": "normal",
+                "get_text_anchor": "middle",
+                "get_alignment_baseline": "center",
+                "billboard": True,
+                "background_padding": [4, 8],
+                "pickable": True,
+                "auto_highlight": False,
+            },
+            use_centroid=True,
+            legend=None,
+            **(params_dict.get("conservancy_text_layer") or {}),
+        )
+        .call()
+    )
+
+    load_mnc_parcels = (
+        load_df.validate()
+        .set_task_instance_id("load_mnc_parcels")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            file_path=download_mnc_parcels,
+            layer=None,
+            deserialize_json=False,
+            **(params_dict.get("load_mnc_parcels") or {}),
+        )
+        .call()
+    )
+
+    assign_mnc_geom = (
+        get_gdf_geom_type_1.validate()
+        .set_task_instance_id("assign_mnc_geom")
+        .handle_errors()
+        .with_tracing()
+        .partial(gdf=load_mnc_parcels, **(params_dict.get("assign_mnc_geom") or {}))
+        .call()
+    )
+
+    create_mnc_parcels_layers = (
+        create_deckgl_layer_from_gdf.validate()
+        .set_task_instance_id("create_mnc_parcels_layers")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            gdf=assign_mnc_geom,
+            style={
+                "extruded": False,
+                "get_fill_color": [189, 183, 107],
+                "get_line_color": [189, 183, 107],
+                "get_line_width": 1.55,
+                "stroked": True,
+                "filled": True,
+                "opacity": 0.15,
+            },
+            legend={"title": "", "values": [{"label": "Parcels", "color": "#bdb76b"}]},
+            **(params_dict.get("create_mnc_parcels_layers") or {}),
+        )
+        .call()
+    )
+
+    filter_mobile_boma = (
+        filter_df.validate()
+        .set_task_instance_id("filter_mobile_boma")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="mobile_boma_rep",
+            reset_index=True,
+            **(params_dict.get("filter_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    filter_livestock_predation = (
+        filter_df.validate()
+        .set_task_instance_id("filter_livestock_predation")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="livestock_predation_rep",
+            reset_index=True,
+            **(params_dict.get("filter_livestock_predation") or {}),
+        )
+        .call()
+    )
+
+    filter_cattle_counts = (
+        filter_df.validate()
+        .set_task_instance_id("filter_cattle_counts")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="cattle_count",
+            reset_index=True,
+            **(params_dict.get("filter_cattle_counts") or {}),
+        )
+        .call()
+    )
+
+    filter_illegal_grazing = (
+        filter_df.validate()
+        .set_task_instance_id("filter_illegal_grazing")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="illegal_grazing_rep",
+            reset_index=True,
+            **(params_dict.get("filter_illegal_grazing") or {}),
+        )
+        .call()
+    )
+
+    process_mobile_boma = (
+        process_events_details.validate()
+        .set_task_instance_id("process_mobile_boma")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_mobile_boma,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    normalize_mobile_boma = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_mobile_boma")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_mobile_boma,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    drop_mobile_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_mobile_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_mobile_boma,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_mobile_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_livestock_preds = (
+        process_events_details.validate()
+        .set_task_instance_id("process_livestock_preds")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_livestock_predation,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_livestock_preds") or {}),
+        )
+        .call()
+    )
+
+    normalize_livestock_preds = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_livestock_preds")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_livestock_preds,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_livestock_preds") or {}),
+        )
+        .call()
+    )
+
+    drop_predation_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_predation_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_livestock_preds,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_predation_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_cattle_counts = (
+        process_events_details.validate()
+        .set_task_instance_id("process_cattle_counts")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_cattle_counts,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_cattle_counts") or {}),
+        )
+        .call()
+    )
+
+    normalize_cattle_count = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_cattle_count")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_cattle_counts,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_cattle_count") or {}),
+        )
+        .call()
+    )
+
+    drop_cattle_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_cattle_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_cattle_count,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_cattle_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_illegal_grazing = (
+        process_events_details.validate()
+        .set_task_instance_id("process_illegal_grazing")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_illegal_grazing,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_illegal_grazing") or {}),
+        )
+        .call()
+    )
+
+    normalize_illegal_grazing = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_illegal_grazing")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_illegal_grazing,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_illegal_grazing") or {}),
+        )
+        .call()
+    )
+
+    drop_illegal_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_illegal_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_illegal_grazing,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_illegal_prefix") or {}),
+        )
+        .call()
+    )
+
+    map_mobile_boma = (
+        map_columns.validate()
+        .set_task_instance_id("map_mobile_boma")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_mobile_prefix,
+            drop_columns=[],
+            retain_columns=[
+                "id",
+                "date",
+                "event_type",
+                "geometry",
+                "Date of Relocation",
+                "Electric Boma Status",
+                "Mobile Boma Zone",
+                "Nature of the Site",
+                "Reason for relocation",
+            ],
+            rename_columns={},
+            raise_if_not_found=False,
+            **(params_dict.get("map_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    summarize_mobile_boma = (
+        summarize_df.validate()
+        .set_task_instance_id("summarize_mobile_boma")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_mobile_boma,
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "boma_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                    "decimal_places": 0,
+                }
+            ],
+            reset_index=True,
+            **(params_dict.get("summarize_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    add_mobile_summary_row = (
+        add_totals_row.validate()
+        .set_task_instance_id("add_mobile_summary_row")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=summarize_mobile_boma,
+            **(params_dict.get("add_mobile_summary_row") or {}),
+        )
+        .call()
+    )
+
+    persist_boma_summary = (
+        persist_df.validate()
+        .set_task_instance_id("persist_boma_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=add_mobile_summary_row,
+            filename="mobile_boma_movement_summary_table",
+            **(params_dict.get("persist_boma_summary") or {}),
+        )
+        .call()
+    )
+
+    generate_mobile_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_mobile_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": [0, 0, 128],
+                "get_line_color": [0, 0, 128],
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Boma Movements",
+                "values": [{"label": "Boma movement", "color": "#000080"}],
+                "sort": None,
+                "label_suffix": None,
+            },
+            data_url=None,
+            geodataframe=map_mobile_boma,
+            **(params_dict.get("generate_mobile_layers") or {}),
+        )
+        .call()
+    )
+
+    global_zoom_value = (
+        view_state_deck_gdf.validate()
+        .set_task_instance_id("global_zoom_value")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            pitch=0,
+            bearing=0,
+            gdf=overall_grazing_zones,
+            **(params_dict.get("global_zoom_value") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_mobile_boma = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_mobile_boma")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_mnc_styled_layers,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_mobile_layers,
+            **(params_dict.get("combine_custom_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    draw_mobile_boma = (
+        draw_map.validate()
+        .set_task_instance_id("draw_mobile_boma")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_mobile_boma,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_mobile_boma") or {}),
+        )
+        .call()
+    )
+
+    persist_mobile_boma_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_mobile_boma_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_mobile_boma,
+            filename="boma_movement_map.html",
+            **(params_dict.get("persist_mobile_boma_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_mobile_boma_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_mobile_boma_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_mobile_boma_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_mobile_boma_png") or {}),
+        )
+        .call()
+    )
+
+    map_cattle_count = (
+        map_columns.validate()
+        .set_task_instance_id("map_cattle_count")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_cattle_prefix,
+            drop_columns=[],
+            retain_columns=[
+                "date",
+                "# cattle in Zone 1 mobile boma",
+                "# cattle in Zone 2/3 mobile boma",
+                "# cattle in Zone 4",
+                "total_cattle_counted_from_all_zones",
+            ],
+            rename_columns={
+                "# cattle in Zone 1 mobile boma": "zone_1",
+                "# cattle in Zone 2/3 mobile boma": "zone_2_3",
+                "# cattle in Zone 4": "zone_4",
+                "total_cattle_counted_from_all_zones": "total_count",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_cattle_count") or {}),
+        )
+        .call()
+    )
+
+    persist_cattle_count = (
+        persist_df.validate()
+        .set_task_instance_id("persist_cattle_count")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=map_cattle_count,
+            filename="total_cattle_count_summary_table",
+            **(params_dict.get("persist_cattle_count") or {}),
+        )
+        .call()
+    )
+
+    map_livestock_predation = (
+        map_columns.validate()
+        .set_task_instance_id("map_livestock_predation")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_predation_prefix,
+            drop_columns=[],
+            retain_columns=[
+                "id",
+                "date",
+                "event_type",
+                "geometry",
+                "Livestock Species",
+                "Suspected Predator",
+                "Total livestock affected",
+            ],
+            rename_columns={},
+            raise_if_not_found=False,
+            **(params_dict.get("map_livestock_predation") or {}),
+        )
+        .call()
+    )
+
+    summarize_predation_events = (
+        summarize_df.validate()
+        .set_task_instance_id("summarize_predation_events")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_livestock_predation,
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "livestock_predation_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                    "decimal_places": 0,
+                }
+            ],
+            reset_index=True,
+            **(params_dict.get("summarize_predation_events") or {}),
+        )
+        .call()
+    )
+
+    add_predation_summary_row = (
+        add_totals_row.validate()
+        .set_task_instance_id("add_predation_summary_row")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=summarize_predation_events,
+            **(params_dict.get("add_predation_summary_row") or {}),
+        )
+        .call()
+    )
+
+    persist_predation_summary = (
+        persist_df.validate()
+        .set_task_instance_id("persist_predation_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=add_predation_summary_row,
+            filename="total_livestock_predation_summary_table",
+            **(params_dict.get("persist_predation_summary") or {}),
+        )
+        .call()
+    )
+
+    apply_livestock_colormap = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_livestock_colormap")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="Livestock Species",
+            output_column_name="colors",
+            colormap="Set3",
+            df=map_livestock_predation,
+            **(params_dict.get("apply_livestock_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_livestock_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_livestock_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Livestock Species",
+                "label_column": "Livestock Species",
+                "color_column": "colors",
+                "sort": "ascending",
+                "label_suffix": None,
+            },
+            data_url=None,
+            geodataframe=apply_livestock_colormap,
+            **(params_dict.get("generate_livestock_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_livestock = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_livestock")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_livestock_layers,
+            **(params_dict.get("combine_custom_livestock") or {}),
+        )
+        .call()
+    )
+
+    draw_livestock_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_livestock_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_livestock,
+            view_state={
+                "longitude": 35.2092935880001,
+                "latitude": -1.257840580999955,
+                "zoom": 9.75,
+                "pitch": 0,
+                "bearing": 0,
+            },
+            **(params_dict.get("draw_livestock_map") or {}),
+        )
+        .call()
+    )
+
+    persist_livestock_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_livestock_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_livestock_map,
+            filename="livestock_predation_events.html",
+            **(params_dict.get("persist_livestock_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_livestock_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_livestock_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_livestock_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_livestock_png") or {}),
+        )
+        .call()
+    )
+
+    map_livestock_summary = (
+        map_columns.validate()
+        .set_task_instance_id("map_livestock_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_livestock_predation,
+            drop_columns=[],
+            retain_columns=[
+                "date",
+                "Livestock Species",
+                "Suspected Predator",
+                "Total livestock affected",
+            ],
+            rename_columns={
+                "Livestock Species": "livestock_species",
+                "Suspected Predator": "suspected_predator",
+                "Total livestock affected": "total_livestock_affected",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_livestock_summary") or {}),
+        )
+        .call()
+    )
+
+    replace_livestock_nulls = (
+        replace_empty_strings_in_columns.validate()
+        .set_task_instance_id("replace_livestock_nulls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_livestock_summary,
+            columns=["suspected_predator", "livestock_species"],
+            replacement="Unknown",
+            strip_whitespace=True,
+            missing="ignore",
+            **(params_dict.get("replace_livestock_nulls") or {}),
+        )
+        .call()
+    )
+
+    map_livestock_unknown = (
+        map_column_values.validate()
+        .set_task_instance_id("map_livestock_unknown")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_livestock_nulls,
+            columns=["suspected_predator"],
+            value_map={"Other (specify in comments)": "Unknown"},
+            inplace=True,
+            **(params_dict.get("map_livestock_unknown") or {}),
+        )
+        .call()
+    )
+
+    convert_livestock_int = (
+        coerce_columns_to_int.validate()
+        .set_task_instance_id("convert_livestock_int")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_livestock_unknown,
+            columns=["total_livestock_affected"],
+            errors="coerce",
+            fill_value=0,
+            missing="ignore",
+            nullable=True,
+            **(params_dict.get("convert_livestock_int") or {}),
+        )
+        .call()
+    )
+
+    persist_livestock_summary = (
+        persist_df.validate()
+        .set_task_instance_id("persist_livestock_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="livestock_predation_summary_table",
+            df=convert_livestock_int,
+            **(params_dict.get("persist_livestock_summary") or {}),
+        )
+        .call()
+    )
+
+    map_illegal_grazing = (
+        map_columns.validate()
+        .set_task_instance_id("map_illegal_grazing")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_illegal_prefix,
+            drop_columns=[],
+            retain_columns=[
+                "date",
+                "event_type",
+                "geometry",
+                "Herd Zone",
+                "Landowner name",
+                "action taken",
+            ],
+            rename_columns={},
+            raise_if_not_found=False,
+            **(params_dict.get("map_illegal_grazing") or {}),
+        )
+        .call()
+    )
+
+    generate_illegal_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_illegal_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": [0, 0, 128],
+                "get_line_color": [0, 0, 128],
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Illegal grazing",
+                "values": [{"label": "Illegal grazing", "color": "#000080"}],
+                "sort": None,
+                "label_suffix": None,
+            },
+            data_url=None,
+            geodataframe=map_illegal_grazing,
+            **(params_dict.get("generate_illegal_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_illegal = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_illegal")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[create_mnc_styled_layers, conservancy_text_layer],
+            grouped_layers=generate_illegal_layers,
+            **(params_dict.get("combine_custom_illegal") or {}),
+        )
+        .call()
+    )
+
+    draw_illegal_grazing = (
+        draw_map.validate()
+        .set_task_instance_id("draw_illegal_grazing")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_illegal,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_illegal_grazing") or {}),
+        )
+        .call()
+    )
+
+    persist_illegal_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_illegal_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_illegal_grazing,
+            filename="illegal_grazing_map.html",
+            **(params_dict.get("persist_illegal_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_illegal_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_illegal_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_illegal_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_illegal_png") or {}),
+        )
+        .call()
+    )
+
+    filter_elephant_sighting = (
+        filter_df.validate()
+        .set_task_instance_id("filter_elephant_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="elephant_sighting_rep",
+            reset_index=True,
+            **(params_dict.get("filter_elephant_sighting") or {}),
+        )
+        .call()
+    )
+
+    filter_buffalo_sighting = (
+        filter_df.validate()
+        .set_task_instance_id("filter_buffalo_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="buffalo_sighting_rep",
+            reset_index=True,
+            **(params_dict.get("filter_buffalo_sighting") or {}),
+        )
+        .call()
+    )
+
+    filter_rhino_sighting = (
+        filter_df.validate()
+        .set_task_instance_id("filter_rhino_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="rhino_sighting_rep",
+            reset_index=True,
+            **(params_dict.get("filter_rhino_sighting") or {}),
+        )
+        .call()
+    )
+
+    filter_lion_sighting = (
+        filter_df.validate()
+        .set_task_instance_id("filter_lion_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="lion_sighting_rep",
+            reset_index=True,
+            **(params_dict.get("filter_lion_sighting") or {}),
+        )
+        .call()
+    )
+
+    filter_leopard_sighting = (
+        filter_df.validate()
+        .set_task_instance_id("filter_leopard_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="leopardsightingrep",
+            reset_index=True,
+            **(params_dict.get("filter_leopard_sighting") or {}),
+        )
+        .call()
+    )
+
+    filter_cheetah_sighting = (
+        filter_df.validate()
+        .set_task_instance_id("filter_cheetah_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="cheetah_sighting_rep",
+            reset_index=True,
+            **(params_dict.get("filter_cheetah_sighting") or {}),
+        )
+        .call()
+    )
+
+    filter_giraffe_sighting = (
+        filter_df.validate()
+        .set_task_instance_id("filter_giraffe_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="giraffe_sighting",
+            reset_index=True,
+            **(params_dict.get("filter_giraffe_sighting") or {}),
+        )
+        .call()
+    )
+
+    filter_hartebeest_sighting = (
+        filter_df.validate()
+        .set_task_instance_id("filter_hartebeest_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column_name="event_type",
+            op="equal",
+            value="hartebeest_sighting",
+            reset_index=True,
+            **(params_dict.get("filter_hartebeest_sighting") or {}),
+        )
+        .call()
+    )
+
+    filter_wildlife_incidents = (
+        filter_row_values.validate()
+        .set_task_instance_id("filter_wildlife_incidents")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=events_temporal,
+            column="event_type",
+            values=[
+                "snare_rep",
+                "fire_rep",
+                "wildlife_injury_rep",
+                "wildlife_treatment_rep",
+                "wildlife_carcass_rep",
+            ],
+            **(params_dict.get("filter_wildlife_incidents") or {}),
+        )
+        .call()
+    )
+
+    process_elephant_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_elephant_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_elephant_sighting,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_elephant_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_elephant_details = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_elephant_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_elephant_details,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_elephant_details") or {}),
+        )
+        .call()
+    )
+
+    drop_elephant_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_elephant_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_elephant_details,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_elephant_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_buffalo_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_buffalo_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_buffalo_sighting,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_buffalo_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_buffalo_details = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_buffalo_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_buffalo_details,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_buffalo_details") or {}),
+        )
+        .call()
+    )
+
+    drop_buffalo_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_buffalo_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_buffalo_details,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_buffalo_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_rhino_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_rhino_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_rhino_sighting,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_rhino_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_rhino_details = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_rhino_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_rhino_details,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_rhino_details") or {}),
+        )
+        .call()
+    )
+
+    drop_rhino_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_rhino_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_rhino_details,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_rhino_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_lion_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_lion_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_lion_sighting,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_lion_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_lion_details = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_lion_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_lion_details,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_lion_details") or {}),
+        )
+        .call()
+    )
+
+    drop_lion_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_lion_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_lion_details,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_lion_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_leopard_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_leopard_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_leopard_sighting,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_leopard_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_leopard_details = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_leopard_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_leopard_details,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_leopard_details") or {}),
+        )
+        .call()
+    )
+
+    drop_leopard_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_leopard_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_leopard_details,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_leopard_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_cheetah_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_cheetah_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_cheetah_sighting,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_cheetah_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_cheetah_details = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_cheetah_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_cheetah_details,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_cheetah_details") or {}),
+        )
+        .call()
+    )
+
+    drop_cheetah_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_cheetah_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_cheetah_details,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_cheetah_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_giraffe_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_giraffe_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_giraffe_sighting,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_giraffe_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_giraffe_details = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_giraffe_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_giraffe_details,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_giraffe_details") or {}),
+        )
+        .call()
+    )
+
+    drop_giraffe_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_giraffe_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_giraffe_details,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_giraffe_prefix") or {}),
+        )
+        .call()
+    )
+
+    process_hartebeest_details = (
+        process_events_details.validate()
+        .set_task_instance_id("process_hartebeest_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=filter_hartebeest_sighting,
+            client=er_client_name,
+            map_to_titles=True,
+            ordered=True,
+            **(params_dict.get("process_hartebeest_details") or {}),
+        )
+        .call()
+    )
+
+    normalize_hartebeest_details = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_hartebeest_details")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=process_hartebeest_details,
+            column="event_details",
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_hartebeest_details") or {}),
+        )
+        .call()
+    )
+
+    drop_hartebeest_prefix = (
+        drop_column_prefix.validate()
+        .set_task_instance_id("drop_hartebeest_prefix")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=normalize_hartebeest_details,
+            prefix="event_details__",
+            duplicate_strategy="keep_original",
+            **(params_dict.get("drop_hartebeest_prefix") or {}),
+        )
+        .call()
+    )
+
+    map_elephant_sighting = (
+        map_columns.validate()
+        .set_task_instance_id("map_elephant_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_elephant_prefix,
+            drop_columns=[
+                "index",
+                "time",
+                "event_category",
+                "reported_by",
+                "serial_number",
+                "Comments",
+            ],
+            retain_columns=[],
+            rename_columns={
+                "Female": "female",
+                "Herd Demographic": "herd_composition",
+                "Herd size": "herd_size",
+                "Male": "male",
+                "Subadult": "sub_adult",
+                "< 1 year": "underayear",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_elephant_sighting") or {}),
+        )
+        .call()
+    )
+
+    replace_elephant_unspecified = (
+        replace_empty_strings_in_columns.validate()
+        .set_task_instance_id("replace_elephant_unspecified")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_elephant_sighting,
+            columns=["herd_composition"],
+            replacement="Unspecified",
+            strip_whitespace=True,
+            missing="ignore",
+            **(params_dict.get("replace_elephant_unspecified") or {}),
+        )
+        .call()
+    )
+
+    convert_elephant_int = (
+        coerce_columns_to_int.validate()
+        .set_task_instance_id("convert_elephant_int")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_elephant_unspecified,
+            columns=["herd_size", "female", "male", "sub_adult", "underayear"],
+            errors="coerce",
+            fill_value=0,
+            missing="ignore",
+            nullable=True,
+            **(params_dict.get("convert_elephant_int") or {}),
+        )
+        .call()
+    )
+
+    map_ele_column_values = (
+        map_column_values.validate()
+        .set_task_instance_id("map_ele_column_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_elephant_int,
+            columns=["herd_composition"],
+            value_map={
+                "bachelor": "Bachelor",
+                "femalecalf": "Female/Calf",
+                "mixed": "Mixed",
+                "unspecified": "Unspecified",
+            },
+            inplace=True,
+            **(params_dict.get("map_ele_column_values") or {}),
+        )
+        .call()
+    )
+
+    elephant_obs_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("elephant_obs_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=map_ele_column_values,
+            **(params_dict.get("elephant_obs_summary") or {}),
+        )
+        .call()
+    )
+
+    include_elephant_totals = (
+        add_totals_row.validate()
+        .set_task_instance_id("include_elephant_totals")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=elephant_obs_summary,
+            **(params_dict.get("include_elephant_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_ele_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_ele_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="total_elephants_events_recorded",
+            df=include_elephant_totals,
+            **(params_dict.get("persist_ele_df") or {}),
+        )
+        .call()
+    )
+
+    replace_elephant_herds = (
+        replace_empty_strings_in_columns.validate()
+        .set_task_instance_id("replace_elephant_herds")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_ele_column_values,
+            columns=["herd_composition"],
+            replacement="Unspecified",
+            strip_whitespace=True,
+            missing="ignore",
+            **(params_dict.get("replace_elephant_herds") or {}),
+        )
+        .call()
+    )
+
+    apply_ele_events_colormap = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_ele_events_colormap")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="herd_composition",
+            output_column_name="colors",
+            colormap="Set3",
+            df=replace_elephant_herds,
+            **(params_dict.get("apply_ele_events_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_elephant_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_elephant_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Elephant Herd Types",
+                "label_column": "herd_composition",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            data_url=None,
+            geodataframe=apply_ele_events_colormap,
+            **(params_dict.get("generate_elephant_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_ele = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_ele")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_elephant_layers,
+            **(params_dict.get("combine_custom_ele") or {}),
+        )
+        .call()
+    )
+
+    draw_elephant_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_elephant_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_ele,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_elephant_map") or {}),
+        )
+        .call()
+    )
+
+    persist_elephant_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_elephant_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_elephant_map,
+            filename="elephant_sightings_events.html",
+            **(params_dict.get("persist_elephant_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_elephant_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_elephant_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_elephant_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_elephant_png") or {}),
+        )
+        .call()
+    )
+
+    bin_elephant_herd_col = (
+        bin_columns.validate()
+        .set_task_instance_id("bin_elephant_herd_col")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            columns=["herd_size"],
+            bins=7,
+            suffix="bins",
+            inplace=False,
+            df=map_ele_column_values,
+            **(params_dict.get("bin_elephant_herd_col") or {}),
+        )
+        .call()
+    )
+
+    cat_elephant_bins = (
+        categorize_bins.validate()
+        .set_task_instance_id("cat_elephant_bins")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=bin_elephant_herd_col,
+            col="herd_sizebins",
+            **(params_dict.get("cat_elephant_bins") or {}),
+        )
+        .call()
+    )
+
+    draw_elephant_herd_bar = (
+        draw_bar_chart.validate()
+        .set_task_instance_id("draw_elephant_herd_bar")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            dataframe=cat_elephant_bins,
+            category="herd_sizebins",
+            layout_kwargs={
+                "font_size": 20,
+                "font_color": "#222222",
+                "plot_bgcolor": "#f5f5f5",
+                "title_x": 0.5,
+                "xaxis": {"title": "Group size"},
+                "yaxis": {"title": "Number of records"},
+                "showlegend": False,
+                "bargap": 0.1,
+            },
+            bar_chart_configs=[
+                {
+                    "column": "id",
+                    "agg_func": "count",
+                    "label": "",
+                    "style": {"marker_color": "lightsteelblue"},
+                }
+            ],
+            **(params_dict.get("draw_elephant_herd_bar") or {}),
+        )
+        .call()
+    )
+
+    persist_elephant_bar = (
+        persist_text.validate()
+        .set_task_instance_id("persist_elephant_bar")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_elephant_herd_bar,
+            filename="elephant_herd_size_bar_chart.html",
+            **(params_dict.get("persist_elephant_bar") or {}),
+        )
+        .call()
+    )
+
+    convert_elechart_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_elechart_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_elephant_bar,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 10,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_elechart_png") or {}),
+        )
+        .call()
+    )
+
+    drop_null_ele_bins = (
+        drop_null_values.validate()
+        .set_task_instance_id("drop_null_ele_bins")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=cat_elephant_bins,
+            col="herd_sizebins_sort",
+            **(params_dict.get("drop_null_ele_bins") or {}),
+        )
+        .call()
+    )
+
+    clean_ele_column_idx = (
+        clean_dataframe_index.validate()
+        .set_task_instance_id("clean_ele_column_idx")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_null_ele_bins,
+            reset_index=True,
+            drop_index=True,
+            rename_unnamed=True,
+            unnamed_col_name="idx",
+            **(params_dict.get("clean_ele_column_idx") or {}),
+        )
+        .call()
+    )
+
+    apply_ele_color_bins = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_ele_color_bins")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="herd_sizebins_sort",
+            output_column_name="colors",
+            colormap="BuPu",
+            df=clean_ele_column_idx,
+            **(params_dict.get("apply_ele_color_bins") or {}),
+        )
+        .call()
+    )
+
+    generate_ele_herd_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_ele_herd_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": "herd_size",
+                "line_width_min_pixels": 1,
+                "radius_units": "pixels",
+                "radius_scale": 0.35,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Elephant Herd Sizes",
+                "label_column": "herd_sizebins_sort",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            data_url=None,
+            geodataframe=apply_ele_color_bins,
+            **(params_dict.get("generate_ele_herd_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_ele_bins = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_ele_bins")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_ele_herd_layers,
+            **(params_dict.get("combine_ele_bins") or {}),
+        )
+        .call()
+    )
+
+    draw_ele_herd_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_ele_herd_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_ele_bins,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_ele_herd_map") or {}),
+        )
+        .call()
+    )
+
+    persist_ele_herd_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_ele_herd_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_ele_herd_map,
+            filename="elephant_herd_types_map.html",
+            **(params_dict.get("persist_ele_herd_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_ele_herd_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_ele_herd_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_ele_herd_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_ele_herd_png") or {}),
+        )
+        .call()
+    )
+
+    map_buffalo_sighting = (
+        map_columns.validate()
+        .set_task_instance_id("map_buffalo_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_buffalo_prefix,
+            drop_columns=[
+                "index",
+                "time",
+                "event_category",
+                "reported_by",
+                "serial_number",
+            ],
+            retain_columns=[],
+            rename_columns={
+                "Herd Demographic": "herd_composition",
+                "Herd Size": "herd_size",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_buffalo_sighting") or {}),
+        )
+        .call()
+    )
+
+    replace_buffalo_unspecified = (
+        replace_empty_strings_in_columns.validate()
+        .set_task_instance_id("replace_buffalo_unspecified")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_buffalo_sighting,
+            columns=["herd_composition"],
+            replacement="Unspecified",
+            strip_whitespace=True,
+            missing="ignore",
+            **(params_dict.get("replace_buffalo_unspecified") or {}),
+        )
+        .call()
+    )
+
+    convert_buffalo_int = (
+        coerce_columns_to_int.validate()
+        .set_task_instance_id("convert_buffalo_int")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_buffalo_unspecified,
+            columns=["herd_size"],
+            errors="coerce",
+            fill_value=0,
+            missing="ignore",
+            nullable=True,
+            **(params_dict.get("convert_buffalo_int") or {}),
+        )
+        .call()
+    )
+
+    map_buff_column_values = (
+        map_column_values.validate()
+        .set_task_instance_id("map_buff_column_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_buffalo_int,
+            columns=["herd_composition"],
+            value_map={
+                "bachelor": "Bachelor",
+                "femalecalf": "Female/Calf",
+                "mixed": "Mixed",
+                "unspecified": "Unspecified",
+            },
+            inplace=True,
+            **(params_dict.get("map_buff_column_values") or {}),
+        )
+        .call()
+    )
+
+    buffalo_obs_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("buffalo_obs_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=map_buff_column_values,
+            **(params_dict.get("buffalo_obs_summary") or {}),
+        )
+        .call()
+    )
+
+    include_buffalo_totals = (
+        add_totals_row.validate()
+        .set_task_instance_id("include_buffalo_totals")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=buffalo_obs_summary,
+            **(params_dict.get("include_buffalo_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_buff_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_buff_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="total_buffalo_events_recorded",
+            df=include_buffalo_totals,
+            **(params_dict.get("persist_buff_df") or {}),
+        )
+        .call()
+    )
+
+    apply_buff_events_colormap = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_buff_events_colormap")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="herd_composition",
+            output_column_name="colors",
+            colormap="Set3",
+            df=map_buff_column_values,
+            **(params_dict.get("apply_buff_events_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_buffalo_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_buffalo_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Buffalo Herd Types",
+                "label_column": "herd_composition",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            data_url=None,
+            geodataframe=apply_buff_events_colormap,
+            **(params_dict.get("generate_buffalo_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_buff = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_buff")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_buffalo_layers,
+            **(params_dict.get("combine_custom_buff") or {}),
+        )
+        .call()
+    )
+
+    draw_buffalo_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_buffalo_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_buff,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_buffalo_map") or {}),
+        )
+        .call()
+    )
+
+    persist_buffalo_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_buffalo_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_buffalo_map,
+            filename="buffalo_sightings_events.html",
+            **(params_dict.get("persist_buffalo_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_buffalo_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_buffalo_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_buffalo_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_buffalo_png") or {}),
+        )
+        .call()
+    )
+
+    bin_buffalo_herd_col = (
+        bin_columns.validate()
+        .set_task_instance_id("bin_buffalo_herd_col")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            columns=["herd_size"],
+            bins=7,
+            suffix="bins",
+            inplace=False,
+            df=map_buff_column_values,
+            **(params_dict.get("bin_buffalo_herd_col") or {}),
+        )
+        .call()
+    )
+
+    cat_buffalo_bins = (
+        categorize_bins.validate()
+        .set_task_instance_id("cat_buffalo_bins")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=bin_buffalo_herd_col,
+            col="herd_sizebins",
+            **(params_dict.get("cat_buffalo_bins") or {}),
+        )
+        .call()
+    )
+
+    draw_buffalo_herd_bar = (
+        draw_bar_chart.validate()
+        .set_task_instance_id("draw_buffalo_herd_bar")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            dataframe=cat_buffalo_bins,
+            category="herd_sizebins",
+            layout_kwargs={
+                "font_size": 20,
+                "font_color": "#222222",
+                "plot_bgcolor": "#f5f5f5",
+                "title_x": 0.5,
+                "xaxis": {"title": "Group size"},
+                "yaxis": {"title": "Number of records"},
+                "showlegend": False,
+                "bargap": 0.1,
+            },
+            bar_chart_configs=[
+                {
+                    "column": "id",
+                    "agg_func": "count",
+                    "label": "",
+                    "style": {"marker_color": "lightsteelblue"},
+                }
+            ],
+            **(params_dict.get("draw_buffalo_herd_bar") or {}),
+        )
+        .call()
+    )
+
+    persist_buffalo_bar = (
+        persist_text.validate()
+        .set_task_instance_id("persist_buffalo_bar")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_buffalo_herd_bar,
+            filename="buffalo_herd_size_bar_chart.html",
+            **(params_dict.get("persist_buffalo_bar") or {}),
+        )
+        .call()
+    )
+
+    convert_buff_chart_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_buff_chart_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_buffalo_bar,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 10,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_buff_chart_png") or {}),
+        )
+        .call()
+    )
+
+    drop_null_buff_bins = (
+        drop_null_values.validate()
+        .set_task_instance_id("drop_null_buff_bins")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=cat_buffalo_bins,
+            col="herd_sizebins_sort",
+            **(params_dict.get("drop_null_buff_bins") or {}),
+        )
+        .call()
+    )
+
+    clean_buff_column_idx = (
+        clean_dataframe_index.validate()
+        .set_task_instance_id("clean_buff_column_idx")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_null_buff_bins,
+            reset_index=True,
+            drop_index=True,
+            rename_unnamed=True,
+            unnamed_col_name="idx",
+            **(params_dict.get("clean_buff_column_idx") or {}),
+        )
+        .call()
+    )
+
+    apply_buff_color_bins = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_buff_color_bins")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="herd_sizebins_sort",
+            output_column_name="colors",
+            colormap="BuPu",
+            df=clean_buff_column_idx,
+            **(params_dict.get("apply_buff_color_bins") or {}),
+        )
+        .call()
+    )
+
+    generate_buff_herd_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_buff_herd_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": "herd_size",
+                "line_width_min_pixels": 1,
+                "radius_units": "pixels",
+                "radius_scale": 0.045,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Group Sizes",
+                "label_column": "herd_sizebins_sort",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            data_url=None,
+            geodataframe=apply_buff_color_bins,
+            **(params_dict.get("generate_buff_herd_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_buff_bins = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_buff_bins")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_buff_herd_layers,
+            **(params_dict.get("combine_buff_bins") or {}),
+        )
+        .call()
+    )
+
+    draw_buff_herd_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_buff_herd_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_buff_bins,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_buff_herd_map") or {}),
+        )
+        .call()
+    )
+
+    persist_buff_herd_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_buff_herd_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_buff_herd_map,
+            filename="buffalo_herd_types_map.html",
+            **(params_dict.get("persist_buff_herd_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_buff_herd_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_buff_herd_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_buff_herd_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_buff_herd_png") or {}),
+        )
+        .call()
+    )
+
+    rhino_obs_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("rhino_obs_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=drop_rhino_prefix,
+            **(params_dict.get("rhino_obs_summary") or {}),
+        )
+        .call()
+    )
+
+    include_rhino_totals = (
+        add_totals_row.validate()
+        .set_task_instance_id("include_rhino_totals")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=rhino_obs_summary,
+            **(params_dict.get("include_rhino_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_rhino_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_rhino_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="total_rhino_events_recorded",
+            df=include_rhino_totals,
+            **(params_dict.get("persist_rhino_df") or {}),
+        )
+        .call()
+    )
+
+    generate_rhino_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_rhino_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": [0, 0, 128],
+                "get_line_color": [0, 0, 128],
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Rhino Sightings",
+                "values": [{"label": "Sighting", "color": "#000080"}],
+                "label_column": "event_type",
+                "color_column": "colors",
+                "sort": None,
+            },
+            data_url=None,
+            geodataframe=drop_rhino_prefix,
+            **(params_dict.get("generate_rhino_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_rhino = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_rhino")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_rhino_layers,
+            **(params_dict.get("combine_custom_rhino") or {}),
+        )
+        .call()
+    )
+
+    draw_rhino_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_rhino_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_rhino,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_rhino_map") or {}),
+        )
+        .call()
+    )
+
+    persist_rhino_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_rhino_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_rhino_map,
+            filename="rhino_sightings_events.html",
+            **(params_dict.get("persist_rhino_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_rhino_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_rhino_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_rhino_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_rhino_png") or {}),
+        )
+        .call()
+    )
+
+    map_lion_sighting = (
+        map_columns.validate()
+        .set_task_instance_id("map_lion_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_lion_prefix,
+            drop_columns=[
+                "index",
+                "time",
+                "event_category",
+                "reported_by",
+                "serial_number",
+                "Comment",
+                "Behavior",
+            ],
+            retain_columns=[],
+            rename_columns={
+                "Female": "female",
+                "Group Size": "group_size",
+                "Individuals Present": "individuals_present",
+                "Male": "male",
+                "Pride": "pride",
+                "Young": "young",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_lion_sighting") or {}),
+        )
+        .call()
+    )
+
+    replace_lion_unspecified = (
+        replace_empty_strings_in_columns.validate()
+        .set_task_instance_id("replace_lion_unspecified")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_lion_sighting,
+            columns=["pride"],
+            replacement="Unspecified",
+            strip_whitespace=True,
+            missing="ignore",
+            **(params_dict.get("replace_lion_unspecified") or {}),
+        )
+        .call()
+    )
+
+    convert_lion_int = (
+        coerce_columns_to_int.validate()
+        .set_task_instance_id("convert_lion_int")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_lion_unspecified,
+            columns=["young", "female", "male", "group_size"],
+            errors="coerce",
+            fill_value=0,
+            missing="ignore",
+            nullable=True,
+            **(params_dict.get("convert_lion_int") or {}),
+        )
+        .call()
+    )
+
+    map_lion_column_values = (
+        map_column_values.validate()
+        .set_task_instance_id("map_lion_column_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_lion_int,
+            columns=["pride"],
+            value_map={
+                "Unknown": "Unknown",
+                "unspecified": "Unknown",
+                "Other (specify in comments)": "Unknown",
+            },
+            inplace=True,
+            **(params_dict.get("map_lion_column_values") or {}),
+        )
+        .call()
+    )
+
+    lion_obs_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("lion_obs_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=map_lion_column_values,
+            **(params_dict.get("lion_obs_summary") or {}),
+        )
+        .call()
+    )
+
+    include_lion_totals = (
+        add_totals_row.validate()
+        .set_task_instance_id("include_lion_totals")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=lion_obs_summary,
+            **(params_dict.get("include_lion_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_lion_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_lion_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="total_lion_events_recorded",
+            df=include_lion_totals,
+            **(params_dict.get("persist_lion_df") or {}),
+        )
+        .call()
+    )
+
+    unique_lions_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("unique_lions_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["pride"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=map_lion_column_values,
+            **(params_dict.get("unique_lions_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_lions_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_lions_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="individual_lions_summary",
+            df=unique_lions_summary,
+            **(params_dict.get("persist_lions_df") or {}),
+        )
+        .call()
+    )
+
+    apply_lion_events_colormap = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_lion_events_colormap")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="pride",
+            output_column_name="colors",
+            colormap="Set3",
+            df=map_lion_column_values,
+            **(params_dict.get("apply_lion_events_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_lion_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_lion_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Lion Prides",
+                "label_column": "pride",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            data_url=None,
+            geodataframe=apply_lion_events_colormap,
+            **(params_dict.get("generate_lion_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_lion = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_lion")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_lion_layers,
+            **(params_dict.get("combine_custom_lion") or {}),
+        )
+        .call()
+    )
+
+    draw_lion_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_lion_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_lion,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_lion_map") or {}),
+        )
+        .call()
+    )
+
+    persist_lion_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_lion_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_lion_map,
+            filename="lion_sightings_events.html",
+            **(params_dict.get("persist_lion_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_lion_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_lion_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_lion_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_lion_png") or {}),
+        )
+        .call()
+    )
+
+    map_leopard_sighting = (
+        map_columns.validate()
+        .set_task_instance_id("map_leopard_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_leopard_prefix,
+            drop_columns=[
+                "index",
+                "time",
+                "event_category",
+                "reported_by",
+                "serial_number",
+                "Comment",
+                "Behavior",
+            ],
+            retain_columns=[],
+            rename_columns={
+                "Female": "female",
+                "Group Size": "group_size",
+                "Individuals Present": "individuals_present",
+                "Male": "male",
+                "Young": "young",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_leopard_sighting") or {}),
+        )
+        .call()
+    )
+
+    replace_leopard_unspecified = (
+        replace_empty_strings_in_columns.validate()
+        .set_task_instance_id("replace_leopard_unspecified")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_leopard_sighting,
+            columns=["individuals_present"],
+            replacement="Unspecified",
+            strip_whitespace=True,
+            missing="ignore",
+            **(params_dict.get("replace_leopard_unspecified") or {}),
+        )
+        .call()
+    )
+
+    convert_leopard_int = (
+        coerce_columns_to_int.validate()
+        .set_task_instance_id("convert_leopard_int")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_leopard_unspecified,
+            columns=["young", "female", "male", "group_size"],
+            errors="coerce",
+            fill_value=0,
+            missing="ignore",
+            nullable=True,
+            **(params_dict.get("convert_leopard_int") or {}),
+        )
+        .call()
+    )
+
+    map_leopard_column_values = (
+        map_column_values.validate()
+        .set_task_instance_id("map_leopard_column_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_leopard_int,
+            columns=["individuals_present"],
+            value_map={
+                "Unknown": "Unknown",
+                "Unspecified": "Unknown",
+                "Other (specify in comments)": "Unknown",
+            },
+            inplace=True,
+            **(params_dict.get("map_leopard_column_values") or {}),
+        )
+        .call()
+    )
+
+    leopard_obs_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("leopard_obs_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=map_leopard_column_values,
+            **(params_dict.get("leopard_obs_summary") or {}),
+        )
+        .call()
+    )
+
+    include_leopard_totals = (
+        add_totals_row.validate()
+        .set_task_instance_id("include_leopard_totals")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=leopard_obs_summary,
+            **(params_dict.get("include_leopard_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_leopard_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_leopard_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="total_leopard_events_recorded",
+            df=include_leopard_totals,
+            **(params_dict.get("persist_leopard_df") or {}),
+        )
+        .call()
+    )
+
+    unique_leopards_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("unique_leopards_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["individuals_present"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=map_leopard_column_values,
+            **(params_dict.get("unique_leopards_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_leopards_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_leopards_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="individual_leopard_summary",
+            df=unique_leopards_summary,
+            **(params_dict.get("persist_leopards_df") or {}),
+        )
+        .call()
+    )
+
+    apply_leopard_events_colormap = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_leopard_events_colormap")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="individuals_present",
+            output_column_name="colors",
+            colormap="Set3",
+            df=map_leopard_column_values,
+            **(params_dict.get("apply_leopard_events_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_leopard_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_leopard_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Leopard Individuals",
+                "label_column": "individuals_present",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            data_url=None,
+            geodataframe=apply_leopard_events_colormap,
+            **(params_dict.get("generate_leopard_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_leopard = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_leopard")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_leopard_layers,
+            **(params_dict.get("combine_custom_leopard") or {}),
+        )
+        .call()
+    )
+
+    draw_leopard_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_leopard_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_leopard,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_leopard_map") or {}),
+        )
+        .call()
+    )
+
+    persist_leopard_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_leopard_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_leopard_map,
+            filename="leopard_sightings_events.html",
+            **(params_dict.get("persist_leopard_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_leopard_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_leopard_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_leopard_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_leopard_png") or {}),
+        )
+        .call()
+    )
+
+    map_cheetah_sighting = (
+        map_columns.validate()
+        .set_task_instance_id("map_cheetah_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_cheetah_prefix,
+            drop_columns=[
+                "index",
+                "time",
+                "event_category",
+                "reported_by",
+                "serial_number",
+                "Comment",
+                "Behavior",
+            ],
+            retain_columns=[],
+            rename_columns={
+                "Female": "female",
+                "Group Size": "group_size",
+                "Individuals Present": "individuals_present",
+                "Male": "male",
+                "Young": "young",
+            },
+            raise_if_not_found=False,
+            **(params_dict.get("map_cheetah_sighting") or {}),
+        )
+        .call()
+    )
+
+    replace_cheetah_unspecified = (
+        replace_empty_strings_in_columns.validate()
+        .set_task_instance_id("replace_cheetah_unspecified")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=map_cheetah_sighting,
+            columns=["individuals_present"],
+            replacement="Unspecified",
+            strip_whitespace=True,
+            missing="ignore",
+            **(params_dict.get("replace_cheetah_unspecified") or {}),
+        )
+        .call()
+    )
+
+    convert_cheetah_int = (
+        coerce_columns_to_int.validate()
+        .set_task_instance_id("convert_cheetah_int")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=replace_cheetah_unspecified,
+            columns=["young", "female", "male", "group_size"],
+            errors="coerce",
+            fill_value=0,
+            missing="ignore",
+            nullable=True,
+            **(params_dict.get("convert_cheetah_int") or {}),
+        )
+        .call()
+    )
+
+    map_cheetah_column_values = (
+        map_column_values.validate()
+        .set_task_instance_id("map_cheetah_column_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=convert_cheetah_int,
+            columns=["individuals_present"],
+            value_map={
+                "Unknown": "Unknown",
+                "Unspecified": "Unknown",
+                "Other (specify in comments)": "Unknown",
+            },
+            inplace=True,
+            **(params_dict.get("map_cheetah_column_values") or {}),
+        )
+        .call()
+    )
+
+    cheetah_obs_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("cheetah_obs_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=map_cheetah_column_values,
+            **(params_dict.get("cheetah_obs_summary") or {}),
+        )
+        .call()
+    )
+
+    include_cheetah_totals = (
+        add_totals_row.validate()
+        .set_task_instance_id("include_cheetah_totals")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=cheetah_obs_summary,
+            **(params_dict.get("include_cheetah_totals") or {}),
+        )
+        .call()
+    )
+
+    persist_cheetah_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_cheetah_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="total_cheetah_events_recorded",
+            df=include_cheetah_totals,
+            **(params_dict.get("persist_cheetah_df") or {}),
+        )
+        .call()
+    )
+
+    unique_cheetahs_summary = (
+        summarize_df.validate()
+        .set_task_instance_id("unique_cheetahs_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["individuals_present"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=map_cheetah_column_values,
+            **(params_dict.get("unique_cheetahs_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_cheetahs_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_cheetahs_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="individual_cheetah_summary",
+            df=unique_cheetahs_summary,
+            **(params_dict.get("persist_cheetahs_df") or {}),
+        )
+        .call()
+    )
+
+    apply_cheetah_events_colormap = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_cheetah_events_colormap")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="individuals_present",
+            output_column_name="colors",
+            colormap="Set3",
+            df=map_cheetah_column_values,
+            **(params_dict.get("apply_cheetah_events_colormap") or {}),
+        )
+        .call()
+    )
+
+    generate_cheetah_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_cheetah_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Cheetah Individuals",
+                "label_column": "individuals_present",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            data_url=None,
+            geodataframe=apply_cheetah_events_colormap,
+            **(params_dict.get("generate_cheetah_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_cheetah = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_cheetah")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_cheetah_layers,
+            **(params_dict.get("combine_custom_cheetah") or {}),
+        )
+        .call()
+    )
+
+    draw_cheetah_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_cheetah_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_cheetah,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_cheetah_map") or {}),
+        )
+        .call()
+    )
+
+    persist_cheetah_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_cheetah_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_cheetah_map,
+            filename="cheetah_sightings_events.html",
+            **(params_dict.get("persist_cheetah_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_cheetah_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_cheetah_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_cheetah_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_cheetah_png") or {}),
+        )
+        .call()
+    )
+
+    map_giraffe_sighting = (
+        map_columns.validate()
+        .set_task_instance_id("map_giraffe_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_giraffe_prefix,
+            drop_columns=[
+                "index",
+                "time",
+                "event_category",
+                "reported_by",
+                "serial_number",
+            ],
+            retain_columns=[],
+            rename_columns={},
+            raise_if_not_found=False,
+            **(params_dict.get("map_giraffe_sighting") or {}),
+        )
+        .call()
+    )
+
+    generate_giraffe_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_giraffe_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": [0, 0, 128],
+                "get_line_color": [0, 0, 128],
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Giraffe Sighting",
+                "values": [{"label": "Sighting", "color": "#000080"}],
+                "sort": None,
+            },
+            data_url=None,
+            geodataframe=map_giraffe_sighting,
+            **(params_dict.get("generate_giraffe_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_giraffe = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_giraffe")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_giraffe_layers,
+            **(params_dict.get("combine_custom_giraffe") or {}),
+        )
+        .call()
+    )
+
+    draw_giraffe_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_giraffe_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_giraffe,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_giraffe_map") or {}),
+        )
+        .call()
+    )
+
+    persist_giraffe_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_giraffe_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_giraffe_map,
+            filename="giraffe_sightings_events.html",
+            **(params_dict.get("persist_giraffe_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_giraffe_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_giraffe_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_giraffe_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_giraffe_png") or {}),
+        )
+        .call()
+    )
+
+    map_hartebeest_sighting = (
+        map_columns.validate()
+        .set_task_instance_id("map_hartebeest_sighting")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=drop_hartebeest_prefix,
+            drop_columns=[
+                "index",
+                "time",
+                "event_category",
+                "reported_by",
+                "serial_number",
+            ],
+            retain_columns=[],
+            rename_columns={},
+            raise_if_not_found=False,
+            **(params_dict.get("map_hartebeest_sighting") or {}),
+        )
+        .call()
+    )
+
+    generate_hartebeest_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_hartebeest_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": [0, 0, 128],
+                "get_line_color": [0, 0, 128],
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Hartebeest Sighting",
+                "values": [{"label": "Sighting", "color": "#000080"}],
+                "sort": None,
+            },
+            data_url=None,
+            geodataframe=map_hartebeest_sighting,
+            **(params_dict.get("generate_hartebeest_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_hartebeest = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_hartebeest")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_hartebeest_layers,
+            **(params_dict.get("combine_custom_hartebeest") or {}),
+        )
+        .call()
+    )
+
+    draw_hartebeest_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_hartebeest_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=15,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_hartebeest,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_hartebeest_map") or {}),
+        )
+        .call()
+    )
+
+    persist_hartebeest_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_hartebeest_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_hartebeest_map,
+            filename="hartebeest_sightings_events.html",
+            **(params_dict.get("persist_hartebeest_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_hartebeest_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_hartebeest_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_hartebeest_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_hartebeest_png") or {}),
+        )
+        .call()
+    )
+
+    normalize_wildlife_events = (
+        normalize_json_column.validate()
+        .set_task_instance_id("normalize_wildlife_events")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            column="event_details",
+            df=filter_wildlife_incidents,
+            skip_if_not_exists=True,
+            sort_columns=True,
+            **(params_dict.get("normalize_wildlife_events") or {}),
+        )
+        .call()
+    )
+
+    rename_wildlife_cols = (
+        map_columns.validate()
+        .set_task_instance_id("rename_wildlife_cols")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={
+                "event_details__wildlifecarcass_species": "wildlife_carcass_species",
+                "event_details__wildlifecarcass_suspectedcause": "wildlife_carcass_suspected_cause",
+                "event_details__wildlifecarcass_visibleinjury": "wildlife_carcass_visible_injury",
+                "event_details__wildlifetreatment_species": "wildlife_treatment_species",
+                "event_details__wildlifetreatment_comments": "wildlife_treatment_comments",
+                "event_details__wildlifetreatment_vetattending": "wildlife_treatment_vet_attending",
+                "event_details__wildlifetreatment_vetprognosis": "wildlife_treatment_vet_prognosis",
+                "event_details__wildlifecarcass_comments": "wildlife_carcass_comments",
+            },
+            raise_if_not_found=False,
+            df=normalize_wildlife_events,
+            **(params_dict.get("rename_wildlife_cols") or {}),
+        )
+        .call()
+    )
+
+    persist_wildlife_csv = (
+        persist_df.validate()
+        .set_task_instance_id("persist_wildlife_csv")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="wildlife_events_recorded",
+            df=rename_wildlife_cols,
+            **(params_dict.get("persist_wildlife_csv") or {}),
+        )
+        .call()
+    )
+
+    generate_wild_summary = (
+        make_wildlife_summary_table.validate()
+        .set_task_instance_id("generate_wild_summary")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=rename_wildlife_cols,
+            value_map={
+                "fire_rep": "Fire",
+                "snare_rep": "Snare",
+                "wildlife_carcass_rep": "Wildlife carcass",
+                "wildlife_injury_rep": "Injured wildlife",
+                "wildlife_treatment_rep": "Veterinary treatment",
+                "illegal_grazing_rep": "Illegal grazing",
+            },
+            max_unique=6,
+            shorten_width=300,
+            order=None,
+            **(params_dict.get("generate_wild_summary") or {}),
+        )
+        .call()
+    )
+
+    persist_wildlife_df = (
+        persist_df.validate()
+        .set_task_instance_id("persist_wildlife_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filename="wildlife_incidents_summary_table",
+            filetype="csv",
+            df=generate_wild_summary,
+            **(params_dict.get("persist_wildlife_df") or {}),
+        )
+        .call()
+    )
+
+    wildlife_events_recorded = (
+        summarize_df.validate()
+        .set_task_instance_id("wildlife_events_recorded")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            groupby_cols=["date"],
+            summary_params=[
+                {
+                    "display_name": "no_of_events",
+                    "aggregator": "nunique",
+                    "column": "id",
+                }
+            ],
+            reset_index=True,
+            df=rename_wildlife_cols,
+            **(params_dict.get("wildlife_events_recorded") or {}),
+        )
+        .call()
+    )
+
+    add_total_wildlife = (
+        add_totals_row.validate()
+        .set_task_instance_id("add_total_wildlife")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            label_col=["date"],
+            label="Total",
+            df=wildlife_events_recorded,
+            **(params_dict.get("add_total_wildlife") or {}),
+        )
+        .call()
+    )
+
+    wildlife_events_df = (
+        persist_df.validate()
+        .set_task_instance_id("wildlife_events_df")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            df=add_total_wildlife,
+            filename="wildlife_incidents_recorded_by_date",
+            **(params_dict.get("wildlife_events_df") or {}),
+        )
+        .call()
+    )
+
+    apply_wildlife_colormap = (
+        apply_color_map.validate()
+        .set_task_instance_id("apply_wildlife_colormap")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="event_type",
+            output_column_name="colors",
+            colormap="Set3",
+            df=rename_wildlife_cols,
+            **(params_dict.get("apply_wildlife_colormap") or {}),
+        )
+        .call()
+    )
+
+    map_wildlife_values = (
+        map_column_values.validate()
+        .set_task_instance_id("map_wildlife_values")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=apply_wildlife_colormap,
+            columns=["event_type"],
+            value_map={
+                "fire_rep": "Fire",
+                "snare_rep": "Snare",
+                "wildlife_carcass_rep": "Wildlife carcass",
+                "wildlife_injury_rep": "Injured wildlife",
+                "wildlife_treatment_rep": "Veterinary treatment",
+                "illegal_grazing_rep": "Illegal grazing",
+            },
+            inplace=True,
+            **(params_dict.get("map_wildlife_values") or {}),
+        )
+        .call()
+    )
+
+    generate_wildlife_layers = (
+        create_scatterplot_layer.validate()
+        .set_task_instance_id("generate_wildlife_layers")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            layer_style={
+                "get_fill_color": "colors",
+                "get_line_color": "colors",
+                "get_radius": 3,
+                "opacity": 0.55,
+                "stroked": True,
+            },
+            legend={
+                "title": "Incidents",
+                "label_column": "event_type",
+                "color_column": "colors",
+                "sort": "ascending",
+            },
+            geodataframe=map_wildlife_values,
+            data_url=None,
+            **(params_dict.get("generate_wildlife_layers") or {}),
+        )
+        .call()
+    )
+
+    combine_custom_wildlife = (
+        combine_deckgl_map_layers.validate()
+        .set_task_instance_id("combine_custom_wildlife")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            static_layers=[
+                create_conservancy_boundaries,
+                create_mnc_parcels_layers,
+                conservancy_text_layer,
+            ],
+            grouped_layers=generate_wildlife_layers,
+            **(params_dict.get("combine_custom_wildlife") or {}),
+        )
+        .call()
+    )
+
+    draw_wildlife_map = (
+        draw_map.validate()
+        .set_task_instance_id("draw_wildlife_map")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            tile_layers=configure_base_maps,
+            static=False,
+            title=None,
+            max_zoom=10,
+            legend_style={"placement": "bottom-right"},
+            geo_layers=combine_custom_wildlife,
+            view_state=global_zoom_value,
+            **(params_dict.get("draw_wildlife_map") or {}),
+        )
+        .call()
+    )
+
+    persist_wildlife_urls = (
+        persist_text.validate()
+        .set_task_instance_id("persist_wildlife_urls")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=draw_wildlife_map,
+            filename="wildlife_incidents_map.html",
+            **(params_dict.get("persist_wildlife_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_wildlife_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_wildlife_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_wildlife_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_wildlife_png") or {}),
+        )
+        .call()
+    )
+
     filter_events = (
         exclude_row_values.validate()
         .set_task_instance_id("filter_events")
@@ -1386,6 +7424,7 @@ def main(params: Params):
                 "distancecountwildlife_rep",
                 "distancecountpatrol_rep",
                 "airstrip_operations",
+                "silence_source_rep",
             ],
             **(params_dict.get("filter_events") or {}),
         )
@@ -1575,9 +7614,9 @@ def main(params: Params):
         .call()
     )
 
-    filter_mobile_boma = (
-        filter_df.validate()
-        .set_task_instance_id("filter_mobile_boma")
+    convert_tevents_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_tevents_png")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -1588,5380 +7627,15 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            column_name="event_type",
-            op="equal",
-            value="mobile_boma_rep",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_mobile_boma") or {}),
-        )
-        .call()
-    )
-
-    filter_cattle_count = (
-        filter_df.validate()
-        .set_task_instance_id("filter_cattle_count")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="cattle_count",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_cattle_count") or {}),
-        )
-        .call()
-    )
-
-    normalize_mb_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_mb_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_mobile_boma,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_mb_values") or {}),
-        )
-        .call()
-    )
-
-    normalize_cc_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_cc_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_cattle_count,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_cc_values") or {}),
-        )
-        .call()
-    )
-
-    rename_mobile_boma = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_mobile_boma")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={"event_details__mobile_boma": "boma"},
-            skip_missing_rename=True,
-            required_columns=["event_details__mobile_boma"],
-            df=normalize_mb_values,
-            **(params_dict.get("rename_mobile_boma") or {}),
-        )
-        .call()
-    )
-
-    rename_cattle_count = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_cattle_count")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__cattle_in_zone_4": "zone_4",
-                "event_details__cattle_in_zone_1_outside_mobile_boma": "zone_1",
-                "event_details__cattle_in_zone_23_outside_mobile_boma": "zone_2_3",
-                "event_details__total_cattle_counted_from_all_zones": "total_count",
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_total_events,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 10,
+                "max_concurrent_pages": 1,
             },
-            skip_missing_rename=True,
-            required_columns=["event_details__total_cattle_counted_from_all_zones"],
-            df=normalize_cc_values,
-            **(params_dict.get("rename_cattle_count") or {}),
-        )
-        .call()
-    )
-
-    rename_boma_values = (
-        map_column_values.validate()
-        .set_task_instance_id("rename_boma_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_mobile_boma,
-            columns=["event_type"],
-            value_map={"mobile_boma_rep": "Mobile boma"},
-            inplace=False,
-            **(params_dict.get("rename_boma_values") or {}),
-        )
-        .call()
-    )
-
-    calculate_total_boma = (
-        summarize_df.validate()
-        .set_task_instance_id("calculate_total_boma")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["date"],
-            summary_params=[
-                {"display_name": "total_count", "aggregator": "nunique", "column": "id"}
-            ],
-            reset_index=True,
-            df=rename_boma_values,
-            **(params_dict.get("calculate_total_boma") or {}),
-        )
-        .call()
-    )
-
-    add_total_boma_row = (
-        add_totals_row.validate()
-        .set_task_instance_id("add_total_boma_row")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["date"],
-            label="Total",
-            df=calculate_total_boma,
-            **(params_dict.get("add_total_boma_row") or {}),
-        )
-        .call()
-    )
-
-    persist_boma_count_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_boma_count_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            df=add_total_boma_row,
-            filename="total_boma_count_by_date",
-            **(params_dict.get("persist_boma_count_df") or {}),
-        )
-        .call()
-    )
-
-    filter_cattle_cols = (
-        filter_columns.validate()
-        .set_task_instance_id("filter_cattle_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_cattle_count,
-            columns=["date", "zone_1", "zone_2_3", "zone_4", "total_count"],
-            exclude=[],
-            **(params_dict.get("filter_cattle_cols") or {}),
-        )
-        .call()
-    )
-
-    persist_cattle_count_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_cattle_count_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="mobile_boma_summary_table",
-            df=filter_cattle_cols,
-            **(params_dict.get("persist_cattle_count_df") or {}),
-        )
-        .call()
-    )
-
-    exclude_mb_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_mb_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_boma_values,
-            z_threshold=3,
-            **(params_dict.get("exclude_mb_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_mb_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_mb_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_mb_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_mb_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_mb_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_mb_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="event_type",
-            output_column_name="event_type_colors",
-            colormap="tab20",
-            df=remove_mb_invalid_geoms,
-            **(params_dict.get("apply_mb_colormap") or {}),
-        )
-        .call()
-    )
-
-    generate_mb_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_mb_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "event_type_colors",
-                "get_line_color": "event_type_colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Boma Movements",
-                "label_column": "event_type",
-                "color_column": "event_type_colors",
-                "sort": "ascending",
-                "label_suffix": None,
-            },
-            geodataframe=apply_mb_colormap,
-            **(params_dict.get("generate_mb_layers") or {}),
-        )
-        .call()
-    )
-
-    global_zoom_value = (
-        view_state_deck_gdf.validate()
-        .set_task_instance_id("global_zoom_value")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            pitch=0,
-            bearing=0,
-            gdf=overall_grazing_zones,
-            **(params_dict.get("global_zoom_value") or {}),
-        )
-        .call()
-    )
-
-    combine_custom_mobile_boma = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_custom_mobile_boma")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_mnc_styled_layers,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_mb_layers,
-            **(params_dict.get("combine_custom_mobile_boma") or {}),
-        )
-        .call()
-    )
-
-    draw_mb_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_mb_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=10,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_custom_mobile_boma,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_mb_map") or {}),
-        )
-        .call()
-    )
-
-    persist_mobile_boma_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_mobile_boma_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_mb_map,
-            filename="boma_movement_map.html",
-            **(params_dict.get("persist_mobile_boma_urls") or {}),
-        )
-        .call()
-    )
-
-    filter_predation = (
-        filter_df.validate()
-        .set_task_instance_id("filter_predation")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="livestock_predation_rep",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_predation") or {}),
-        )
-        .call()
-    )
-
-    normalize_predation_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_predation_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_predation,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_predation_values") or {}),
-        )
-        .call()
-    )
-
-    rename_livestock_predation = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_livestock_predation")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__livestockpredation_comments": "livestock_predation_comments",
-                "event_details__livestockpredation_location": "predation_location",
-                "event_details__livestockpredation_causedeath": "predation_cause_of_death",
-                "event_details__livestockpredation_retaliation": "predation_retaliation",
-                "event_details__livestockpredation_supervision": "predation_supervision",
-                "event_details__livestockpredation_predatorcount": "predator_count",
-                "event_details__livestockpredation_killedjuvenile": "killed_juvenile",
-                "event_details__livestockpredation_livestockowner": "livestock_owner",
-                "event_details__livestockpredation_distancetopeople": "distance_to_people",
-                "event_details__livestockpredation_livestockspecies": "livestock_species",
-                "event_details__livestockpredation_livestockaffected": "livestock_affected",
-                "event_details__livestockpredation_suspectedpredator": "suspected_predator",
-                "event_details__livestockpredation_bomacontext": "boma_context",
-                "event_details__livestockpredation_killedadultmale": "killed_adult_male",
-                "event_details__livestockpredation_bomaconstruction": "boma_construction",
-                "event_details__livestockpredation_woundedjuvenile": "wounded_juvenile",
-                "event_details__livestockpredation_woundedadultfemale": "wounded_adult_female",
-                "event_details__livestockpredation_woundedadultmale": "wounded_adult_male",
-                "event_details__livestockpredation_bomaheight": "boma_height",
-                "event_details__livestockpredation_bomavisibility": "boma_visibility",
-            },
-            skip_missing_rename=True,
-            required_columns=[
-                "event_details__livestockpredation_livestockaffected",
-                "event_details__livestockpredation_livestockspecies",
-                "event_details__livestockpredation_suspectedpredator",
-            ],
-            df=normalize_predation_values,
-            **(params_dict.get("rename_livestock_predation") or {}),
-        )
-        .call()
-    )
-
-    replace_livestock_nulls = (
-        replace_missing_with_label.validate()
-        .set_task_instance_id("replace_livestock_nulls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_livestock_predation,
-            columns=["suspected_predator", "livestock_species"],
-            label="unknown",
-            **(params_dict.get("replace_livestock_nulls") or {}),
-        )
-        .call()
-    )
-
-    convert_livestock_int = (
-        convert_to_int.validate()
-        .set_task_instance_id("convert_livestock_int")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=replace_livestock_nulls,
-            columns=["livestock_affected"],
-            errors="coerce",
-            fill_value=0,
-            inplace=False,
-            **(params_dict.get("convert_livestock_int") or {}),
-        )
-        .call()
-    )
-
-    livestock_preds_scase = (
-        to_sentence_case.validate()
-        .set_task_instance_id("livestock_preds_scase")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=convert_livestock_int,
-            columns=["suspected_predator", "livestock_species"],
-            **(params_dict.get("livestock_preds_scase") or {}),
-        )
-        .call()
-    )
-
-    persist_livestock_events_gpkg = (
-        persist_df.validate()
-        .set_task_instance_id("persist_livestock_events_gpkg")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="gpkg",
-            filename="livestock_predation_events",
-            df=livestock_preds_scase,
-            **(params_dict.get("persist_livestock_events_gpkg") or {}),
-        )
-        .call()
-    )
-
-    persist_livestock_events_csv = (
-        persist_df.validate()
-        .set_task_instance_id("persist_livestock_events_csv")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="livestock_predation_events",
-            df=livestock_preds_scase,
-            **(params_dict.get("persist_livestock_events_csv") or {}),
-        )
-        .call()
-    )
-
-    livestock_predation_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("livestock_predation_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["date", "suspected_predator", "livestock_species"],
-            summary_params=[
-                {
-                    "display_name": "no_affected",
-                    "aggregator": "sum",
-                    "column": "livestock_affected",
-                }
-            ],
-            reset_index=True,
-            df=livestock_preds_scase,
-            **(params_dict.get("livestock_predation_summary") or {}),
-        )
-        .call()
-    )
-
-    persist_livestock_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_livestock_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="livestock_predation_summary_table",
-            df=livestock_predation_summary,
-            **(params_dict.get("persist_livestock_df") or {}),
-        )
-        .call()
-    )
-
-    livestock_events_recorded = (
-        summarize_df.validate()
-        .set_task_instance_id("livestock_events_recorded")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["date"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=livestock_preds_scase,
-            **(params_dict.get("livestock_events_recorded") or {}),
-        )
-        .call()
-    )
-
-    add_total_livestock = (
-        add_totals_row.validate()
-        .set_task_instance_id("add_total_livestock")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["date"],
-            label="Total",
-            df=livestock_events_recorded,
-            **(params_dict.get("add_total_livestock") or {}),
-        )
-        .call()
-    )
-
-    livestock_events_df = (
-        persist_df.validate()
-        .set_task_instance_id("livestock_events_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            df=add_total_livestock,
-            filename="livestock_events_recorded_by_date",
-            **(params_dict.get("livestock_events_df") or {}),
-        )
-        .call()
-    )
-
-    exclude_livestock_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_livestock_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=livestock_preds_scase,
-            z_threshold=3,
-            **(params_dict.get("exclude_livestock_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_livestock_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_livestock_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_livestock_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_livestock_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_livestock_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_livestock_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="livestock_species",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_livestock_invalid_geoms,
-            **(params_dict.get("apply_livestock_colormap") or {}),
-        )
-        .call()
-    )
-
-    generate_livestock_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_livestock_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Livestock Species",
-                "label_column": "livestock_species",
-                "color_column": "colors",
-                "sort": "ascending",
-                "label_suffix": None,
-            },
-            geodataframe=apply_livestock_colormap,
-            **(params_dict.get("generate_livestock_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_custom_livestock = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_custom_livestock")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_livestock_layers,
-            **(params_dict.get("combine_custom_livestock") or {}),
-        )
-        .call()
-    )
-
-    draw_livestock_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_livestock_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=10,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_custom_livestock,
-            view_state={
-                "longitude": 35.2092935880001,
-                "latitude": -1.257840580999955,
-                "zoom": 9.75,
-                "pitch": 0,
-                "bearing": 0,
-            },
-            **(params_dict.get("draw_livestock_map") or {}),
-        )
-        .call()
-    )
-
-    persist_livestock_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_livestock_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_livestock_map,
-            filename="livestock_predation_events.html",
-            **(params_dict.get("persist_livestock_urls") or {}),
-        )
-        .call()
-    )
-
-    filter_wildlife_events = (
-        filter_row_values.validate()
-        .set_task_instance_id("filter_wildlife_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=events_temporal,
-            column="event_type",
-            values=[
-                "snare_rep",
-                "fire_rep",
-                "wildlife_injury_rep",
-                "wildlife_treatment_rep",
-                "wildlife_carcass_rep",
-                "illegal_grazing_rep",
-            ],
-            **(params_dict.get("filter_wildlife_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_wildlife_events = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_wildlife_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_wildlife_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_wildlife_events") or {}),
-        )
-        .call()
-    )
-
-    rename_wildlife_cols = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_wildlife_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__wildlifecarcass_species": "wildlife_carcass_species",
-                "event_details__wildlifecarcass_suspectedcause": "wildlife_carcass_suspected_cause",
-                "event_details__wildlifecarcass_visibleinjury": "wildlife_carcass_visible_injury",
-                "event_details__wildlifetreatment_species": "wildlife_treatment_species",
-                "event_details__wildlifetreatment_comments": "wildlife_treatment_comments",
-                "event_details__wildlifetreatment_vetattending": "wildlife_treatment_vet_attending",
-                "event_details__wildlifetreatment_vetprognosis": "wildlife_treatment_vet_prognosis",
-                "event_details__wildlifecarcass_comments": "wildlife_carcass_comments",
-            },
-            skip_missing_rename=True,
-            required_columns=[],
-            df=normalize_wildlife_events,
-            **(params_dict.get("rename_wildlife_cols") or {}),
-        )
-        .call()
-    )
-
-    persist_wildlife_csv = (
-        persist_df.validate()
-        .set_task_instance_id("persist_wildlife_csv")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="wildlife_events_recorded",
-            df=rename_wildlife_cols,
-            **(params_dict.get("persist_wildlife_csv") or {}),
-        )
-        .call()
-    )
-
-    persist_wildlife_gpkg = (
-        persist_df.validate()
-        .set_task_instance_id("persist_wildlife_gpkg")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="gpkg",
-            filename="wildlife_events_recorded",
-            df=rename_wildlife_cols,
-            **(params_dict.get("persist_wildlife_gpkg") or {}),
-        )
-        .call()
-    )
-
-    generate_wild_summary = (
-        make_wildlife_summary_table.validate()
-        .set_task_instance_id("generate_wild_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_wildlife_cols,
-            value_map={
-                "fire_rep": "Fire",
-                "snare_rep": "Snare",
-                "wildlife_carcass_rep": "Wildlife carcass",
-                "wildlife_injury_rep": "Injured wildlife",
-                "wildlife_treatment_rep": "Veterinary treatment",
-                "illegal_grazing_rep": "Illegal grazing",
-            },
-            max_unique=6,
-            shorten_width=300,
-            order=None,
-            **(params_dict.get("generate_wild_summary") or {}),
-        )
-        .call()
-    )
-
-    persist_wildlife_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_wildlife_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filename="wildlife_incidents_summary_table",
-            filetype="csv",
-            df=generate_wild_summary,
-            **(params_dict.get("persist_wildlife_df") or {}),
-        )
-        .call()
-    )
-
-    wildlife_events_recorded = (
-        summarize_df.validate()
-        .set_task_instance_id("wildlife_events_recorded")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["date"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=rename_wildlife_cols,
-            **(params_dict.get("wildlife_events_recorded") or {}),
-        )
-        .call()
-    )
-
-    add_total_wildlife = (
-        add_totals_row.validate()
-        .set_task_instance_id("add_total_wildlife")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["date"],
-            label="Total",
-            df=wildlife_events_recorded,
-            **(params_dict.get("add_total_wildlife") or {}),
-        )
-        .call()
-    )
-
-    wildlife_events_df = (
-        persist_df.validate()
-        .set_task_instance_id("wildlife_events_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            df=add_total_wildlife,
-            filename="wildlife_incidents_recorded_by_date",
-            **(params_dict.get("wildlife_events_df") or {}),
-        )
-        .call()
-    )
-
-    exclude_wildlife_events_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_wildlife_events_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_wildlife_cols,
-            z_threshold=3,
-            **(params_dict.get("exclude_wildlife_events_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_wildlife_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_wildlife_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_wildlife_events_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_wildlife_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_wildlife_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_wildlife_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="event_type",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_wildlife_invalid_geoms,
-            **(params_dict.get("apply_wildlife_colormap") or {}),
-        )
-        .call()
-    )
-
-    map_wildlife_values = (
-        map_column_values.validate()
-        .set_task_instance_id("map_wildlife_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=apply_wildlife_colormap,
-            columns=["event_type"],
-            value_map={
-                "fire_rep": "Fire",
-                "snare_rep": "Snare",
-                "wildlife_carcass_rep": "Wildlife carcass",
-                "wildlife_injury_rep": "Injured wildlife",
-                "wildlife_treatment_rep": "Veterinary treatment",
-                "illegal_grazing_rep": "Illegal grazing",
-            },
-            inplace=True,
-            **(params_dict.get("map_wildlife_values") or {}),
-        )
-        .call()
-    )
-
-    generate_wildlife_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_wildlife_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Incidents",
-                "label_column": "event_type",
-                "color_column": "colors",
-                "sort": "ascending",
-            },
-            geodataframe=map_wildlife_values,
-            **(params_dict.get("generate_wildlife_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_custom_wildlife = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_custom_wildlife")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_wildlife_layers,
-            **(params_dict.get("combine_custom_wildlife") or {}),
-        )
-        .call()
-    )
-
-    draw_wildlife_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_wildlife_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=15,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_custom_wildlife,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_wildlife_map") or {}),
-        )
-        .call()
-    )
-
-    persist_wildlife_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_wildlife_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_wildlife_map,
-            filename="wildlife_incidents_map.html",
-            **(params_dict.get("persist_wildlife_urls") or {}),
-        )
-        .call()
-    )
-
-    retrieve_elephant_events = (
-        filter_df.validate()
-        .set_task_instance_id("retrieve_elephant_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="elephant_sighting_rep",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("retrieve_elephant_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_elephant_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_elephant_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=retrieve_elephant_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_elephant_values") or {}),
-        )
-        .call()
-    )
-
-    rename_elephant_cols = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_elephant_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__elephantsight_male": "elephant_sight_male",
-                "event_details__elephantsight_female": "elephant_sight_female",
-                "event_details__elephantsight_comments": "elephant_sight_comments",
-                "event_details__elephantsight_herdsize": "elephant_sight_herd_size",
-                "event_details__elephantsight_subadult": "elephant_sight_sub_adult",
-                "event_details__elephantsight_herdcomposition": "elephant_sight_herd_composition",
-                "event_details__elephantsight_underayear": "elephant_sight_under_a_year",
-            },
-            skip_missing_rename=True,
-            required_columns=["event_details__elephantsight_herdcomposition"],
-            df=normalize_elephant_values,
-            **(params_dict.get("rename_elephant_cols") or {}),
-        )
-        .call()
-    )
-
-    replace_elephant_nulls = (
-        replace_missing_with_label.validate()
-        .set_task_instance_id("replace_elephant_nulls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_elephant_cols,
-            columns=["elephant_sight_herd_composition"],
-            label="unspecified",
-            **(params_dict.get("replace_elephant_nulls") or {}),
-        )
-        .call()
-    )
-
-    rename_ele_column = (
-        map_column_values.validate()
-        .set_task_instance_id("rename_ele_column")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=replace_elephant_nulls,
-            columns=["elephant_sight_herd_composition"],
-            value_map={
-                "bachelor": "Bachelor",
-                "femalecalf": "Female/calf",
-                "mixed": "Mixed",
-                "unspecified": "Unspecified",
-            },
-            inplace=True,
-            **(params_dict.get("rename_ele_column") or {}),
-        )
-        .call()
-    )
-
-    elephant_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("elephant_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["event_type"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=rename_ele_column,
-            **(params_dict.get("elephant_summary") or {}),
-        )
-        .call()
-    )
-
-    include_elephant_totals = (
-        add_totals_row.validate()
-        .set_task_instance_id("include_elephant_totals")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["event_type"],
-            label="Total",
-            df=elephant_summary,
-            **(params_dict.get("include_elephant_totals") or {}),
-        )
-        .call()
-    )
-
-    persist_ele_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_ele_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="elephant_events_recorded",
-            df=include_elephant_totals,
-            **(params_dict.get("persist_ele_df") or {}),
-        )
-        .call()
-    )
-
-    exclude_ele_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_ele_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_ele_column,
-            z_threshold=3,
-            **(params_dict.get("exclude_ele_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_ele_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_ele_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_ele_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_ele_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_ele_events_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_ele_events_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="elephant_sight_herd_composition",
-            output_column_name="colors",
-            colormap="tab20",
-            df=rename_ele_column,
-            **(params_dict.get("apply_ele_events_colormap") or {}),
-        )
-        .call()
-    )
-
-    generate_elephant_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_elephant_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Herd Types",
-                "label_column": "elephant_sight_herd_composition",
-                "color_column": "colors",
-                "sort": "ascending",
-            },
-            geodataframe=apply_ele_events_colormap,
-            **(params_dict.get("generate_elephant_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_custom_ele = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_custom_ele")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_elephant_layers,
-            **(params_dict.get("combine_custom_ele") or {}),
-        )
-        .call()
-    )
-
-    draw_elephant_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_elephant_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=15,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_custom_ele,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_elephant_map") or {}),
-        )
-        .call()
-    )
-
-    persist_elephant_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_elephant_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_elephant_map,
-            filename="elephant_sightings_events.html",
-            **(params_dict.get("persist_elephant_urls") or {}),
-        )
-        .call()
-    )
-
-    elephant_herd_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("elephant_herd_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["elephant_sight_herd_composition"],
-            summary_params=[
-                {
-                    "display_name": "herd_distribution",
-                    "aggregator": "sum",
-                    "column": "elephant_sight_herd_size",
-                }
-            ],
-            reset_index=True,
-            df=rename_ele_column,
-            **(params_dict.get("elephant_herd_summary") or {}),
-        )
-        .call()
-    )
-
-    total_ele_composition = (
-        add_totals_row.validate()
-        .set_task_instance_id("total_ele_composition")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["elephant_sight_herd_composition"],
-            label="Total",
-            df=elephant_herd_summary,
-            **(params_dict.get("total_ele_composition") or {}),
-        )
-        .call()
-    )
-
-    persist_ele_summary = (
-        persist_df.validate()
-        .set_task_instance_id("persist_ele_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="elephant_herd_size_distribution_table",
-            df=total_ele_composition,
-            **(params_dict.get("persist_ele_summary") or {}),
-        )
-        .call()
-    )
-
-    bin_elephant_herd_col = (
-        bin_columns.validate()
-        .set_task_instance_id("bin_elephant_herd_col")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            columns=["elephant_sight_herd_size"],
-            bins=10,
-            suffix="bins",
-            inplace=False,
-            df=rename_ele_column,
-            **(params_dict.get("bin_elephant_herd_col") or {}),
-        )
-        .call()
-    )
-
-    cat_elephant_bins = (
-        categorize_bins.validate()
-        .set_task_instance_id("cat_elephant_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=bin_elephant_herd_col,
-            col="elephant_sight_herd_sizebins",
-            **(params_dict.get("cat_elephant_bins") or {}),
-        )
-        .call()
-    )
-
-    draw_elephant_herd_bar = (
-        draw_bar_chart.validate()
-        .set_task_instance_id("draw_elephant_herd_bar")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            dataframe=cat_elephant_bins,
-            category="elephant_sight_herd_sizebins",
-            layout_kwargs={
-                "font_size": 20,
-                "font_color": "#222222",
-                "plot_bgcolor": "#f5f5f5",
-                "title_x": 0.5,
-                "xaxis": {"title": "Group size"},
-                "yaxis": {"title": "Number of records"},
-                "showlegend": False,
-                "bargap": 0.1,
-            },
-            bar_chart_configs=[
-                {
-                    "column": "id",
-                    "agg_func": "count",
-                    "label": "",
-                    "style": {"marker_color": "lightsteelblue"},
-                }
-            ],
-            **(params_dict.get("draw_elephant_herd_bar") or {}),
-        )
-        .call()
-    )
-
-    persist_elephant_bar = (
-        persist_text.validate()
-        .set_task_instance_id("persist_elephant_bar")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_elephant_herd_bar,
-            filename="elephant_herd_size_bar_chart.html",
-            **(params_dict.get("persist_elephant_bar") or {}),
-        )
-        .call()
-    )
-
-    drop_null_ele_bins = (
-        drop_null_values.validate()
-        .set_task_instance_id("drop_null_ele_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=cat_elephant_bins,
-            col="elephant_sight_herd_sizebins_sort",
-            **(params_dict.get("drop_null_ele_bins") or {}),
-        )
-        .call()
-    )
-
-    exclude_ele_outlier_bins = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_ele_outlier_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=drop_null_ele_bins,
-            z_threshold=3,
-            **(params_dict.get("exclude_ele_outlier_bins") or {}),
-        )
-        .call()
-    )
-
-    drop_ele_bins_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("drop_ele_bins_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_ele_outlier_bins,
-            geometry_column="geometry",
-            **(params_dict.get("drop_ele_bins_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    clean_ele_column_idx = (
-        clean_dataframe_index.validate()
-        .set_task_instance_id("clean_ele_column_idx")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=drop_ele_bins_invalid_geoms,
-            reset_index=True,
-            drop_index=True,
-            rename_unnamed=True,
-            unnamed_col_name="idx",
-            **(params_dict.get("clean_ele_column_idx") or {}),
-        )
-        .call()
-    )
-
-    apply_ele_color_bins = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_ele_color_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="elephant_sight_herd_sizebins_sort",
-            output_column_name="colors",
-            colormap="Blues",
-            df=drop_ele_bins_invalid_geoms,
-            **(params_dict.get("apply_ele_color_bins") or {}),
-        )
-        .call()
-    )
-
-    generate_ele_herd_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_ele_herd_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": "elephant_sight_herd_size",
-                "line_width_min_pixels": 1,
-                "radius_units": "pixels",
-                "radius_scale": 0.43,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Group Sizes",
-                "label_column": "elephant_sight_herd_sizebins_sort",
-                "color_column": "colors",
-                "sort": "ascending",
-            },
-            geodataframe=apply_ele_color_bins,
-            **(params_dict.get("generate_ele_herd_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_ele_bins = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_ele_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_ele_herd_layers,
-            **(params_dict.get("combine_ele_bins") or {}),
-        )
-        .call()
-    )
-
-    draw_ele_herd_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_ele_herd_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=15,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_ele_bins,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_ele_herd_map") or {}),
-        )
-        .call()
-    )
-
-    persist_ele_herd_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_ele_herd_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_ele_herd_map,
-            filename="elephant_herd_types_map.html",
-            **(params_dict.get("persist_ele_herd_urls") or {}),
-        )
-        .call()
-    )
-
-    retrieve_buffalo_events = (
-        filter_df.validate()
-        .set_task_instance_id("retrieve_buffalo_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="buffalo_sighting_rep",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("retrieve_buffalo_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_buffalo_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_buffalo_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=retrieve_buffalo_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_buffalo_values") or {}),
-        )
-        .call()
-    )
-
-    rename_buffalo_columns = (
-        map_columns.validate()
-        .set_task_instance_id("rename_buffalo_columns")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            raise_if_not_found=True,
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__buffalosightingrep_herdsize": "buffalo_herd_size",
-                "event_details__buffalosightingrep_herd": "buffalo_herd",
-            },
-            df=normalize_buffalo_values,
-            **(params_dict.get("rename_buffalo_columns") or {}),
-        )
-        .call()
-    )
-
-    buffalo_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("buffalo_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["event_type"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=rename_buffalo_columns,
-            **(params_dict.get("buffalo_summary") or {}),
-        )
-        .call()
-    )
-
-    include_buffalo_totals = (
-        add_totals_row.validate()
-        .set_task_instance_id("include_buffalo_totals")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["event_type"],
-            label="Total",
-            df=buffalo_summary,
-            **(params_dict.get("include_buffalo_totals") or {}),
-        )
-        .call()
-    )
-
-    persist_buffalo_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_buffalo_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="buffalo_events_recorded",
-            df=include_buffalo_totals,
-            **(params_dict.get("persist_buffalo_df") or {}),
-        )
-        .call()
-    )
-
-    replace_buffalo_nulls = (
-        replace_missing_with_label.validate()
-        .set_task_instance_id("replace_buffalo_nulls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_buffalo_columns,
-            columns=["buffalo_herd"],
-            label="unspecified",
-            **(params_dict.get("replace_buffalo_nulls") or {}),
-        )
-        .call()
-    )
-
-    rename_buffalo_column = (
-        map_column_values.validate()
-        .set_task_instance_id("rename_buffalo_column")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=replace_buffalo_nulls,
-            columns=["buffalo_herd"],
-            value_map={
-                "bachelor": "Bachelor",
-                "mixed": "Mixed",
-                "unspecified": "Unspecified",
-                "femalecalf": "Female/calf",
-            },
-            inplace=True,
-            **(params_dict.get("rename_buffalo_column") or {}),
-        )
-        .call()
-    )
-
-    exclude_buffalo_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_buffalo_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_buffalo_column,
-            z_threshold=3,
-            **(params_dict.get("exclude_buffalo_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_buffalo_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_buffalo_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_buffalo_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_buffalo_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_buffalo_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_buffalo_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="buffalo_herd",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_buffalo_invalid_geoms,
-            **(params_dict.get("apply_buffalo_colormap") or {}),
-        )
-        .call()
-    )
-
-    generate_buffalo_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_buffalo_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            geodataframe=apply_buffalo_colormap,
-            legend={
-                "title": "Herd Types",
-                "label_column": "buffalo_herd",
-                "color_column": "colors",
-                "sort": "ascending",
-                "label_suffix": None,
-            },
-            **(params_dict.get("generate_buffalo_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_buffalo_point = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_buffalo_point")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_buffalo_layers,
-            **(params_dict.get("combine_buffalo_point") or {}),
-        )
-        .call()
-    )
-
-    draw_buffalo_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_buffalo_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=10,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_buffalo_point,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_buffalo_map") or {}),
-        )
-        .call()
-    )
-
-    persist_buffalo_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_buffalo_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_buffalo_map,
-            filename="buffalo_herd_map.html",
-            **(params_dict.get("persist_buffalo_urls") or {}),
-        )
-        .call()
-    )
-
-    bin_buffalos = (
-        bin_columns.validate()
-        .set_task_instance_id("bin_buffalos")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            columns=["buffalo_herd_size"],
-            bins=8,
-            suffix="bins",
-            inplace=False,
-            df=rename_buffalo_columns,
-            **(params_dict.get("bin_buffalos") or {}),
-        )
-        .call()
-    )
-
-    cat_buffalo_bins = (
-        categorize_bins.validate()
-        .set_task_instance_id("cat_buffalo_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=bin_buffalos,
-            col="buffalo_herd_sizebins",
-            **(params_dict.get("cat_buffalo_bins") or {}),
-        )
-        .call()
-    )
-
-    draw_buffalo_herd_bar = (
-        draw_bar_chart.validate()
-        .set_task_instance_id("draw_buffalo_herd_bar")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            dataframe=cat_buffalo_bins,
-            category="buffalo_herd_sizebins",
-            layout_kwargs={
-                "font_size": 13,
-                "font_color": "#222222",
-                "plot_bgcolor": "#f5f5f5",
-                "title_x": 0.5,
-                "xaxis": {"title": "Group size"},
-                "yaxis": {"title": "Number of records"},
-                "showlegend": False,
-                "bargap": 0.1,
-            },
-            bar_chart_configs=[
-                {
-                    "column": "id",
-                    "agg_func": "count",
-                    "label": "",
-                    "style": {"marker_color": "lightsteelblue"},
-                }
-            ],
-            **(params_dict.get("draw_buffalo_herd_bar") or {}),
-        )
-        .call()
-    )
-
-    persist_buffalo_bar = (
-        persist_text.validate()
-        .set_task_instance_id("persist_buffalo_bar")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_buffalo_herd_bar,
-            filename="buffalo_herd_size_bar_chart.html",
-            **(params_dict.get("persist_buffalo_bar") or {}),
-        )
-        .call()
-    )
-
-    drop_null_buffalo_bins = (
-        drop_null_values.validate()
-        .set_task_instance_id("drop_null_buffalo_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=cat_buffalo_bins,
-            col="buffalo_herd_sizebins_sort",
-            **(params_dict.get("drop_null_buffalo_bins") or {}),
-        )
-        .call()
-    )
-
-    exclude_buff_bins = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_buff_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=drop_null_buffalo_bins,
-            z_threshold=3,
-            **(params_dict.get("exclude_buff_bins") or {}),
-        )
-        .call()
-    )
-
-    remove_buff_bins_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_buff_bins_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_buff_bins,
-            geometry_column="geometry",
-            **(params_dict.get("remove_buff_bins_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_buffalo_color_bins = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_buffalo_color_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="buffalo_herd_sizebins_sort",
-            output_column_name="colors",
-            colormap="Blues",
-            df=remove_buff_bins_geoms,
-            **(params_dict.get("apply_buffalo_color_bins") or {}),
-        )
-        .call()
-    )
-
-    generate_buffalo_herd_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_buffalo_herd_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": "buffalo_herd_size",
-                "line_width_min_pixels": 1,
-                "radius_units": "pixels",
-                "radius_scale": 0.015,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Herd Size",
-                "label_column": "buffalo_herd_sizebins_sort",
-                "color_column": "colors",
-                "sort": "ascending",
-            },
-            geodataframe=apply_buffalo_color_bins,
-            **(params_dict.get("generate_buffalo_herd_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_buffalo_herd_bins = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_buffalo_herd_bins")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_buffalo_herd_layers,
-            **(params_dict.get("combine_buffalo_herd_bins") or {}),
-        )
-        .call()
-    )
-
-    draw_buffalo_herd_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_buffalo_herd_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=10,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_buffalo_herd_bins,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_buffalo_herd_map") or {}),
-        )
-        .call()
-    )
-
-    persist_buffalo_herd_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_buffalo_herd_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_buffalo_herd_map,
-            filename="buffalo_herd_types_map.html",
-            **(params_dict.get("persist_buffalo_herd_urls") or {}),
-        )
-        .call()
-    )
-
-    filter_rhino_events = (
-        filter_df.validate()
-        .set_task_instance_id("filter_rhino_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="rhino_sighting_rep",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_rhino_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_rhino_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_rhino_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_rhino_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_rhino_values") or {}),
-        )
-        .call()
-    )
-
-    rhino_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("rhino_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["event_type"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=normalize_rhino_values,
-            **(params_dict.get("rhino_summary") or {}),
-        )
-        .call()
-    )
-
-    include_rhino_totals = (
-        add_totals_row.validate()
-        .set_task_instance_id("include_rhino_totals")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["event_type"],
-            label="Total",
-            df=rhino_summary,
-            **(params_dict.get("include_rhino_totals") or {}),
-        )
-        .call()
-    )
-
-    persist_rhino_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_rhino_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="rhino_events_recorded",
-            df=include_rhino_totals,
-            **(params_dict.get("persist_rhino_df") or {}),
-        )
-        .call()
-    )
-
-    exclude_rhino_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_rhino_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=normalize_rhino_values,
-            z_threshold=3,
-            **(params_dict.get("exclude_rhino_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_rhino_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_rhino_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_rhino_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_rhino_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    generate_rhino_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_rhino_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Rhino Sightings",
-                "values": [{"label": "Sighting", "value": "#87cefa"}],
-            },
-            geodataframe=remove_rhino_invalid_geoms,
-            **(params_dict.get("generate_rhino_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_rhino_events = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_rhino_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_rhino_layers,
-            **(params_dict.get("combine_rhino_events") or {}),
-        )
-        .call()
-    )
-
-    draw_rhino_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_rhino_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=15,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_rhino_events,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_rhino_map") or {}),
-        )
-        .call()
-    )
-
-    persist_rhino_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_rhino_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_rhino_map,
-            filename="rhino_sighting_map.html",
-            **(params_dict.get("persist_rhino_urls") or {}),
-        )
-        .call()
-    )
-
-    retrieve_lion_events = (
-        filter_df.validate()
-        .set_task_instance_id("retrieve_lion_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="lion_sighting_rep",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("retrieve_lion_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_lion_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_lion_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=retrieve_lion_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_lion_values") or {}),
-        )
-        .call()
-    )
-
-    rename_lion_cols = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_lion_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__lionsightingrep_male": "lion_sight_male",
-                "event_details__lionsightingrep_pride": "lion_pride",
-                "event_details__lionsightingrep_young": "lion_sight_young",
-                "event_details__lionsightingrep_female": "lion_sight_female",
-                "event_details__lionsightingrep_behavior": "lion_behavior",
-                "event_details__lionsightingrep_groupsize": "lion_group_size",
-                "event_details__lionsightingrep_individual_present": "individual_present",
-            },
-            skip_missing_rename=True,
-            required_columns=[
-                "event_details__lionsightingrep_pride",
-                "event_details__lionsightingrep_individual_present",
-            ],
-            df=normalize_lion_values,
-            **(params_dict.get("rename_lion_cols") or {}),
-        )
-        .call()
-    )
-
-    lion_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("lion_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["event_type"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=rename_lion_cols,
-            **(params_dict.get("lion_summary") or {}),
-        )
-        .call()
-    )
-
-    include_lion_totals = (
-        add_totals_row.validate()
-        .set_task_instance_id("include_lion_totals")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["event_type"],
-            label="Total",
-            df=lion_summary,
-            **(params_dict.get("include_lion_totals") or {}),
-        )
-        .call()
-    )
-
-    persist_lion_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_lion_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="lion_events_recorded",
-            df=include_lion_totals,
-            **(params_dict.get("persist_lion_df") or {}),
-        )
-        .call()
-    )
-
-    remove_pride_str = (
-        remove_substring.validate()
-        .set_task_instance_id("remove_pride_str")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_lion_cols,
-            column="lion_pride",
-            value="pride",
-            **(params_dict.get("remove_pride_str") or {}),
-        )
-        .call()
-    )
-
-    lion_pride_scase = (
-        to_sentence_case.validate()
-        .set_task_instance_id("lion_pride_scase")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=remove_pride_str,
-            columns=["lion_pride"],
-            **(params_dict.get("lion_pride_scase") or {}),
-        )
-        .call()
-    )
-
-    rename_lion_pride_column = (
-        map_column_values.validate()
-        .set_task_instance_id("rename_lion_pride_column")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=lion_pride_scase,
-            columns=["lion_pride"],
-            value_map={
-                "Acacia": "Acacia",
-                "Enkuyanai": "Enkuyanai",
-                "Lemekhills": "Lemek hills",
-                "Offbeat": "Offbeat",
-                "Oldikidiki": "Oldikidiki",
-                "River": "River",
-            },
-            inplace=True,
-            **(params_dict.get("rename_lion_pride_column") or {}),
-        )
-        .call()
-    )
-
-    unique_lions_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("unique_lions_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["lion_pride"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=rename_lion_pride_column,
-            **(params_dict.get("unique_lions_summary") or {}),
-        )
-        .call()
-    )
-
-    persist_unique_lions_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_unique_lions_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="unique_lion_prides",
-            df=unique_lions_summary,
-            **(params_dict.get("persist_unique_lions_df") or {}),
-        )
-        .call()
-    )
-
-    replace_lion_nulls = (
-        replace_missing_with_label.validate()
-        .set_task_instance_id("replace_lion_nulls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_lion_pride_column,
-            columns=["individual_present", "lion_pride"],
-            label="unspecified",
-            **(params_dict.get("replace_lion_nulls") or {}),
-        )
-        .call()
-    )
-
-    exclude_lion_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_lion_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=replace_lion_nulls,
-            z_threshold=3,
-            **(params_dict.get("exclude_lion_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_lion_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_lion_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_lion_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_lion_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_lion_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_lion_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="lion_pride",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_lion_invalid_geoms,
-            **(params_dict.get("apply_lion_colormap") or {}),
-        )
-        .call()
-    )
-
-    generate_lion_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_lion_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Lion Prides",
-                "label_column": "lion_pride",
-                "color_column": "colors",
-                "sort": "ascending",
-                "label_suffix": None,
-            },
-            geodataframe=apply_lion_colormap,
-            **(params_dict.get("generate_lion_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_lion_point = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_lion_point")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_lion_layers,
-            **(params_dict.get("combine_lion_point") or {}),
-        )
-        .call()
-    )
-
-    draw_lion_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_lion_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=10,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_lion_point,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_lion_map") or {}),
-        )
-        .call()
-    )
-
-    persist_lion_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_lion_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_lion_map,
-            filename="lion_sightings_map.html",
-            **(params_dict.get("persist_lion_urls") or {}),
-        )
-        .call()
-    )
-
-    filter_leopard_events = (
-        filter_df.validate()
-        .set_task_instance_id("filter_leopard_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="leopardsightingrep",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_leopard_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_leopard_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_leopard_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_leopard_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_leopard_values") or {}),
-        )
-        .call()
-    )
-
-    rename_leopard_cols = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_leopard_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__leopardsightingrep_male": "leopard_sight_male",
-                "event_details__leopardsightingrep_young": "leopard_sight_young",
-                "event_details__leopardsightingrep_female": "leopard_sight_female",
-                "event_details__leopardsightingrep_behavior": "leopard_behavior",
-                "event_details__leopardsightingrep_groupsize": "leopard_group_size",
-                "event_details__leopardsightingrep_individual_present": "individual_present",
-            },
-            skip_missing_rename=True,
-            required_columns=["event_details__leopardsightingrep_individual_present"],
-            df=normalize_leopard_values,
-            **(params_dict.get("rename_leopard_cols") or {}),
-        )
-        .call()
-    )
-
-    replace_leopard_nulls = (
-        replace_missing_with_label.validate()
-        .set_task_instance_id("replace_leopard_nulls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_leopard_cols,
-            columns=["individual_present"],
-            label="unknown",
-            **(params_dict.get("replace_leopard_nulls") or {}),
-        )
-        .call()
-    )
-
-    remove_leopard_str = (
-        remove_substring.validate()
-        .set_task_instance_id("remove_leopard_str")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=replace_leopard_nulls,
-            column="individual_present",
-            value="_",
-            **(params_dict.get("remove_leopard_str") or {}),
-        )
-        .call()
-    )
-
-    leopard_ip_scase = (
-        to_sentence_case.validate()
-        .set_task_instance_id("leopard_ip_scase")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=remove_leopard_str,
-            columns=["individual_present"],
-            **(params_dict.get("leopard_ip_scase") or {}),
-        )
-        .call()
-    )
-
-    leopard_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("leopard_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["event_type"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=leopard_ip_scase,
-            **(params_dict.get("leopard_summary") or {}),
-        )
-        .call()
-    )
-
-    include_leopard_totals = (
-        add_totals_row.validate()
-        .set_task_instance_id("include_leopard_totals")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["event_type"],
-            label="Total",
-            df=leopard_summary,
-            **(params_dict.get("include_leopard_totals") or {}),
-        )
-        .call()
-    )
-
-    persist_leopard_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_leopard_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="leopard_events_recorded",
-            df=include_leopard_totals,
-            **(params_dict.get("persist_leopard_df") or {}),
-        )
-        .call()
-    )
-
-    unique_leopards_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("unique_leopards_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["individual_present"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=leopard_ip_scase,
-            **(params_dict.get("unique_leopards_summary") or {}),
-        )
-        .call()
-    )
-
-    persist_leopards_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_leopards_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="individual_leopard_summary",
-            df=unique_leopards_summary,
-            **(params_dict.get("persist_leopards_df") or {}),
-        )
-        .call()
-    )
-
-    exclude_leopard_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_leopard_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=leopard_ip_scase,
-            z_threshold=3,
-            **(params_dict.get("exclude_leopard_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_leopard_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_leopard_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_leopard_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_leopard_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_leopard_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_leopard_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="individual_present",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_leopard_invalid_geoms,
-            **(params_dict.get("apply_leopard_colormap") or {}),
-        )
-        .call()
-    )
-
-    generate_leopard_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_leopard_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Individual",
-                "label_column": "individual_present",
-                "color_column": "colors",
-                "sort": "ascending",
-            },
-            geodataframe=apply_leopard_colormap,
-            **(params_dict.get("generate_leopard_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_leopard_events = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_leopard_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_leopard_layers,
-            **(params_dict.get("combine_leopard_events") or {}),
-        )
-        .call()
-    )
-
-    draw_leopard_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_leopard_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=15,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_leopard_events,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_leopard_map") or {}),
-        )
-        .call()
-    )
-
-    persist_leopard_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_leopard_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_leopard_map,
-            filename="leopard_sightings_map.html",
-            **(params_dict.get("persist_leopard_urls") or {}),
-        )
-        .call()
-    )
-
-    retrieve_cheetah_events = (
-        filter_df.validate()
-        .set_task_instance_id("retrieve_cheetah_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="cheetah_sighting_rep",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("retrieve_cheetah_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_cheetah_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_cheetah_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=retrieve_cheetah_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_cheetah_values") or {}),
-        )
-        .call()
-    )
-
-    rename_cheetah_cols = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_cheetah_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__cheetahsightingrep_male": "cheetah_sight_male",
-                "event_details__cheetahsightingrep_female": "cheetah_sight_female",
-                "event_details__cheetahsightingrep_young": "cheetah_sight_young",
-                "event_details__cheetahsightingrep_behavior": "cheetah_behavior",
-                "event_details__cheetahsightingrep_groupsize": "cheetah_group_size",
-                "event_details__cheetahsightingrep_individual_present": "individual_present",
-            },
-            skip_missing_rename=True,
-            required_columns=["event_details__cheetahsightingrep_individual_present"],
-            df=normalize_cheetah_values,
-            **(params_dict.get("rename_cheetah_cols") or {}),
-        )
-        .call()
-    )
-
-    replace_cheetah_nulls = (
-        replace_missing_with_label.validate()
-        .set_task_instance_id("replace_cheetah_nulls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_cheetah_cols,
-            columns=["individual_present"],
-            label="other",
-            **(params_dict.get("replace_cheetah_nulls") or {}),
-        )
-        .call()
-    )
-
-    cheetah_scase = (
-        to_sentence_case.validate()
-        .set_task_instance_id("cheetah_scase")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=replace_cheetah_nulls,
-            columns=["individual_present"],
-            **(params_dict.get("cheetah_scase") or {}),
-        )
-        .call()
-    )
-
-    cheetah_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("cheetah_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["event_type"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=cheetah_scase,
-            **(params_dict.get("cheetah_summary") or {}),
-        )
-        .call()
-    )
-
-    include_cheetah_totals = (
-        add_totals_row.validate()
-        .set_task_instance_id("include_cheetah_totals")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["event_type"],
-            label="Total",
-            df=cheetah_summary,
-            **(params_dict.get("include_cheetah_totals") or {}),
-        )
-        .call()
-    )
-
-    persist_cheetah_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_cheetah_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="cheetah_events_recorded",
-            df=include_cheetah_totals,
-            **(params_dict.get("persist_cheetah_df") or {}),
-        )
-        .call()
-    )
-
-    unique_cheetah_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("unique_cheetah_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["individual_present"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=cheetah_scase,
-            **(params_dict.get("unique_cheetah_summary") or {}),
-        )
-        .call()
-    )
-
-    persist_cheetah_summary = (
-        persist_df.validate()
-        .set_task_instance_id("persist_cheetah_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="individual_cheetah_summary",
-            df=unique_cheetah_summary,
-            **(params_dict.get("persist_cheetah_summary") or {}),
-        )
-        .call()
-    )
-
-    exclude_cheetah_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_cheetah_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=cheetah_scase,
-            z_threshold=3,
-            **(params_dict.get("exclude_cheetah_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_cheetah_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_cheetah_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_cheetah_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_cheetah_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    apply_cheetah_colormap = (
-        apply_color_map.validate()
-        .set_task_instance_id("apply_cheetah_colormap")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            input_column_name="individual_present",
-            output_column_name="colors",
-            colormap="tab20",
-            df=remove_cheetah_invalid_geoms,
-            **(params_dict.get("apply_cheetah_colormap") or {}),
-        )
-        .call()
-    )
-
-    generate_cheetah_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_cheetah_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": "colors",
-                "get_line_color": "colors",
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Individual",
-                "label_column": "individual_present",
-                "color_column": "colors",
-                "sort": "ascending",
-            },
-            geodataframe=apply_cheetah_colormap,
-            **(params_dict.get("generate_cheetah_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_cheetah_point = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_cheetah_point")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_cheetah_layers,
-            **(params_dict.get("combine_cheetah_point") or {}),
-        )
-        .call()
-    )
-
-    draw_cheetah_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_cheetah_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=10,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_cheetah_point,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_cheetah_map") or {}),
-        )
-        .call()
-    )
-
-    persist_cheetah_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_cheetah_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_cheetah_map,
-            filename="cheetah_sightings_map.html",
-            **(params_dict.get("persist_cheetah_urls") or {}),
-        )
-        .call()
-    )
-
-    filter_giraffe_events = (
-        filter_df.validate()
-        .set_task_instance_id("filter_giraffe_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="giraffe_sighting",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_giraffe_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_giraffe_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_giraffe_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_giraffe_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_giraffe_values") or {}),
-        )
-        .call()
-    )
-
-    rename_giraffe_cols = (
-        map_columns.validate()
-        .set_task_instance_id("rename_giraffe_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            raise_if_not_found=True,
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__total_count": "total_count",
-                "event_details__number_of_adults": "number_of_adults",
-                "event_details__number_of_calves": "number_of_calves",
-                "event_details__number_of_juveniles": "number_of_juveniles",
-                "event_details__updates": "updates",
-            },
-            df=normalize_giraffe_values,
-            **(params_dict.get("rename_giraffe_cols") or {}),
-        )
-        .call()
-    )
-
-    giraffe_summary = (
-        summarize_df.validate()
-        .set_task_instance_id("giraffe_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["event_type"],
-            summary_params=[
-                {
-                    "display_name": "no_of_events",
-                    "aggregator": "nunique",
-                    "column": "id",
-                }
-            ],
-            reset_index=True,
-            df=rename_giraffe_cols,
-            **(params_dict.get("giraffe_summary") or {}),
-        )
-        .call()
-    )
-
-    include_giraffe_totals = (
-        add_totals_row.validate()
-        .set_task_instance_id("include_giraffe_totals")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            label_col=["event_type"],
-            label="Total",
-            df=giraffe_summary,
-            **(params_dict.get("include_giraffe_totals") or {}),
-        )
-        .call()
-    )
-
-    persist_giraffe_df = (
-        persist_df.validate()
-        .set_task_instance_id("persist_giraffe_df")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            filename="giraffe_events_recorded",
-            df=include_giraffe_totals,
-            **(params_dict.get("persist_giraffe_df") or {}),
-        )
-        .call()
-    )
-
-    exclude_giraffe_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_giraffe_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_giraffe_cols,
-            z_threshold=3,
-            **(params_dict.get("exclude_giraffe_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_giraffe_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_giraffe_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_giraffe_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_giraffe_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    generate_giraffe_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_giraffe_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": [135, 206, 250],
-                "get_line_color": [135, 206, 250],
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Giraffe Sightings",
-                "values": [{"label": "Sighting", "color": "#87cefa"}],
-            },
-            geodataframe=remove_giraffe_invalid_geoms,
-            **(params_dict.get("generate_giraffe_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_giraffe_events = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_giraffe_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_giraffe_layers,
-            **(params_dict.get("combine_giraffe_events") or {}),
-        )
-        .call()
-    )
-
-    draw_giraffe_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_giraffe_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=15,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_giraffe_events,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_giraffe_map") or {}),
-        )
-        .call()
-    )
-
-    persist_giraffe_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_giraffe_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_giraffe_map,
-            filename="giraffe_sighting_map.html",
-            **(params_dict.get("persist_giraffe_urls") or {}),
-        )
-        .call()
-    )
-
-    filter_hb_events = (
-        filter_df.validate()
-        .set_task_instance_id("filter_hb_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="hartebeest_sighting",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_hb_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_hb_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_hb_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_hb_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_hb_values") or {}),
-        )
-        .call()
-    )
-
-    exclude_hb_outliers = (
-        exclude_geom_outliers.validate()
-        .set_task_instance_id("exclude_hb_outliers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=normalize_hb_values,
-            z_threshold=3,
-            **(params_dict.get("exclude_hb_outliers") or {}),
-        )
-        .call()
-    )
-
-    remove_hb_invalid_geoms = (
-        drop_null_geometry.validate()
-        .set_task_instance_id("remove_hb_invalid_geoms")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            gdf=exclude_hb_outliers,
-            geometry_column="geometry",
-            **(params_dict.get("remove_hb_invalid_geoms") or {}),
-        )
-        .call()
-    )
-
-    generate_hb_layers = (
-        create_scatterplot_layer.validate()
-        .set_task_instance_id("generate_hb_layers")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            layer_style={
-                "get_fill_color": [135, 206, 250],
-                "get_line_color": [135, 206, 250],
-                "get_radius": 4,
-                "opacity": 0.75,
-                "stroked": True,
-            },
-            legend={
-                "title": "Hartebeest Sightings",
-                "values": [{"label": "Sighting", "color": "#87cefa"}],
-            },
-            geodataframe=remove_hb_invalid_geoms,
-            **(params_dict.get("generate_hb_layers") or {}),
-        )
-        .call()
-    )
-
-    combine_hb_events = (
-        combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_hb_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            static_layers=[
-                create_conservancy_boundaries,
-                create_mnc_parcels_layers,
-                conservancy_text_layer,
-            ],
-            grouped_layers=generate_hb_layers,
-            **(params_dict.get("combine_hb_events") or {}),
-        )
-        .call()
-    )
-
-    draw_hb_map = (
-        draw_map.validate()
-        .set_task_instance_id("draw_hb_map")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            tile_layers=configure_base_maps,
-            static=False,
-            title=None,
-            max_zoom=15,
-            legend_style={"placement": "bottom-right"},
-            geo_layers=combine_hb_events,
-            view_state=global_zoom_value,
-            **(params_dict.get("draw_hb_map") or {}),
-        )
-        .call()
-    )
-
-    persist_hb_urls = (
-        persist_text.validate()
-        .set_task_instance_id("persist_hb_urls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            text=draw_hb_map,
-            filename="hartebeest_sighting_map.html",
-            **(params_dict.get("persist_hb_urls") or {}),
-        )
-        .call()
-    )
-
-    filter_balloon_events = (
-        filter_df.validate()
-        .set_task_instance_id("filter_balloon_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="balloon_landing",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_balloon_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_balloon_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_balloon_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_balloon_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_balloon_values") or {}),
-        )
-        .call()
-    )
-
-    rename_balloon_boma = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_balloon_boma")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__of_passengers": "no_of_passengers",
-                "event_details__balloon_company": "balloon_company",
-                "event_details__where_are_clients_staying": "lodge",
-            },
-            skip_missing_rename=True,
-            required_columns=[
-                "event_details__of_passengers",
-                "event_details__balloon_company",
-                "date",
-                "event_details__where_are_clients_staying",
-            ],
-            df=normalize_balloon_values,
-            **(params_dict.get("rename_balloon_boma") or {}),
-        )
-        .call()
-    )
-
-    remove_balloon_brackets = (
-        remove_brackets_from_column.validate()
-        .set_task_instance_id("remove_balloon_brackets")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_balloon_boma,
-            columns=["lodge", "balloon_company"],
-            **(params_dict.get("remove_balloon_brackets") or {}),
-        )
-        .call()
-    )
-
-    replace_lodge_nulls = (
-        replace_missing_with_label.validate()
-        .set_task_instance_id("replace_lodge_nulls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=remove_balloon_brackets,
-            columns=["lodge"],
-            label="other",
-            **(params_dict.get("replace_lodge_nulls") or {}),
-        )
-        .call()
-    )
-
-    convert_passengers_int = (
-        convert_to_int.validate()
-        .set_task_instance_id("convert_passengers_int")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=replace_lodge_nulls,
-            columns=["no_of_passengers"],
-            errors="coerce",
-            fill_value=0,
-            inplace=False,
-            **(params_dict.get("convert_passengers_int") or {}),
-        )
-        .call()
-    )
-
-    generate_balloon_table = (
-        summarize_df.validate()
-        .set_task_instance_id("generate_balloon_table")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            groupby_cols=["date", "balloon_company", "lodge"],
-            summary_params=[
-                {
-                    "display_name": "no_of_passengers",
-                    "aggregator": "sum",
-                    "column": "no_of_passengers",
-                }
-            ],
-            reset_index=True,
-            df=convert_passengers_int,
-            **(params_dict.get("generate_balloon_table") or {}),
-        )
-        .call()
-    )
-
-    capitalize_balloon_co = (
-        capitalize_text.validate()
-        .set_task_instance_id("capitalize_balloon_co")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=generate_balloon_table,
-            column="balloon_company",
-            **(params_dict.get("capitalize_balloon_co") or {}),
-        )
-        .call()
-    )
-
-    capitalize_lodge = (
-        capitalize_text.validate()
-        .set_task_instance_id("capitalize_lodge")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=capitalize_balloon_co,
-            column="lodge",
-            **(params_dict.get("capitalize_lodge") or {}),
-        )
-        .call()
-    )
-
-    persist_balloon_summary = (
-        persist_df.validate()
-        .set_task_instance_id("persist_balloon_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            df=capitalize_lodge,
-            filename="balloon_landing_by_date",
-            **(params_dict.get("persist_balloon_summary") or {}),
-        )
-        .call()
-    )
-
-    filter_airstrip_events = (
-        filter_df.validate()
-        .set_task_instance_id("filter_airstrip_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="airstrip_operations",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_airstrip_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_airstrip_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_airstrip_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_airstrip_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_airstrip_values") or {}),
-        )
-        .call()
-    )
-
-    rename_airstrip = (
-        map_columns.validate()
-        .set_task_instance_id("rename_airstrip")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            raise_if_not_found=True,
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={
-                "event_details__guide": "guide",
-                "event_details__airline": "airline",
-                "event_details__attendant": "attendant",
-                "event_details__camplodge": "camp_lodge",
-                "event_details__flight_number": "flight_number",
-                "event_details__number_of_clients": "number_of_clients",
-                "event_details__arrival_or_departure": "arrival_or_departure",
-            },
-            df=normalize_airstrip_values,
-            **(params_dict.get("rename_airstrip") or {}),
-        )
-        .call()
-    )
-
-    remove_air_brackets = (
-        remove_brackets_from_column.validate()
-        .set_task_instance_id("remove_air_brackets")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_airstrip,
-            columns=["airline", "attendant", "camp_lodge", "arrival_or_departure"],
-            **(params_dict.get("remove_air_brackets") or {}),
-        )
-        .call()
-    )
-
-    replace_camp_lodge_nulls = (
-        replace_missing_with_label.validate()
-        .set_task_instance_id("replace_camp_lodge_nulls")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=remove_air_brackets,
-            columns=["camp_lodge"],
-            label="other",
-            **(params_dict.get("replace_camp_lodge_nulls") or {}),
-        )
-        .call()
-    )
-
-    convert_clients_int = (
-        convert_to_int.validate()
-        .set_task_instance_id("convert_clients_int")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=replace_camp_lodge_nulls,
-            columns=["number_of_clients"],
-            errors="coerce",
-            fill_value=0,
-            inplace=False,
-            **(params_dict.get("convert_clients_int") or {}),
-        )
-        .call()
-    )
-
-    lodge_scase = (
-        capitalize_text.validate()
-        .set_task_instance_id("lodge_scase")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=convert_clients_int,
-            column="camp_lodge",
-            **(params_dict.get("lodge_scase") or {}),
-        )
-        .call()
-    )
-
-    airstrip_summary_table = (
-        summarize_df.validate()
-        .set_task_instance_id("airstrip_summary_table")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=lodge_scase,
-            groupby_cols=["camp_lodge", "arrival_or_departure"],
-            summary_params=[
-                {
-                    "display_name": "no_of_passengers",
-                    "aggregator": "sum",
-                    "column": "number_of_clients",
-                    "decimal_places": 0,
-                }
-            ],
-            reset_index=True,
-            **(params_dict.get("airstrip_summary_table") or {}),
-        )
-        .call()
-    )
-
-    pivot_airstrip_table = (
-        pivot_df.validate()
-        .set_task_instance_id("pivot_airstrip_table")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=airstrip_summary_table,
-            index_col="camp_lodge",
-            columns_col="arrival_or_departure",
-            values_col="no_of_passengers",
-            reset_idx=True,
-            **(params_dict.get("pivot_airstrip_table") or {}),
-        )
-        .call()
-    )
-
-    persist_airstrip_summary = (
-        persist_df.validate()
-        .set_task_instance_id("persist_airstrip_summary")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            df=pivot_airstrip_table,
-            filename="airstrip_arrivals_and_departure",
-            **(params_dict.get("persist_airstrip_summary") or {}),
-        )
-        .call()
-    )
-
-    filter_am_events = (
-        filter_df.validate()
-        .set_task_instance_id("filter_am_events")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column_name="event_type",
-            op="equal",
-            value="airstrip_maintenance",
-            df=events_temporal,
-            reset_index=False,
-            **(params_dict.get("filter_am_events") or {}),
-        )
-        .call()
-    )
-
-    normalize_am_values = (
-        normalize_json_column.validate()
-        .set_task_instance_id("normalize_am_values")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            column="event_details",
-            df=filter_am_events,
-            skip_if_not_exists=True,
-            sort_columns=True,
-            **(params_dict.get("normalize_am_values") or {}),
-        )
-        .call()
-    )
-
-    rename_am = (
-        transform_columns.validate()
-        .set_task_instance_id("rename_am")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            drop_columns=[],
-            retain_columns=[],
-            rename_columns={"event_details__maintenance_type": "activity"},
-            skip_missing_rename=True,
-            required_columns=["event_details__maintenance_type"],
-            df=normalize_am_values,
-            **(params_dict.get("rename_am") or {}),
-        )
-        .call()
-    )
-
-    filter_cols = (
-        filter_columns.validate()
-        .set_task_instance_id("filter_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=rename_am,
-            columns=["date", "activity"],
-            exclude=[],
-            **(params_dict.get("filter_cols") or {}),
-        )
-        .call()
-    )
-
-    capitalize_activity_col = (
-        capitalize_text.validate()
-        .set_task_instance_id("capitalize_activity_col")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=filter_cols,
-            column="activity",
-            **(params_dict.get("capitalize_activity_col") or {}),
-        )
-        .call()
-    )
-
-    persist_air_maintenance = (
-        persist_df.validate()
-        .set_task_instance_id("persist_air_maintenance")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            filetype="csv",
-            df=capitalize_activity_col,
-            filename="airstrip_maintenance_table",
-            **(params_dict.get("persist_air_maintenance") or {}),
+            **(params_dict.get("convert_tevents_png") or {}),
         )
         .call()
     )
@@ -7024,7 +7698,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            raise_if_not_found=True,
+            raise_if_not_found=False,
             drop_columns=[],
             retain_columns=[],
             rename_columns={
@@ -7172,7 +7846,7 @@ def main(params: Params):
     )
 
     replace_transport_unspecified = (
-        replace_missing_with_label.validate()
+        replace_empty_strings_in_columns.validate()
         .set_task_instance_id("replace_transport_unspecified")
         .handle_errors()
         .with_tracing()
@@ -7186,7 +7860,9 @@ def main(params: Params):
         .partial(
             df=filter_null_patrols,
             columns=["transport_type"],
-            label="unspecified",
+            replacement="unspecified",
+            strip_whitespace=True,
+            missing="ignore",
             **(params_dict.get("replace_transport_unspecified") or {}),
         )
         .call()
@@ -7229,7 +7905,7 @@ def main(params: Params):
             events_df=explode_patrol_columns,
             patrols_column="patrol_id",
             client=er_client_name,
-            batch_size=15,
+            max_workers=15,
             **(params_dict.get("get_patrols_from_info") or {}),
         )
         .call()
@@ -7252,7 +7928,7 @@ def main(params: Params):
             patrols_df=get_patrols_from_info,
             include_patrol_details=True,
             raise_on_empty=True,
-            sub_page_size=150,
+            sub_page_size=750,
             **(params_dict.get("get_patrol_obs") or {}),
         )
         .call()
@@ -7271,7 +7947,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            raise_if_not_found=True,
+            raise_if_not_found=False,
             drop_columns=["geometry", "reported_by", "index", "serial_number"],
             retain_columns=[],
             rename_columns={
@@ -7629,7 +8305,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            raise_if_not_found=True,
+            raise_if_not_found=False,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -7663,7 +8339,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            raise_if_not_found=True,
+            raise_if_not_found=False,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -7697,7 +8373,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            raise_if_not_found=True,
+            raise_if_not_found=False,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -7808,9 +8484,54 @@ def main(params: Params):
         .call()
     )
 
-    apply_footp_colormap = (
+    foot_patrol_grid_visits = (
+        create_patrol_coverage_grid.validate()
+        .set_task_instance_id("foot_patrol_grid_visits")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            grid_cell_size=1000,
+            keep_empty_cells=False,
+            aoi=None,
+            trajs=rename_foot_trajs,
+            **(params_dict.get("foot_patrol_grid_visits") or {}),
+        )
+        .call()
+    )
+
+    apply_foot_class_grid = (
+        apply_classification.validate()
+        .set_task_instance_id("apply_foot_class_grid")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="unique_patrol_count",
+            output_column_name="density_bins",
+            label_options={"label_ranges": False, "label_decimals": 1},
+            classification_options={"k": 5, "scheme": "equal_interval"},
+            df=foot_patrol_grid_visits,
+            **(params_dict.get("apply_foot_class_grid") or {}),
+        )
+        .call()
+    )
+
+    apply_foot_grid_colormap = (
         apply_color_map.validate()
-        .set_task_instance_id("apply_footp_colormap")
+        .set_task_instance_id("apply_foot_grid_colormap")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -7821,45 +8542,18 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            input_column_name="patrol_type_value",
-            output_column_name="foot_patrol_colors",
-            colormap="tab20",
-            df=rename_foot_trajs,
-            **(params_dict.get("apply_footp_colormap") or {}),
+            input_column_name="density_bins",
+            colormap="RdYlGn_r",
+            output_column_name="density_colors",
+            df=apply_foot_class_grid,
+            **(params_dict.get("apply_foot_grid_colormap") or {}),
         )
         .call()
     )
 
-    filter_foot_patrol_cols = (
-        filter_columns.validate()
-        .set_task_instance_id("filter_foot_patrol_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=apply_footp_colormap,
-            columns=[
-                "timespan_seconds",
-                "dist_meters",
-                "geometry",
-                "patrol_type_value",
-                "foot_patrol_colors",
-            ],
-            exclude=[],
-            **(params_dict.get("filter_foot_patrol_cols") or {}),
-        )
-        .call()
-    )
-
-    generate_foot_layers = (
-        create_path_layer.validate()
-        .set_task_instance_id("generate_foot_layers")
+    generate_foot_grid_layers = (
+        create_geojson_layer.validate()
+        .set_task_instance_id("generate_foot_grid_layers")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -7871,33 +8565,36 @@ def main(params: Params):
         )
         .partial(
             layer_style={
-                "get_color": "foot_patrol_colors",
-                "get_width": 1.85,
-                "width_scale": 1,
-                "width_min_pixels": 2,
-                "width_max_pixels": 6,
-                "width_units": "pixels",
-                "cap_rounded": True,
-                "joint_rounded": True,
-                "billboard": False,
-                "opacity": 0.75,
+                "filled": True,
                 "stroked": True,
+                "extruded": False,
+                "wireframe": False,
+                "get_fill_color": "density_colors",
+                "get_line_color": [0, 0, 0],
+                "opacity": 0.55,
+                "get_line_width": 0.95,
+                "get_elevation": 0,
+                "get_point_radius": 1,
+                "line_width_units": "pixels",
+                "line_width_scale": 1,
+                "line_width_min_pixels": 1,
+                "line_width_max_pixels": 5,
             },
             legend={
-                "title": "Patrol Type",
-                "label_column": "patrol_type_value",
-                "color_column": "foot_patrol_colors",
-                "sort": "ascending",
+                "title": "Grid Cell Visits",
+                "label_column": "density_bins",
+                "color_column": "density_colors",
             },
-            geodataframe=filter_foot_patrol_cols,
-            **(params_dict.get("generate_foot_layers") or {}),
+            geodataframe=apply_foot_grid_colormap,
+            data_url=None,
+            **(params_dict.get("generate_foot_grid_layers") or {}),
         )
         .call()
     )
 
-    combine_foot_layers = (
+    combine_foot_grid_layers = (
         combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_foot_layers")
+        .set_task_instance_id("combine_foot_grid_layers")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -7913,8 +8610,8 @@ def main(params: Params):
                 create_mnc_parcels_layers,
                 conservancy_text_layer,
             ],
-            grouped_layers=generate_foot_layers,
-            **(params_dict.get("combine_foot_layers") or {}),
+            grouped_layers=generate_foot_grid_layers,
+            **(params_dict.get("combine_foot_grid_layers") or {}),
         )
         .call()
     )
@@ -7937,7 +8634,7 @@ def main(params: Params):
             title=None,
             max_zoom=10,
             legend_style={"placement": "bottom-right"},
-            geo_layers=combine_foot_layers,
+            geo_layers=combine_foot_grid_layers,
             view_state=global_zoom_value,
             **(params_dict.get("draw_foot_map") or {}),
         )
@@ -7961,6 +8658,32 @@ def main(params: Params):
             text=draw_foot_map,
             filename="foot_patrols_map.html",
             **(params_dict.get("persist_foot_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_foot_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_foot_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            html_path=persist_foot_urls,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_foot_png") or {}),
         )
         .call()
     )
@@ -8055,9 +8778,54 @@ def main(params: Params):
         .call()
     )
 
-    apply_vehicle_colormap = (
+    vehicle_patrol_grid_visits = (
+        create_patrol_coverage_grid.validate()
+        .set_task_instance_id("vehicle_patrol_grid_visits")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            grid_cell_size=1000,
+            aoi=None,
+            keep_empty_cells=False,
+            trajs=rename_vehicle_trajs,
+            **(params_dict.get("vehicle_patrol_grid_visits") or {}),
+        )
+        .call()
+    )
+
+    apply_vehicle_class_grid = (
+        apply_classification.validate()
+        .set_task_instance_id("apply_vehicle_class_grid")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="unique_patrol_count",
+            output_column_name="density_bins",
+            label_options={"label_ranges": False, "label_decimals": 1},
+            classification_options={"k": 5, "scheme": "equal_interval"},
+            df=vehicle_patrol_grid_visits,
+            **(params_dict.get("apply_vehicle_class_grid") or {}),
+        )
+        .call()
+    )
+
+    apply_vehicle_grid_colormap = (
         apply_color_map.validate()
-        .set_task_instance_id("apply_vehicle_colormap")
+        .set_task_instance_id("apply_vehicle_grid_colormap")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -8068,45 +8836,18 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            input_column_name="patrol_type_value",
-            output_column_name="colors",
-            colormap="tab20",
-            df=rename_vehicle_trajs,
-            **(params_dict.get("apply_vehicle_colormap") or {}),
+            input_column_name="density_bins",
+            colormap="RdYlGn_r",
+            output_column_name="density_colors",
+            df=apply_vehicle_class_grid,
+            **(params_dict.get("apply_vehicle_grid_colormap") or {}),
         )
         .call()
     )
 
-    filter_vehicle_patrol_cols = (
-        filter_columns.validate()
-        .set_task_instance_id("filter_vehicle_patrol_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=apply_vehicle_colormap,
-            columns=[
-                "timespan_seconds",
-                "dist_meters",
-                "geometry",
-                "patrol_type_value",
-                "colors",
-            ],
-            exclude=[],
-            **(params_dict.get("filter_vehicle_patrol_cols") or {}),
-        )
-        .call()
-    )
-
-    generate_vehicle_layers = (
-        create_path_layer.validate()
-        .set_task_instance_id("generate_vehicle_layers")
+    generate_vehicle_grid_layers = (
+        create_geojson_layer.validate()
+        .set_task_instance_id("generate_vehicle_grid_layers")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -8118,33 +8859,36 @@ def main(params: Params):
         )
         .partial(
             layer_style={
-                "get_color": "colors",
-                "get_width": 1.85,
-                "width_scale": 1,
-                "width_min_pixels": 2,
-                "width_max_pixels": 6,
-                "width_units": "pixels",
-                "cap_rounded": True,
-                "joint_rounded": True,
-                "billboard": False,
-                "opacity": 0.75,
+                "filled": True,
                 "stroked": True,
+                "extruded": False,
+                "wireframe": False,
+                "get_fill_color": "density_colors",
+                "get_line_color": [0, 0, 0],
+                "opacity": 0.55,
+                "get_line_width": 0.95,
+                "get_elevation": 0,
+                "get_point_radius": 1,
+                "line_width_units": "pixels",
+                "line_width_scale": 1,
+                "line_width_min_pixels": 1,
+                "line_width_max_pixels": 5,
             },
             legend={
-                "title": "Patrol Type",
-                "label_column": "patrol_type_value",
-                "color_column": "colors",
-                "sort": "ascending",
+                "title": "Grid Cell Visits",
+                "label_column": "density_bins",
+                "color_column": "density_colors",
             },
-            geodataframe=filter_vehicle_patrol_cols,
-            **(params_dict.get("generate_vehicle_layers") or {}),
+            geodataframe=apply_vehicle_grid_colormap,
+            data_url=None,
+            **(params_dict.get("generate_vehicle_grid_layers") or {}),
         )
         .call()
     )
 
-    combine_vehicle_layers = (
+    combine_vehicle_grid_layers = (
         combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_vehicle_layers")
+        .set_task_instance_id("combine_vehicle_grid_layers")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -8160,8 +8904,8 @@ def main(params: Params):
                 create_mnc_parcels_layers,
                 conservancy_text_layer,
             ],
-            grouped_layers=generate_vehicle_layers,
-            **(params_dict.get("combine_vehicle_layers") or {}),
+            grouped_layers=generate_vehicle_grid_layers,
+            **(params_dict.get("combine_vehicle_grid_layers") or {}),
         )
         .call()
     )
@@ -8184,7 +8928,7 @@ def main(params: Params):
             title=None,
             max_zoom=10,
             legend_style={"placement": "bottom-right"},
-            geo_layers=combine_vehicle_layers,
+            geo_layers=combine_vehicle_grid_layers,
             view_state=global_zoom_value,
             **(params_dict.get("draw_vehicle_map") or {}),
         )
@@ -8208,6 +8952,32 @@ def main(params: Params):
             text=draw_vehicle_map,
             filename="vehicle_patrols_map.html",
             **(params_dict.get("persist_vehicle_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_vehicle_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_vehicle_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_vehicle_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_vehicle_png") or {}),
         )
         .call()
     )
@@ -8302,9 +9072,54 @@ def main(params: Params):
         .call()
     )
 
-    apply_motor_colormap = (
+    motor_patrol_grid_visits = (
+        create_patrol_coverage_grid.validate()
+        .set_task_instance_id("motor_patrol_grid_visits")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            grid_cell_size=1000,
+            aoi=None,
+            keep_empty_cells=False,
+            trajs=rename_motor_trajs,
+            **(params_dict.get("motor_patrol_grid_visits") or {}),
+        )
+        .call()
+    )
+
+    apply_motor_class_grid = (
+        apply_classification.validate()
+        .set_task_instance_id("apply_motor_class_grid")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            input_column_name="unique_patrol_count",
+            output_column_name="density_bins",
+            label_options={"label_ranges": False, "label_decimals": 1},
+            classification_options={"k": 5, "scheme": "equal_interval"},
+            df=motor_patrol_grid_visits,
+            **(params_dict.get("apply_motor_class_grid") or {}),
+        )
+        .call()
+    )
+
+    apply_motor_grid_colormap = (
         apply_color_map.validate()
-        .set_task_instance_id("apply_motor_colormap")
+        .set_task_instance_id("apply_motor_grid_colormap")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -8315,45 +9130,18 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            input_column_name="patrol_type_value",
-            output_column_name="colors",
-            colormap="tab20",
-            df=rename_motor_trajs,
-            **(params_dict.get("apply_motor_colormap") or {}),
+            input_column_name="density_bins",
+            colormap="RdYlGn_r",
+            output_column_name="density_colors",
+            df=apply_motor_class_grid,
+            **(params_dict.get("apply_motor_grid_colormap") or {}),
         )
         .call()
     )
 
-    filter_motor_patrol_cols = (
-        filter_columns.validate()
-        .set_task_instance_id("filter_motor_patrol_cols")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            df=apply_motor_colormap,
-            columns=[
-                "timespan_seconds",
-                "dist_meters",
-                "geometry",
-                "patrol_type_value",
-                "colors",
-            ],
-            exclude=[],
-            **(params_dict.get("filter_motor_patrol_cols") or {}),
-        )
-        .call()
-    )
-
-    generate_motor_layers = (
-        create_path_layer.validate()
-        .set_task_instance_id("generate_motor_layers")
+    generate_motor_grid_layers = (
+        create_geojson_layer.validate()
+        .set_task_instance_id("generate_motor_grid_layers")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -8365,33 +9153,36 @@ def main(params: Params):
         )
         .partial(
             layer_style={
-                "get_color": "colors",
-                "get_width": 1.85,
-                "width_scale": 1,
-                "width_min_pixels": 2,
-                "width_max_pixels": 6,
-                "width_units": "pixels",
-                "cap_rounded": True,
-                "joint_rounded": True,
-                "billboard": False,
-                "opacity": 0.75,
+                "filled": True,
                 "stroked": True,
+                "extruded": False,
+                "wireframe": False,
+                "get_fill_color": "density_colors",
+                "get_line_color": [0, 0, 0],
+                "opacity": 0.55,
+                "get_line_width": 0.95,
+                "get_elevation": 0,
+                "get_point_radius": 1,
+                "line_width_units": "pixels",
+                "line_width_scale": 1,
+                "line_width_min_pixels": 1,
+                "line_width_max_pixels": 5,
             },
             legend={
-                "title": "Patrol Type",
-                "label_column": "patrol_type_value",
-                "color_column": "colors",
-                "sort": "ascending",
+                "title": "Grid Cell Visits",
+                "label_column": "density_bins",
+                "color_column": "density_colors",
             },
-            geodataframe=filter_motor_patrol_cols,
-            **(params_dict.get("generate_motor_layers") or {}),
+            geodataframe=apply_motor_grid_colormap,
+            data_url=None,
+            **(params_dict.get("generate_motor_grid_layers") or {}),
         )
         .call()
     )
 
-    combine_motor_layers = (
+    combine_motor_grid_layers = (
         combine_deckgl_map_layers.validate()
-        .set_task_instance_id("combine_motor_layers")
+        .set_task_instance_id("combine_motor_grid_layers")
         .handle_errors()
         .with_tracing()
         .skipif(
@@ -8407,8 +9198,8 @@ def main(params: Params):
                 create_mnc_parcels_layers,
                 conservancy_text_layer,
             ],
-            grouped_layers=generate_motor_layers,
-            **(params_dict.get("combine_motor_layers") or {}),
+            grouped_layers=generate_motor_grid_layers,
+            **(params_dict.get("combine_motor_grid_layers") or {}),
         )
         .call()
     )
@@ -8431,7 +9222,7 @@ def main(params: Params):
             title=None,
             max_zoom=10,
             legend_style={"placement": "bottom-right"},
-            geo_layers=combine_motor_layers,
+            geo_layers=combine_motor_grid_layers,
             view_state=global_zoom_value,
             **(params_dict.get("draw_motor_map") or {}),
         )
@@ -8455,6 +9246,32 @@ def main(params: Params):
             text=draw_motor_map,
             filename="motorbike_patrols_map.html",
             **(params_dict.get("persist_motor_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_motor_png = (
+        html_to_png.validate()
+        .set_task_instance_id("convert_motor_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_motor_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 100,
+                "max_concurrent_pages": 1,
+            },
+            **(params_dict.get("convert_motor_png") or {}),
         )
         .call()
     )
@@ -8486,7 +9303,7 @@ def main(params: Params):
             unpack_depth=1,
         )
         .partial(
-            raise_if_not_found=True,
+            raise_if_not_found=False,
             drop_columns=["heading", "extra__created_at", "extra__id"],
             retain_columns=[],
             rename_columns={
@@ -8576,7 +9393,7 @@ def main(params: Params):
     )
 
     replace_ranger_nulls = (
-        replace_missing_with_label.validate()
+        replace_empty_strings_in_columns.validate()
         .set_task_instance_id("replace_ranger_nulls")
         .handle_errors()
         .with_tracing()
@@ -8590,7 +9407,9 @@ def main(params: Params):
         .partial(
             df=ranger_patrol_metrics,
             columns=["participants"],
-            label="Unspecified",
+            replacement="Unspecified",
+            strip_whitespace=True,
+            missing="ignore",
             **(params_dict.get("replace_ranger_nulls") or {}),
         )
         .call()
@@ -8653,6 +9472,8 @@ def main(params: Params):
         )
         .partial(
             grid_cell_size=1000,
+            aoi=None,
+            keep_empty_cells=False,
             trajs=rename_combined_trajs,
             **(params_dict.get("patrol_grid_visits") or {}),
         )
@@ -8724,8 +9545,8 @@ def main(params: Params):
                 "wireframe": False,
                 "get_fill_color": "density_colors",
                 "get_line_color": [0, 0, 0],
-                "opacity": 0.75,
-                "get_line_width": 0.85,
+                "opacity": 0.55,
+                "get_line_width": 0.95,
                 "get_elevation": 0,
                 "get_point_radius": 1,
                 "line_width_units": "pixels",
@@ -8734,11 +9555,12 @@ def main(params: Params):
                 "line_width_max_pixels": 5,
             },
             legend={
-                "title": "Visits",
+                "title": "Grid Cell Visits",
                 "label_column": "density_bins",
                 "color_column": "density_colors",
             },
             geodataframe=apply_grid_colormap,
+            data_url=None,
             **(params_dict.get("generate_grid_layers") or {}),
         )
         .call()
@@ -8878,459 +9700,6 @@ def main(params: Params):
         .call()
     )
 
-    convert_chart_html_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_chart_html_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=[
-                persist_precipitation,
-                persist_temperature,
-                persist_wind_speed,
-                persist_wind_gusts,
-                persist_soil_temp,
-                persist_rel_humidity,
-                persist_pressure,
-                persist_total_events,
-                persist_elephant_bar,
-                persist_buffalo_bar,
-            ],
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 10,
-                "max_concurrent_pages": 5,
-            },
-            **(params_dict.get("convert_chart_html_png") or {}),
-        )
-        .call()
-    )
-
-    convert_mobile_boma_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_mobile_boma_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_mobile_boma_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_mobile_boma_png") or {}),
-        )
-        .call()
-    )
-
-    convert_livestock_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_livestock_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_livestock_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_livestock_png") or {}),
-        )
-        .call()
-    )
-
-    convert_wildlife_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_wildlife_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_wildlife_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_wildlife_png") or {}),
-        )
-        .call()
-    )
-
-    convert_elephant_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_elephant_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_elephant_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_elephant_png") or {}),
-        )
-        .call()
-    )
-
-    convert_ele_herd_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_ele_herd_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_ele_herd_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_ele_herd_png") or {}),
-        )
-        .call()
-    )
-
-    convert_buffalo_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_buffalo_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_buffalo_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_buffalo_png") or {}),
-        )
-        .call()
-    )
-
-    convert_buffalo_herd_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_buffalo_herd_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_buffalo_herd_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_buffalo_herd_png") or {}),
-        )
-        .call()
-    )
-
-    convert_rhino_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_rhino_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_rhino_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_rhino_png") or {}),
-        )
-        .call()
-    )
-
-    convert_lion_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_lion_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_lion_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_lion_png") or {}),
-        )
-        .call()
-    )
-
-    convert_leopard_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_leopard_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_leopard_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_leopard_png") or {}),
-        )
-        .call()
-    )
-
-    convert_cheetah_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_cheetah_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_cheetah_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_cheetah_png") or {}),
-        )
-        .call()
-    )
-
-    convert_giraffe_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_giraffe_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_giraffe_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_giraffe_png") or {}),
-        )
-        .call()
-    )
-
-    convert_hb_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_hb_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_hb_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_hb_png") or {}),
-        )
-        .call()
-    )
-
-    convert_foot_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_foot_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_foot_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_foot_png") or {}),
-        )
-        .call()
-    )
-
-    convert_vehicle_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_vehicle_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_vehicle_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 75000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_vehicle_png") or {}),
-        )
-        .call()
-    )
-
-    convert_motor_png = (
-        html_to_png.validate()
-        .set_task_instance_id("convert_motor_png")
-        .handle_errors()
-        .with_tracing()
-        .skipif(
-            conditions=[
-                any_is_empty_df,
-                any_dependency_skipped,
-            ],
-            unpack_depth=1,
-        )
-        .partial(
-            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
-            html_path=persist_motor_urls,
-            config={
-                "full_page": False,
-                "device_scale_factor": 2.0,
-                "wait_for_timeout": 25000,
-                "max_concurrent_pages": 1,
-            },
-            **(params_dict.get("convert_motor_png") or {}),
-        )
-        .call()
-    )
-
     convert_grid_png = (
         html_to_png.validate()
         .set_task_instance_id("convert_grid_png")
@@ -9349,7 +9718,7 @@ def main(params: Params):
             config={
                 "full_page": False,
                 "device_scale_factor": 2.0,
-                "wait_for_timeout": 40000,
+                "wait_for_timeout": 100,
                 "max_concurrent_pages": 1,
             },
             **(params_dict.get("convert_grid_png") or {}),
@@ -9357,21 +9726,35 @@ def main(params: Params):
         .call()
     )
 
-    generate_mnc_word_doc = (
-        generate_mnc_report.validate()
-        .set_task_instance_id("generate_mnc_word_doc")
+    fetch_mnc_template = (
+        fetch_and_persist_file.validate()
+        .set_task_instance_id("fetch_mnc_template")
         .handle_errors()
         .with_tracing()
         .partial(
-            template_path=persist_mnc_tpt,
+            url="https://www.dropbox.com/scl/fi/tx4fdlikfsijgw8jkugnr/mara_north_event_template.docx?rlkey=pvyu3y7ibpphbqlqc6u1pns3t&st=fufzxuyy&dl=0",
+            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            overwrite_existing=False,
+            retries=2,
+            unzip=False,
+            **(params_dict.get("fetch_mnc_template") or {}),
+        )
+        .call()
+    )
+
+    generate_report = (
+        generate_mnc_report.validate()
+        .set_task_instance_id("generate_report")
+        .handle_errors()
+        .with_tracing()
+        .partial(
+            template_path=fetch_mnc_template,
             output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             generated_by="Ecoscope",
             validate_images=True,
-            box_h_cm=6.9,
-            box_w_cm=11.5,
             time_period=time_range,
-            filename=None,
-            **(params_dict.get("generate_mnc_word_doc") or {}),
+            filename="overall_report.docx",
+            **(params_dict.get("generate_report") or {}),
         )
         .call()
     )

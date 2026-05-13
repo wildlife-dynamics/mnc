@@ -1,13 +1,13 @@
 #!/bin/bash
 
-set -e  # Exit on error
+set -e          # Exit on error
+set -o pipefail # Pipe exit code = first failing command, not last (tee)
 
 # Parse arguments
 workflow_name=$1
 test_case=$2
 skip_setup=false
 
-# Check for --skip-setup flag
 for arg in "$@"; do
     if [ "$arg" = "--skip-setup" ]; then
         skip_setup=true
@@ -16,7 +16,7 @@ done
 
 if [ -z "$workflow_name" ] || [ -z "$test_case" ]; then
     echo "Usage: $0 <workflow_name> <test_case> [--skip-setup]"
-    echo "Example: $0 mapbook_report all-grouper"
+    echo "Example: $0 mara_north_event_report all-grouper"
     echo "Options:"
     echo "  --skip-setup    Skip pixi update and playwright-install steps"
     exit 1
@@ -56,10 +56,16 @@ if ! yq -e ".\"${test_case}\"" "$test_cases_file" > /dev/null 2>&1; then
     exit 1
 fi
 
-# Create temporary results directory (cross-platform compatible)
-# Use RUNNER_TEMP if available (GitHub Actions), otherwise fall back to /tmp
-temp_base="${RUNNER_TEMP:-/tmp}"
-results_dir="${temp_base}/workflow-test-results/${workflow_name}/${test_case}"
+# Results directory: use ECOSCOPE_RESULTS_DIR env var if set, otherwise /tmp.
+# Set ECOSCOPE_RESULTS_DIR to keep outputs across runs (e.g. export ECOSCOPE_RESULTS_DIR=./output).
+# On GitHub Actions, RUNNER_TEMP is used automatically.
+if [ -n "$ECOSCOPE_RESULTS_DIR" ]; then
+    results_dir="${ECOSCOPE_RESULTS_DIR}/${workflow_name}/${test_case}"
+elif [ -n "$RUNNER_TEMP" ]; then
+    results_dir="${RUNNER_TEMP}/workflow-test-results/${workflow_name}/${test_case}"
+else
+    results_dir="/tmp/workflow-test-results/${workflow_name}/${test_case}"
+fi
 rm -rf "$results_dir"
 mkdir -p "$results_dir"
 echo "Created results directory: $results_dir"
@@ -77,16 +83,27 @@ cat "$params_file"
 echo ""
 
 # Run workflow CLI directly
+log_file="${results_dir}/workflow.log"
 echo "Executing workflow..."
 echo "Results will be written to: $ECOSCOPE_WORKFLOWS_RESULTS"
+echo "Execution log: $log_file"
 echo ""
 
 cd "$workflow_dir"
 workflow_underscore=$(echo $workflow_name | tr '-' '_')
+
+# resource-sampler.py wraps the CLI to track peak memory, CPU, disk and network.
+# ECOSCOPE_LOG_LEVEL controls verbosity: INFO shows task execution order, DEBUG shows internals.
+# stdout+stderr are piped through tee so they appear in terminal AND are saved to workflow.log.
+# OTEL flags are always on: traces are written to otel_traces.jsonl in the results dir.
+export ECOSCOPE_LOG_LEVEL="${ECOSCOPE_LOG_LEVEL:-INFO}"
 pixi run --manifest-path $manifest_path -e default \
-    python -m ecoscope_workflows_${workflow_underscore}_workflow.cli run \
+    python "${repo_root}/dev/resource-sampler.py" "$results_dir" \
+    python -u -m ecoscope_workflows_${workflow_underscore}_workflow.cli run \
     --config-file "$params_file" --execution-mode sequential \
-    --mock-io
+    --mock-io \
+    --otel-exporter console --otel-console-exporter-dst file \
+    2>&1 | tee "$log_file"
 
 # Validate result.json
 result_json="${results_dir}/result.json"
@@ -109,7 +126,20 @@ if [ "$error_value" != "null" ]; then
     exit 1
 fi
 
-echo "✓ Test passed - workflow completed without errors"
+echo "Test passed - workflow completed without errors"
+
+# Print per-task timings from OTEL traces
+traces_file="${results_dir}/otel_traces.jsonl"
+if [ -f "$traces_file" ]; then
+    echo ""
+    echo "=========================================="
+    echo "Task timing:"
+    echo "=========================================="
+    python3 "${repo_root}/dev/parse-traces.py" "$traces_file"
+else
+    echo "Warning: otel_traces.jsonl was not found at $traces_file"
+fi
+
 echo ""
 echo "Full result.json:"
 cat "$result_json"

@@ -3,6 +3,7 @@
 [workspace]
 name = "ecoscope-workflows-mara-north-event-report-workflow"
 channels = [
+    "file:///tmp/ecoscope-workflows-custom/release/artifacts/",
     "https://repo.prefix.dev/ecoscope-workflows-custom/",
     "https://repo.prefix.dev/ecoscope-workflows/",
     "conda-forge",
@@ -20,27 +21,35 @@ platforms = [
 linux = "4.4.0"
 
 [dependencies.ecoscope-workflows-core]
-version = "0.22.17.*"
+version = "0.22.18.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows/"
 
 [dependencies.ecoscope-workflows-ext-ecoscope]
-version = "0.22.17.*"
+version = "0.22.18.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows/"
 
 [dependencies.ecoscope-workflows-ext-custom]
-version = "0.0.39.*"
+version = "0.0.49.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
 
 [dependencies.ecoscope-workflows-ext-ste]
-version = "0.0.18.*"
+version = "0.0.20.*"
+channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
+
+[dependencies.ecoscope-workflows-ext-mep]
+version = "0.0.19.*"
+channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
+
+[dependencies.ecoscope-workflows-ext-big-life]
+version = "0.0.11.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
 
 [dependencies.ecoscope-workflows-ext-mnc]
-version = "0.0.8.*"
-channel = "https://repo.prefix.dev/ecoscope-workflows-custom/"
+version = "*"
+channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/"
 
 [feature.runner.dependencies.ecoscope-workflows-runner]
-version = "0.22.17.*"
+version = "0.22.18.*"
 channel = "https://repo.prefix.dev/ecoscope-workflows/"
 
 [feature.runner.tasks]
@@ -133,5 +142,5 @@ solve-group = "test"
 no-default-feature = true
 
 [tasks]
-docker-build = "docker buildx build -t ecoscope-workflows-mara-north-event-report-workflow ."
-ecoscope-workflows-mara-north-event-report-workflow = "python -m ecoscope_workflows_mara_north_event_report_workflow.cli"
+docker-build = "mkdir -p .tmp/ecoscope-workflows/release/artifacts/\n&& cp -r /tmp/ecoscope-workflows/release/artifacts/* .tmp/ecoscope-workflows/release/artifacts/\n&& docker buildx build -t ecoscope-workflows-mara-north-event-report-workflow .\n"
+ecoscope-workflows-mara-north-event-report-workflow = "bash run-with-traces.sh"
