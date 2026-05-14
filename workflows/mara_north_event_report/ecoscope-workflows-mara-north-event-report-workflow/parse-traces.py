@@ -65,6 +65,7 @@ def _collect_machine_spec(results_dir: Path) -> dict:
         try:
             if platform.system() == "Darwin":
                 import subprocess
+
                 mem = int(subprocess.check_output(["sysctl", "-n", "hw.memsize"]).decode().strip())
                 spec["ram_gb"] = round(mem / (1024**3), 1)
             elif platform.system() == "Linux":
@@ -77,6 +78,7 @@ def _collect_machine_spec(results_dir: Path) -> dict:
             pass
         try:
             import shutil
+
             disk = shutil.disk_usage(str(results_dir))
             spec["disk_free_gb"] = round(disk.free / (1024**3), 1)
         except Exception:

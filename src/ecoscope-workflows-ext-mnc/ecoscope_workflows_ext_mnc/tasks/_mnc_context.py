@@ -85,6 +85,7 @@ def generate_mnc_report(
     validate_images: bool = True,
     time_period: Optional[TimeRange] = None,
     filename: Optional[str] = None,
+    wait_for: Optional[list] = None,
 ) -> str:
     template_path = remove_file_scheme(template_path)
     output_dir = remove_file_scheme(output_dir)

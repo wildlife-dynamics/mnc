@@ -6273,16 +6273,49 @@ workflow:
       retries: 2
       unzip: false
   
-  - name: Generate report 
-    id: generate_report 
-    task: generate_mnc_report 
-    partial: 
+  - name: Generate report
+    id: generate_report
+    task: generate_mnc_report
+    partial:
       template_path: ${{ workflow.fetch_mnc_template.return }}
       output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       generated_by: "Ecoscope"
-      validate_images: true 
+      validate_images: true
       time_period: ${{ workflow.time_range.return }}
       filename: "overall_report.docx"
+      wait_for:
+        # weather
+        - ${{ workflow.convert_chart_html_png.return }}
+        # events
+        - ${{ workflow.convert_mobile_boma_png.return }}
+        - ${{ workflow.convert_livestock_png.return }}
+        - ${{ workflow.convert_illegal_png.return }}
+        - ${{ workflow.persist_tevents_df.return }}
+        - ${{ workflow.persist_balloon_landing.return }}
+        - ${{ workflow.persist_airstrip_operations.return }}
+        - ${{ workflow.persist_airstrip_maintenance.return }}
+        # wildlife
+        - ${{ workflow.convert_elephant_png.return }}
+        - ${{ workflow.convert_elechart_png.return }}
+        - ${{ workflow.convert_ele_herd_png.return }}
+        - ${{ workflow.convert_buffalo_png.return }}
+        - ${{ workflow.convert_buff_chart_png.return }}
+        - ${{ workflow.convert_buff_herd_png.return }}
+        - ${{ workflow.convert_rhino_png.return }}
+        - ${{ workflow.convert_lion_png.return }}
+        - ${{ workflow.convert_leopard_png.return }}
+        - ${{ workflow.convert_cheetah_png.return }}
+        - ${{ workflow.convert_giraffe_png.return }}
+        - ${{ workflow.convert_hartebeest_png.return }}
+        - ${{ workflow.convert_wildlife_png.return }}
+        - ${{ workflow.convert_tevents_png.return }}
+        # patrols
+        - ${{ workflow.convert_foot_png.return }}
+        - ${{ workflow.convert_vehicle_png.return }}
+        - ${{ workflow.convert_motor_png.return }}
+        - ${{ workflow.convert_grid_png.return }}
+        - ${{ workflow.persist_total_df.return }}
+        - ${{ workflow.persist_patrol_df.return }}
 
   - name: MNC event report dashboard
     id: mnc_events_dashboard
