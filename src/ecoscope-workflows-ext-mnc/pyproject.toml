@@ -39,7 +39,7 @@ fallback-version = "9999"
 root = "../.."
 
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = [
     "https://prefix.dev/ecoscope-workflows-custom", # our custom channel, you can add your own
     "https://prefix.dev/ecoscope-workflows",        # the main ecoscope-workflows channel
