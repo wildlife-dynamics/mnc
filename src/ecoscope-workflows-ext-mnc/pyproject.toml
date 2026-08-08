@@ -4,6 +4,9 @@ dynamic = ["version"]
 requires-python = ">=3.10"
 description = "Extension tasks and connections for the template repo."
 readme = "README.md"
+dependencies = [
+    "wt-registry",
+]
 classifiers = [
     "Development Status :: 1 - Planning",
     "Operating System :: OS Independent",
@@ -13,7 +16,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 license = { text = "BSD-3-Clause" }
-[project.entry-points."ecoscope_workflows"]
+[project.entry-points."wt_registry"]
 tasks = "ecoscope_workflows_ext_mnc.tasks"
 
 
@@ -36,14 +39,15 @@ fallback-version = "9999"
 root = "../.."
 
 
-[tool.pixi.project]
+[tool.pixi.workspace]
 channels = [
     "https://prefix.dev/ecoscope-workflows-custom", # our custom channel, you can add your own
     "https://prefix.dev/ecoscope-workflows",        # the main ecoscope-workflows channel
     "conda-forge",
 ]
 
-platforms = ["linux-64", "osx-arm64", "win-64"]
+platforms = ["linux-64", "osx-arm64", "win-64", "osx-64"]
+channel-priority = "disabled"
 
 [tool.pixi.pypi-dependencies]
 ecoscope-workflows-ext-mnc = { path = ".", editable = true }
@@ -60,12 +64,8 @@ tomli-w = "*"
 geopandas="*"
 shapely = "*"
 numpy="2,<2.1"
-ecoscope-workflows-ext-ste = "0.0.20.*"
-ecoscope-workflows-core =">=0.22.18"
-ecoscope-workflows-ext-ecoscope=">=0.22.18"
-ecoscope-workflows-ext-custom = "0.0.49.*"
-ecoscope-workflows-ext-mep = "0.0.19.*"
-ecoscope-workflows-ext-big-life="0.0.11.*"
+ecoscope-workflows-ext-custom = "0.1.0rc14.*"
+ecoscope-workflows-ext-ste = "0.0.0rc1.*"
 docxtpl="*"
 playwright="*"
 setuptools="81.0.0.*"

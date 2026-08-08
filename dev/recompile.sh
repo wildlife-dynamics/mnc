@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 workflow=$1
 shift
@@ -7,19 +6,67 @@ flags=$*
 
 pixi update --manifest-path pixi.toml -e compile
 
+# wt-compiler 0.8.0 uses PEP 695 `type` alias syntax which pydantic <2.9 can't handle.
+# ecoscope-platform pins pydantic <2.9, so we patch the installed files after every update.
+WT_SPEC=".pixi/envs/compile/lib/python3.12/site-packages/wt_compiler/spec.py"
+sed -i '' 's/^type PartialKwargs = /PartialKwargs = /' "$WT_SPEC"
+
+# wt-compiler 0.8.0 uses ChannelPriority.Strict in its rattler solve() call, which excludes
+# pydeck 0.9.2 from conda-forge when the prefix.dev channels have a different pydeck version.
+# Patch to ChannelPriority.Disabled so the solver can pick the best match from any channel.
+WT_DISCOVERY=".pixi/envs/compile/lib/python3.12/site-packages/wt_compiler/discovery.py"
+pixi run --manifest-path pixi.toml -e compile python3 - <<'PYEOF'
+import pathlib
+
+p = pathlib.Path(".pixi/envs/compile/lib/python3.12/site-packages/wt_compiler/discovery.py")
+content = p.read_text()
+
+content = content.replace(
+    "from rattler import Channel, MatchSpec, Platform, VirtualPackage, install, solve",
+    "from rattler import Channel, ChannelPriority, MatchSpec, Platform, VirtualPackage, install, solve",
+)
+content = content.replace(
+    "            virtual_packages=virtual_packages,\n        )",
+    "            virtual_packages=virtual_packages,\n            channel_priority=ChannelPriority.Disabled,\n        )",
+)
+p.write_text(content)
+PYEOF
+
 # (re)initialize dot executable to ensure graphviz is available
 pixi run --manifest-path pixi.toml -e compile dot -c
 
 echo "recompiling workflows/${workflow}/spec.yaml with flags '--clobber ${flags}'"
 
-pixi run --manifest-path pixi.toml --locked -e compile \
-  ecoscope-workflows compile --spec workflows/${workflow}/spec.yaml --clobber ${flags}
+command="pixi run --manifest-path pixi.toml -e compile \
+wt-compiler compile --spec workflows/${workflow}/spec.yaml --clobber ${flags}"
+
+$command
+
+# Patch wt_task tracing/_config.py to defer the GCP-only CloudTraceSpanExporter import
+# so that TRACING_AVAILABLE=True when only opentelemetry-sdk is installed (no GCP extras needed).
+python3 - ".pixi/envs/compile/lib/python3.12/site-packages/wt_task/tracing/_config.py" << 'PYEOF'
+import sys
+from pathlib import Path
+p = Path(sys.argv[1])
+if not p.exists():
+    print(f"_config.py not found at {p}, skipping patch")
+    sys.exit(0)
+text = p.read_text()
+OLD = "    from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter\n"
+OLD_CASE = '            case "gcp":\n                _exporter = CloudTraceSpanExporter(**_exporter_kws)  # type: ignore[no-untyped-call]\n'
+NEW_CASE = '            case "gcp":\n                from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter  # noqa: PLC0415  # optional GCP dep\n                _exporter = CloudTraceSpanExporter(**_exporter_kws)  # type: ignore[no-untyped-call]\n'
+if OLD not in text:
+    print("_config.py already patched, skipping")
+    sys.exit(0)
+text = text.replace(OLD, "").replace(OLD_CASE, NEW_CASE)
+p.write_text(text)
+print(f"Patched {p}: deferred CloudTraceSpanExporter import to case 'gcp' branch")
+PYEOF
 
 # Patch the generated cli.py to always enable OTEL console tracing writing to
 # otel_traces.jsonl in ECOSCOPE_WORKFLOWS_RESULTS (no CLI flags or env vars needed).
 workflow_hyphen="${workflow//_/-}"
 cli_py="workflows/${workflow}/ecoscope-workflows-${workflow_hyphen}-workflow/ecoscope_workflows_${workflow}_workflow/cli.py"
-
 workflow_dir="workflows/${workflow}/ecoscope-workflows-${workflow_hyphen}-workflow"
 
 if [ -f "$cli_py" ]; then
@@ -34,155 +81,111 @@ if [ -f "$cli_py" ]; then
   echo "Patched. Per-task timing will be written to otel_traces.jsonl in ECOSCOPE_WORKFLOWS_RESULTS."
 fi
 
-# The async DAG compiler drops empty-list values from partial dicts (compiler bug).
-# Patch run_async.py and run_async_mock_io.py to restore event_types: [] for
-# get_events_data, which is a required argument with no default in get_events().
-dags_dir="workflows/${workflow}/ecoscope-workflows-${workflow_hyphen}-workflow/ecoscope_workflows_${workflow}_workflow/dags"
-python3 - "$dags_dir" << 'PYEOF'
-import sys, re
-from pathlib import Path
-
-dags = Path(sys.argv[1])
-MARKER = '"include_display_values": False,'
-INSERT = '                "event_types": [],'
-files = [dags / "run_async.py", dags / "run_async_mock_io.py"]
-
-for f in files:
-    if not f.exists():
-        continue
-    text = f.read_text()
-    modified = False
-
-    # Restore event_types: [] for get_events_data
-    if '"event_types"' not in text and MARKER in text:
-        text = text.replace(MARKER, f'{INSERT}\n                {MARKER}')
-        modified = True
-        print(f"{f.name}: added event_types=[] to get_events_data partial")
-    else:
-        print(f"{f.name}: event_types already present or marker not found, skipping")
-
-    # Restore widgets: [] for mnc_events_dashboard (gather_dashboard requires it)
-    WIDGETS_MARKER = '"details": DependsOn("workflow_details"),'
-    WIDGETS_INSERT = '                "widgets": [],'
-    if '"widgets"' not in text.split('"mnc_events_dashboard"')[1][:300] if '"mnc_events_dashboard"' in text else True:
-        if WIDGETS_MARKER in text:
-            text = text.replace(WIDGETS_MARKER, f'{WIDGETS_INSERT}\n                {WIDGETS_MARKER}', 1)
-            modified = True
-            print(f"{f.name}: added widgets=[] to mnc_events_dashboard partial")
-    else:
-        print(f"{f.name}: widgets already present in mnc_events_dashboard, skipping")
-
-    if modified:
-        f.write_text(text)
-PYEOF
-
-# The async DAG compiler emits plain list literals for multi-dependency args (e.g.
-# static_layers), but gather_dependencies only resolves DependsOnSequence, not list.
-# Wrap every list-of-only-DependsOn values with DependsOnSequence(...) and add the
-# import so the resolved values reach the task functions correctly.
-python3 - "$dags_dir" << 'PYEOF'
-import sys, re
-from pathlib import Path
-
-dags = Path(sys.argv[1])
-files = [dags / "run_async.py", dags / "run_async_mock_io.py"]
-
-IMPORT_OLD = 'from ecoscope_workflows_core.graph import DependsOn, Graph, Node'
-IMPORT_NEW = 'from ecoscope_workflows_core.graph import DependsOn, DependsOnSequence, Graph, Node'
-
-# Matches a list literal whose elements are exclusively DependsOn(...) calls
-DEPENDS_ON_LIST = re.compile(r'\[(?:\n\s+DependsOn\("[^"]+"\),)+\n\s+\]')
-
-for f in files:
-    if not f.exists():
-        continue
-    text = f.read_text()
-    modified = False
-
-    if IMPORT_OLD in text:
-        text = text.replace(IMPORT_OLD, IMPORT_NEW)
-        modified = True
-        print(f"{f.name}: added DependsOnSequence to import")
-
-    new_text = DEPENDS_ON_LIST.sub(lambda m: f'DependsOnSequence({m.group(0)})', text)
-    if new_text != text:
-        text = new_text
-        modified = True
-        print(f"{f.name}: wrapped DependsOn list literals with DependsOnSequence")
-
-    if modified:
-        f.write_text(text)
-    else:
-        print(f"{f.name}: no DependsOnSequence changes needed")
-PYEOF
-
-# dispatch.py expects the terminal node to return a Pydantic model with model_dump().
-# generate_report returns a str, so it must NOT be the terminal node. Add generate_report
-# as a topological dependency of mnc_events_dashboard so that mnc_events_dashboard is
-# always the last node in the execution graph and returns the Dashboard model.
-python3 - "$dags_dir" << 'PYEOF'
-import sys
-from pathlib import Path
-
-dags = Path(sys.argv[1])
-files = [dags / "run_async.py", dags / "run_async_mock_io.py"]
-
-OLD = '"mnc_events_dashboard": ["workflow_details", "time_range", "groupers"],'
-NEW = '"mnc_events_dashboard": ["workflow_details", "time_range", "groupers", "generate_report"],'
-
-for f in files:
-    if not f.exists():
-        continue
-    text = f.read_text()
-    if OLD in text:
-        text = text.replace(OLD, NEW)
-        f.write_text(text)
-        print(f"{f.name}: mnc_events_dashboard now depends on generate_report")
-    elif NEW in text:
-        print(f"{f.name}: generate_report dep already present, skipping")
-    else:
-        print(f"Warning: {f.name}: expected dependency line not found, skipping")
-PYEOF
-
 # Copy dev scripts into the workflow package directory so they travel with
 # the workflow when the desktop app deploys it to its own template location.
 cp "$(dirname "$0")/parse-traces.py" "${workflow_dir}/parse-traces.py"
 echo "Copied parse-traces.py into ${workflow_dir}/"
 cp "$(dirname "$0")/resource-sampler.py" "${workflow_dir}/resource-sampler.py"
 echo "Copied resource-sampler.py into ${workflow_dir}/"
-cp "$(dirname "$0")/thread-executor.py" "${workflow_dir}/thread-executor.py"
-echo "Copied thread-executor.py into ${workflow_dir}/"
 
-# Generate run-with-traces.sh referencing co-located scripts via
-# PIXI_PROJECT_ROOT (set by pixi to the workflow package directory at runtime).
-# Pass --execution-mode async to enable local thread-pool parallelism.
-wrapper="${workflow_dir}/run-with-traces.sh"
-cat > "$wrapper" << WRAPPER_EOF
-#!/bin/bash
-rp="\${ECOSCOPE_WORKFLOWS_RESULTS#file://}"
-if [ -n "\$rp" ]; then
-    python "\$PIXI_PROJECT_ROOT/resource-sampler.py" "\$rp" \
-        python "\$PIXI_PROJECT_ROOT/thread-executor.py" "ecoscope_workflows_${workflow}_workflow" "\$@"
-else
-    python "\$PIXI_PROJECT_ROOT/thread-executor.py" "ecoscope_workflows_${workflow}_workflow" "\$@"
-fi
-exit \$?
-WRAPPER_EOF
-chmod +x "$wrapper"
+# Generate run_with_traces.py: a pure-Python wrapper (so it runs the same way on
+# Windows/macOS/Ubuntu, unlike a bash script) that wraps the sequential CLI with
+# resource sampling and auto-prints the timing summary when otel_traces.jsonl is
+# available. It locates wt_task's _config.py via importlib instead of a hardcoded
+# .pixi/envs/.../python3.12/... path, since that path shape differs per OS/python
+# version and pixi re-installs packages on every env refresh anyway.
+wrapper="${workflow_dir}/run_with_traces.py"
+python3 - "$wrapper" "$workflow" << 'PYEOF'
+import sys
+
+wrapper_path, workflow = sys.argv[1], sys.argv[2]
+
+content = f'''"""Wraps the sequential CLI with resource sampling and trace parsing.
+
+Generated by dev/recompile.sh; do not edit by hand.
+"""
+
+import importlib.util
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+
+def _patch_wt_task_tracing() -> None:
+    # Defer wt_task's GCP-only CloudTraceSpanExporter import so TRACING_AVAILABLE=True
+    # without the optional opentelemetry-exporter-gcp-trace package. pixi re-installs
+    # packages on env refresh, so we re-apply this every run.
+    try:
+        spec = importlib.util.find_spec("wt_task.tracing._config")
+    except ImportError:
+        return
+    if spec is None or not spec.origin:
+        return
+    p = Path(spec.origin)
+    text = p.read_text()
+    old_import = "    from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter\\n"
+    old_case = (
+        \'            case "gcp":\\n\'
+        "                _exporter = CloudTraceSpanExporter(**_exporter_kws)  # type: ignore[no-untyped-call]\\n"
+    )
+    new_case = (
+        \'            case "gcp":\\n\'
+        "                from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter  # noqa: PLC0415\\n"
+        "                _exporter = CloudTraceSpanExporter(**_exporter_kws)  # type: ignore[no-untyped-call]\\n"
+    )
+    if old_import not in text:
+        return
+    text = text.replace(old_import, "").replace(old_case, new_case)
+    p.write_text(text)
+    pyc = Path(importlib.util.cache_from_source(str(p)))
+    pyc.unlink(missing_ok=True)
+
+
+def main() -> int:
+    _patch_wt_task_tracing()
+
+    script_dir = Path(__file__).resolve().parent
+    cli_cmd = [sys.executable, "-m", "ecoscope_workflows_{workflow}_workflow.cli", *sys.argv[1:]]
+
+    results_url = os.environ.get("ECOSCOPE_WORKFLOWS_RESULTS", "")
+    rp = results_url[len("file://"):] if results_url.startswith("file://") else results_url
+
+    if rp:
+        ec = subprocess.call(
+            [sys.executable, str(script_dir / "resource-sampler.py"), rp, *cli_cmd]
+        )
+        traces = Path(rp) / "otel_traces.jsonl"
+        if traces.is_file():
+            subprocess.call([sys.executable, str(script_dir / "parse-traces.py"), str(traces)])
+        return ec
+    else:
+        return subprocess.call(cli_cmd)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+
+with open(wrapper_path, "w") as f:
+    f.write(content)
+PYEOF
 echo "Generated ${wrapper}"
 
-# Patch the pixi.toml task to call run-with-traces.sh instead of the CLI directly.
+# Patch the pixi.toml task to call run_with_traces.py instead of the CLI directly.
+# Both sides are `python ...` invocations, so the task runs identically on
+# Windows/macOS/Ubuntu (no bash dependency).
 pixi_toml="${workflow_dir}/pixi.toml"
 if [ -f "$pixi_toml" ]; then
   python3 - "$pixi_toml" "$workflow" "$workflow_hyphen" << 'PYEOF'
 import sys
 path, workflow, workflow_hyphen = sys.argv[1], sys.argv[2], sys.argv[3]
 old = f'ecoscope-workflows-{workflow_hyphen}-workflow = "python -m ecoscope_workflows_{workflow}_workflow.cli"'
-new = f'ecoscope-workflows-{workflow_hyphen}-workflow = "bash run-with-traces.sh"'
+new = f'ecoscope-workflows-{workflow_hyphen}-workflow = "python run_with_traces.py"'
 content = open(path).read()
 if old in content:
     open(path, "w").write(content.replace(old, new))
-    print(f"Patched {path}: task now calls run-with-traces.sh")
+    print(f"Patched {path}: task now calls run_with_traces.py")
 else:
     print(f"Warning: expected task line not found in {path}, skipping pixi.toml patch")
 PYEOF

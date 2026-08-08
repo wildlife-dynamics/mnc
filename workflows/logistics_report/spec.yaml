@@ -1,52 +1,58 @@
 id: logistics_report
 requirements:
-  - name: ecoscope-workflows-core
-    version: "0.22.17.*"
-    channel: https://repo.prefix.dev/ecoscope-workflows/
-
-  - name: ecoscope-workflows-ext-ecoscope
-    version: "0.22.17.*"
+  - name: ecoscope-platform
+    version: ">=2.15.0, <2.16.0"
     channel: https://repo.prefix.dev/ecoscope-workflows/
 
   - name: ecoscope-workflows-ext-custom
-    version: "0.0.39.*"
+    version: "0.1.0rc14.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-ste
-    version: "0.0.18.*"
+    version: "0.0.0rc1.*"
     channel: https://repo.prefix.dev/ecoscope-workflows-custom/
 
   - name: ecoscope-workflows-ext-mnc
-    version: "0.0.8.*"
-    channel: https://repo.prefix.dev/ecoscope-workflows-custom/
-    
+    version: "*"
+    channel: "file:///tmp/ecoscope-workflows-custom/release/artifacts/"
+
+  - name: pydeck
+    version: 0.9.2
+    channel: conda-forge
+
+  - name: opentelemetry-sdk
+    version: ">=1.20.0,<2.0.0"
+    channel: conda-forge
+
+task-instance-defaults:
+  skipif:
+    conditions: 
+      - any_is_empty_df 
+      - any_dependency_skipped 
+
 workflow:
-  - name: Set workflow details
+  - name: Set Workflow Details
     id: workflow_details
     task: set_workflow_details
 
-  - name: Time range
+  - name: Time Range
     id: time_range
     task: set_time_range
       
-  - name: Set groupers
+  - name: Set Groupers
     id: groupers
     task: set_groupers
     partial: 
       groupers: []
 
-  - name: Connect to ER 
+  - name: Connect to EarthRanger
     id: er_client_name
     task: set_er_connection
 
-  # Get  Events 
-  - name: Retrieve all events 
+  # Get Logistic Events Only
+  - name: Retrieve Logistic Events Only
     id: get_events_data
     task: get_events
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
     partial:
       client: ${{ workflow.er_client_name.return }}
       time_range: ${{ workflow.time_range.return }}
@@ -61,22 +67,24 @@ workflow:
         - created_at
         - event_details
         - patrols
-      event_types: []
+      event_types: [
+        "balloon_landing",
+        "airstrip_operations",
+        "airstrip_maintenance",
+        "airline_complaint"
+        ]
       raise_on_empty: true
       include_details: true
       include_updates: false
       include_related_events: false
       include_null_geometry: false
       include_display_values: false
+      force_point_geometry: true 
 
   # Extract date
   - name: Extract date from events data
     id: extract_event_date
     task: extract_column_as_type
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
     partial:
       df: ${{ workflow.get_events_data.return }}
       column_name: time
@@ -86,10 +94,6 @@ workflow:
   - name: Add temporal index on events
     id: events_temporal
     task: add_temporal_index
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
     partial:
       df: ${{ workflow.extract_event_date.return }}
       time_col: date
@@ -97,14 +101,9 @@ workflow:
       cast_to_datetime: true
       format: mixed
 
-  # Logistics - Balloon sightings 
   - name: Filter events and get balloon sighting records 
     id: filter_balloon_events
     task: filter_df
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
     partial:
       column_name: event_type	
       op: equal
@@ -112,144 +111,9 @@ workflow:
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
 
-  - name: Normalize event details columns 
-    id: normalize_balloon_values
-    task: normalize_json_column
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      column: event_details
-      df: ${{ workflow.filter_balloon_events.return }}
-      skip_if_not_exists: true 
-      sort_columns: true 
-      
-  - name: Rename balloon columns 
-    id: rename_balloon_boma
-    task: transform_columns
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      drop_columns: []
-      retain_columns: []
-      rename_columns:
-        event_details__of_passengers : no_of_passengers
-        event_details__balloon_company : balloon_company
-        event_details__where_are_clients_staying : lodge
-      skip_missing_rename: true 
-      required_columns: 
-        - event_details__of_passengers
-        - event_details__balloon_company
-        - date
-        - event_details__where_are_clients_staying
-      df: ${{ workflow.normalize_balloon_values.return }}
-
-  - name: Remove brackets from column in balloon landing events 
-    id: remove_balloon_brackets
-    task: remove_brackets_from_column 
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:  
-      df: ${{ workflow.rename_balloon_boma.return }}
-      columns:
-        - lodge
-        - balloon_company
-
-  - name: Replace lodge nulls with other
-    id: replace_lodge_nulls
-    task: replace_missing_with_label
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      df: ${{ workflow.remove_balloon_brackets.return }}
-      columns: 
-        - lodge
-      label: other 
-
-  - name: Convert no_of_passengers col to int
-    id: convert_passengers_int 
-    task: convert_to_int
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.replace_lodge_nulls.return }}
-      columns: 
-        - no_of_passengers
-      errors: coerce 
-      fill_value: 0
-      inplace: false 
-
-  - name: Generate balloon summary tables 
-    id: generate_balloon_table
-    task: summarize_df
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      groupby_cols:
-        - date
-        - balloon_company
-        - lodge 
-      summary_params:
-        - display_name: no_of_passengers
-          aggregator: sum
-          column: no_of_passengers
-      reset_index: true
-      df: ${{ workflow.convert_passengers_int.return }}
-
-  - name: Capitalize balloon co 
-    id: capitalize_balloon_co 
-    task: capitalize_text
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.generate_balloon_table.return }}
-      column: balloon_company
-  
-  - name: Capitalize lodge
-    id: capitalize_lodge 
-    task: capitalize_text
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.capitalize_balloon_co.return }}
-      column: lodge
-
-  - name: Persist balloon summary table 
-    id: persist_balloon_summary
-    task: persist_df
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filetype: csv
-      df: ${{ workflow.capitalize_lodge.return }}
-      filename: balloon_landing_by_date
-
-# Logistics - Airstrip arrivals and departure 
-  - name: Filter events and get airstrip operations records 
-    id: filter_airstrip_events
+  - name: Filter events and get airstrip operation records 
+    id: filter_airstrip_operations
     task: filter_df
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
     partial:
       column_name: event_type	
       op: equal
@@ -257,232 +121,414 @@ workflow:
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
 
-  - name: Normalize airstrip_operations
-    id: normalize_airstrip_values 
-    task: normalize_json_column
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      column: event_details
-      df: ${{ workflow.filter_airstrip_events.return }}
-      skip_if_not_exists: true 
-      sort_columns: true
-
-  - name: Rename airstrip information columns
-    id: rename_airstrip
-    task: map_columns
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      raise_if_not_found: true
-      drop_columns: []
-      retain_columns: []
-      rename_columns:
-        event_details__guide : guide
-        event_details__airline : airline 
-        event_details__attendant : attendant
-        event_details__camplodge : camp_lodge
-        event_details__flight_number : flight_number
-        event_details__number_of_clients : number_of_clients
-        event_details__arrival_or_departure : arrival_or_departure
-
-      df: ${{ workflow.normalize_airstrip_values.return }}
-
-  - name: Remove brackets from column in airstrip events 
-    id: remove_air_brackets
-    task: remove_brackets_from_column 
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:  
-      df: ${{ workflow.rename_airstrip.return }}
-      columns:
-        - airline 
-        - attendant 
-        - camp_lodge
-        - arrival_or_departure
-
-  - name: Replace camp_lodge nulls with other
-    id: replace_camp_lodge_nulls
-    task: replace_missing_with_label
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      df: ${{ workflow.remove_air_brackets.return }}
-      columns: 
-        - camp_lodge
-      label: other 
-
-  - name: Convert number_of_clients col to int
-    id: convert_clients_int 
-    task: convert_to_int
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.replace_camp_lodge_nulls.return }}
-      columns: 
-        - number_of_clients
-      errors: coerce 
-      fill_value: 0
-      inplace: false 
-
-  - name: Convert airstrip lodge to sentence case 
-    id: lodge_scase
-    task: capitalize_text
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      df: ${{ workflow.convert_clients_int.return }}
-      column: camp_lodge
-
-  - name: Airstrip operations summary table
-    id: airstrip_summary_table 
-    task: summarize_df 
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      df: ${{ workflow.lodge_scase.return }}
-      groupby_cols:
-        - camp_lodge
-        - arrival_or_departure
-      summary_params:
-        - display_name: no_of_passengers 
-          aggregator: sum 
-          column: number_of_clients
-          decimal_places: 0 
-      reset_index: true 
-
-  - name: Pivot summary table 
-    id: pivot_airstrip_table 
-    task: pivot_df 
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:
-      df: ${{ workflow.airstrip_summary_table.return }}
-      index_col: camp_lodge
-      columns_col: arrival_or_departure
-      values_col: no_of_passengers
-      reset_idx: true 
-
-  - name: Perist airstrip operations summary table 
-    id: persist_airstrip_summary 
-    task: persist_df
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial:  
-      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filetype: csv
-      df: ${{ workflow.pivot_airstrip_table.return }}
-      filename: airstrip_arrivals_and_departure
-
-    # Logistics -  Airstrip maintenance
   - name: Filter events and get airstrip maintenance records 
-    id: filter_am_events
+    id: filter_airstrip_maintenance
     task: filter_df
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
     partial:
       column_name: event_type	
       op: equal
       value: airstrip_maintenance
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
+  
+  - name: Filter events and get airline complaint records 
+    id: filter_airline_complaints
+    task: filter_df
+    partial:
+      column_name: event_type	
+      op: equal
+      value: airline_complaint
+      df: ${{ workflow.events_temporal.return }}
+      reset_index: false
 
-  - name: Normalize event details columns 
-    id: normalize_am_values
+  - name: Process balloon event details 
+    id: process_balloon_details
+    task: process_events_details 
+    partial: 
+      df: ${{ workflow.filter_balloon_events.return }}
+      client: ${{ workflow.er_client_name.return }}
+      map_to_titles: true 
+      ordered: true 
+
+  - name: Normalize balloon event details values
+    id: normalize_balloon_values
     task: normalize_json_column
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
     partial:
       column: event_details
-      df: ${{ workflow.filter_am_events.return }}
+      df: ${{ workflow.process_balloon_details.return }}
       skip_if_not_exists: true 
       sort_columns: true 
-      
-  - name: Rename airstrip_maintenance columns 
-    id: rename_am
-    task: transform_columns
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
+  
+  - name: Drop column prefix from balloon event details s
+    id: drop_balloon_prefix 
+    task: drop_column_prefix 
     partial:
+      df: ${{ workflow.normalize_balloon_values.return }}
+      prefix: event_details__
+      duplicate_strategy: "keep_original"
+  
+  - name: Process airstrip operation event details 
+    id: process_airstrip_details
+    task: process_events_details 
+    partial: 
+      df: ${{ workflow.filter_airstrip_operations.return }}
+      client: ${{ workflow.er_client_name.return }}
+      map_to_titles: true 
+      ordered: true
+  
+  - name: Normalize airstrip operation event details values
+    id: normalize_airstrip_op_values
+    task: normalize_json_column
+    partial: 
+      column: event_details
+      df: ${{ workflow.process_airstrip_details.return }}
+      skip_if_not_exists: true 
+      sort_columns: true
+    
+  - name: Drop column prefix from airstrip operation event details 
+    id: drop_airstrip_op_prefix 
+    task: drop_column_prefix 
+    partial:
+      df: ${{ workflow.normalize_airstrip_op_values.return }}
+      prefix: event_details__
+      duplicate_strategy: "keep_original"
+
+  - name: Process airstrip maintenance event details 
+    id: process_airstrip_maint_details
+    task: process_events_details 
+    partial: 
+      df: ${{ workflow.filter_airstrip_maintenance.return }}
+      client: ${{ workflow.er_client_name.return }}
+      map_to_titles: true 
+      ordered: true
+  
+  - name: Normalize airstrip maintenance event details values
+    id: normalize_airstrip_maint_vals
+    task: normalize_json_column
+    partial: 
+      column: event_details
+      df: ${{ workflow.process_airstrip_maint_details.return }}
+      skip_if_not_exists: true 
+      sort_columns: true
+  
+  - name: Drop column prefix from airstrip maintenance event details 
+    id: drop_airstrip_maintenance_prefix 
+    task: drop_column_prefix 
+    partial:
+      df: ${{ workflow.normalize_airstrip_maint_vals.return }}
+      prefix: event_details__
+      duplicate_strategy: "keep_original"
+
+  - name: Process airline complaint event details 
+    id: process_airline_comp_details
+    task: process_events_details 
+    partial: 
+      df: ${{ workflow.filter_airline_complaints.return }}
+      client: ${{ workflow.er_client_name.return }}
+      map_to_titles: true 
+      ordered: true
+  
+  - name: Normalize airline complaint event details values
+    id: normalize_airline_comp_vals
+    task: normalize_json_column
+    partial: 
+      column: event_details
+      df: ${{ workflow.process_airline_comp_details.return }}
+      skip_if_not_exists: true 
+      sort_columns: true
+
+  - name: Drop column prefix from airline complaint event details 
+    id: drop_airline_complaint_prefix 
+    task: drop_column_prefix 
+    partial:
+      df: ${{ workflow.normalize_airline_comp_vals.return }}
+      prefix: event_details__
+      duplicate_strategy: "keep_original"
+
+  - name: Map balloon columns 
+    id: map_balloon_columns 
+    task: map_columns
+    partial: 
+      df: ${{ workflow.drop_balloon_prefix.return }}
+      drop_columns: []
+      retain_columns: [
+        "date",
+        "Balloon Company",
+        "Where are clients staying?",
+        "# of passengers"
+      ]
+      rename_columns: {
+        "Balloon Company": "balloon_company",
+        "Where are clients staying?": "where_are_clients_staying",
+        "# of passengers":"no_of_passengers"
+        }
+      raise_if_not_found: false
+
+  - name: Remove brackets from columns in balloon events
+    id: remove_balloon_brackets
+    task: ecoscope_workflows_ext_mnc.tasks.transformation.remove_brackets_from_column
+
+    partial:
+      df: ${{ workflow.map_balloon_columns.return }}
+      columns:
+        - balloon_company
+        - where_are_clients_staying
+
+  - name: Rename balloon landing table columns for display
+    id: rename_balloon_display
+    task: map_columns
+    partial:
+      df: ${{ workflow.remove_balloon_brackets.return }}
       drop_columns: []
       retain_columns: []
-      rename_columns:
-        event_details__maintenance_type : activity
-      skip_missing_rename: true 
-      required_columns: 
-        - event_details__maintenance_type 
+      rename_columns: {
+        "date": "Date",
+        "balloon_company": "Balloon Company",
+        "where_are_clients_staying": "Where Are Clients Staying",
+        "no_of_passengers": "No Of Passengers"
+        }
+      raise_if_not_found: false
 
-      df: ${{ workflow.normalize_am_values.return }}
-
-  - name: Filter out columns 
-    id: filter_cols 
-    task: filter_columns 
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.rename_am.return }}
-      columns: 
-        - date 
-        - activity 
-      exclude: []
-
-  - name: Capitalize activity column  
-    id: capitalize_activity_col
-    task: capitalize_text
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
-    partial: 
-      df: ${{ workflow.filter_cols.return }}
-      column: activity
-
-  - name: Persist airstrip maintenance table
-    id: persist_air_maintenance 
-    task: persist_df 
-    skipif:
-      conditions:
-        - any_is_empty_df
-        - any_dependency_skipped
+  - name: Persist balloon landing summary table
+    id: persist_balloon_landing
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      filetype: csv 
-      df: ${{ workflow.capitalize_activity_col.return }}
-      filename: airstrip_maintenance_table 
+      filetype: csv
+      df: ${{ workflow.rename_balloon_display.return }}
+      filename: balloon_landing_summary_table
 
-    # Logistics - Airstirp complaints 
-  - name: MNC event report dashboard
-    id: mnc_events_dashboard
+  - name: Draw balloon landing summary table
+    id: balloon_landing_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.rename_balloon_display.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+      widget_id: "Balloon Landing Summary"
+
+  - name: Save balloon landing summary table (HTML)
+    id: balloon_landing_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename_suffix: balloon_landing_summary_table.html
+      text: ${{ workflow.balloon_landing_table_html.return }}
+
+  - name: Create balloon landing summary table widget
+    id: balloon_landing_table_widget
+    task: create_table_widget_single_view
+    partial:
+      title: "Balloon Landing Summary"
+      data: ${{ workflow.balloon_landing_table_html_url.return }}
+
+  # map airstrip operations
+  - name: Map airstrip operation columns 
+    id: map_airstrip_op_columns 
+    task: map_columns
+    partial: 
+      df: ${{ workflow.drop_airstrip_op_prefix.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns: {
+        "Airline":"airline",
+        "Arrival or departure":"arrival_departure",
+        "Attendant":"attendant",
+        "Camp/Lodge":"camp_lodge",
+        "Number of clients":"no_of_clients"
+        }
+      raise_if_not_found: false
+
+  - name: Remove brackets from columns in airstrip operation events
+    id: remove_airstrip_op_brackets
+    task: ecoscope_workflows_ext_mnc.tasks.transformation.remove_brackets_from_column
+    partial:
+      df: ${{ workflow.map_airstrip_op_columns.return }}
+      columns:
+        - airline
+        - arrival_departure
+        - attendant
+        - camp_lodge
+
+  - name: Convert columns to integer 
+    id: convert_airstrip_op_ints
+    task: ecoscope_workflows_ext_mnc.tasks.transformation.convert_columns_to_int
+    partial:
+      df: ${{ workflow.remove_airstrip_op_brackets.return }} 
+      columns:
+        - no_of_clients
+      errors: coerce
+      fill_value: 0
+
+  - name: Airstrip operation events summary table
+    id: airstrip_op_summary_table 
+    task: summarize_df 
+    partial:
+      df: ${{ workflow.convert_airstrip_op_ints.return }}
+      groupby_cols:
+        - camp_lodge
+        - arrival_departure
+      summary_params:
+        - display_name: no_of_clients 
+          aggregator: sum 
+          column: no_of_clients
+          decimal_places: 0 
+      reset_index: true
+
+  - name: Pivot airstrip operations summary table 
+    id: pivot_airstrip_ops
+    task: pivot_dataframe
+    partial: 
+      df: ${{ workflow.airstrip_op_summary_table.return }}
+      index: camp_lodge
+      columns: 
+        - arrival_departure 
+      values: 
+        - no_of_clients
+      fill_value: 0
+  
+  - name: Convert airstrip pivot table values to int
+    id: convert_pivot_int
+    task: ecoscope_workflows_ext_mnc.tasks.transformation.convert_columns_to_int
+    partial:
+      df: ${{ workflow.pivot_airstrip_ops.return }}
+      columns: 
+        - arrival
+        - departure 
+      errors: coerce 
+      fill_value: 0 
+      
+  - name: Rename airstrip operations table columns for display
+    id: rename_airstrip_op_display
+    task: map_columns
+    partial:
+      df: ${{ workflow.convert_pivot_int.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns: {
+        "camp_lodge": "Camp Lodge",
+        "no_of_clients_Arrival": "Arrival",
+        "no_of_clients_Departure": "Departure"
+        }
+      raise_if_not_found: false
+
+  - name: Persist airstrip operations summary table
+    id: persist_airstrip_operations
+    task: persist_df
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.rename_airstrip_op_display.return }}
+      filename: airstrip_operations_summary_table
+
+  - name: Draw airstrip operations summary table
+    id: airstrip_op_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.rename_airstrip_op_display.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+      widget_id: "Airstrip Operations Summary"
+
+  - name: Save airstrip operations summary table (HTML)
+    id: airstrip_op_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename_suffix: airstrip_operations_summary_table.html
+      text: ${{ workflow.airstrip_op_table_html.return }}
+
+  - name: Create airstrip operations summary table widget
+    id: airstrip_op_table_widget
+    task: create_table_widget_single_view
+    partial:
+      title: "Airstrip Operations Summary"
+      data: ${{ workflow.airstrip_op_table_html_url.return }}
+
+  - name: Map airstrip maintenace columns
+    id: map_airstrip_maintenance
+    task: map_columns 
+    partial:
+      df: ${{ workflow.drop_airstrip_maintenance_prefix.return }}
+      drop_columns: []
+      retain_columns: [
+        "date",
+        "Maintenance type"
+      ]
+      rename_columns: {
+        "Maintenance type":"maintenance_type"
+        }
+      raise_if_not_found: false
+
+  - name: Rename airstrip maintenance table columns for display
+    id: rename_airstrip_maint_display
+    task: map_columns
+    partial:
+      df: ${{ workflow.map_airstrip_maintenance.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns: {
+        "date": "Date",
+        "maintenance_type": "Maintenance Type"
+        }
+      raise_if_not_found: false
+
+  - name: Persist airstrip maintenance summary table
+    id: persist_airstrip_maintenance
+    task: persist_df
+
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      df: ${{ workflow.rename_airstrip_maint_display.return }}
+      filename: airstrip_maintenance_summary_table
+
+  - name: Draw airstrip maintenance summary table
+    id: airstrip_maintenance_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.rename_airstrip_maint_display.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+      widget_id: "Airstrip Maintenance Summary"
+
+  - name: Save airstrip maintenance summary table (HTML)
+    id: airstrip_maint_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filename_suffix: airstrip_maintenance_summary_table.html
+      text: ${{ workflow.airstrip_maintenance_table_html.return }}
+
+  - name: Create airstrip maintenance summary table widget
+    id: airstrip_maint_table_widget
+    task: create_table_widget_single_view
+    partial:
+      title: "Airstrip Maintenance Summary"
+      data: ${{ workflow.airstrip_maint_table_html_url.return }}
+
+    # Logistics Dashboard
+  - name: MNC Logistics Dashboard
+    id: logistics_dashboard
     task: gather_dashboard
     partial:
       details: ${{ workflow.workflow_details.return}}
-      widgets: []
+      widgets:
+        - ${{ workflow.balloon_landing_table_widget.return }}
+        - ${{ workflow.airstrip_op_table_widget.return }}
+        - ${{ workflow.airstrip_maint_table_widget.return }}
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}
       
