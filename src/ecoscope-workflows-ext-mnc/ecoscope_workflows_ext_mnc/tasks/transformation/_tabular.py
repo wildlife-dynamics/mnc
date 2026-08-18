@@ -132,3 +132,35 @@ def replace_column_values(
             print(f"Column '{column}' not found in DataFrame. Skipping.")
 
     return df
+
+
+@register()
+def order_categorical_by_number(
+    df: AnyDataFrame,
+    columns: Union[str, List[str]],
+    errors: Literal["raise", "ignore"] = "raise",
+) -> AnyDataFrame:
+    """Reorder existing bins column(s) by the first number in each label."""
+    import re
+
+    if isinstance(columns, str):
+        columns = [columns]
+
+    df = df.copy()
+
+    for column in columns:
+        if column not in df.columns:
+            msg = f"Column {column!r} not found in DataFrame."
+            if errors == "raise":
+                raise KeyError(msg)
+            print(f"Skipping, {msg}")
+            continue
+
+        col = df[column]
+        if not isinstance(col.dtype, pd.CategoricalDtype):
+            col = col.astype("category")
+
+        ordered_cats = sorted(col.cat.categories, key=lambda x: float(re.findall(r"-?\d+\.?\d*", x)[0]))
+        df[column] = col.cat.reorder_categories(ordered_cats, ordered=True)
+
+    return df
