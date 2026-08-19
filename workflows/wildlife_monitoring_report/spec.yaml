@@ -145,7 +145,7 @@ workflow:
         get_line_color: [169, 169, 169, 255]
         get_line_width: 1.75
       legend:
-        title: "Map Layers"
+        title: ""
         values:
           - label: Conservancy Boundary
             color: "#a9a9a9"
@@ -165,7 +165,7 @@ workflow:
         get_line_color: [189, 183, 107, 255]
         get_line_width: 1.5
       legend:
-        title: ""
+        title: "Map Layers"
         values:
           - label: Parcels
             color: "#bdb76b"
@@ -213,6 +213,15 @@ workflow:
       include_display_values: false
       force_point_geometry: true 
 
+  - name: Persist wildlife events 
+    id: persist_wildlife_evs
+    task: persist_df 
+    partial: 
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: overall_test_wildlife_events
+      df: ${{ workflow.get_events_data.return }}
+      
   # Extract date
   - name: Extract date from events data
     id: extract_event_date
@@ -295,11 +304,10 @@ workflow:
     id: map_wildlife_inc 
     task: map_columns 
     partial: 
-      df: ${{ workflow.drop_mobile_prefix.return }}
+      df: ${{ workflow.drop_wild_prefix.return }}
       drop_columns: [
         "index",
         "time",
-        "event_type",
         "event_category",
         "reported_by",
         "serial_number",
@@ -377,7 +385,7 @@ workflow:
     partial:
       input_column_name: event_type
       output_column_name: colors
-      colormap: tab20b
+      colormap: tab10
       df: ${{ workflow.drop_null_inc.return }}
   
   - name: Map wildlife values 
@@ -386,6 +394,7 @@ workflow:
     partial: 
       df: ${{ workflow.apply_wildlife_colormap.return }}
       col: event_type
+      new_col: event_type_mapped
       mapping: 
         fire_rep: Fire
         snare_rep: Snare 
@@ -408,7 +417,7 @@ workflow:
         stroked: true
       legend:
         title: Wildlife Incidents
-        label_column: event_type
+        label_column: event_type_mapped
         color_column: colors
         sort: ascending
       geodataframe: ${{ workflow.map_wildlife_values.return }}
@@ -441,7 +450,17 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_wildlife_map.return }}
-      filename: wildlife_incidents_map.html 
+      filename: wildlife_incidents_map.html
+
+  - name: Create wildlife incident map widget
+    id: wildlife_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Wildlife Incident Map"
+      data: ${{ workflow.persist_wildlife_urls.return }}
 
   # Wildlife sighting Events
   # Elephant Events
@@ -459,7 +478,7 @@ workflow:
     id: process_elephant_evs 
     task: process_events_details 
     partial: 
-      df: ${{ workflow.retrieve_elephant_events .return }}
+      df: ${{ workflow.retrieve_elephant_events.return }}
       client: ${{ workflow.er_client_name.return }}
       map_to_titles: true 
       ordered: true
@@ -562,6 +581,9 @@ workflow:
       label_options: 
         label_ranges: true 
         label_decimals: 0 
+      classification_options:
+        scheme: "equal_interval"
+        k: 5
 
   - name: Order binned herd size for elephants
     id: order_ele_bins 
@@ -580,14 +602,14 @@ workflow:
       mode: grouped
       y_axis: null 
       stack_column: null 
-      agg_function: sum
+      agg_function: count
       stack_order: null 
       ascending: true 
       color_column: null 
       plot_style: null 
       bar_chart_configs:
         - column: "id"
-          agg_func: sum
+          agg_func: count
           label: "Number of records"
           show_label: false
           style:
@@ -614,13 +636,23 @@ workflow:
           range: null 
       widget_id: null
 
-  - name: Persist elephant bar chart 
+  - name: Persist elephant bar chart
     id: persist_elephant_bar
     task: persist_text
-    partial: 
+    partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_ele_bins.return }}
-      filename: elephant_herd_size_bar_chart.html  
+      filename: elephant_herd_size_bar_chart.html
+
+  - name: Create elephant herd size bar chart widget
+    id: ele_bar_widget
+    task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Elephant Herd Size Distribution"
+      data: ${{ workflow.persist_elephant_bar.return }}
 
   - name: Drop null geometry from elephant events 
     id: drop_null_eles
@@ -679,7 +711,7 @@ workflow:
       static_layers:
         - ${{ workflow.create_parcels_layer.return }}
         - ${{ workflow.create_conservancy_layer.return }}
-      grouped_layers: ${{ workflow.ele_clusterd_layer.return }}
+      grouped_layers: ${{ workflow.eles_clustered_layer.return }}
 
   - name: Draw elephant bin map
     id: draw_ele_bin_map
@@ -700,16 +732,26 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_ele_bin_map.return }}
-      filename: elephant_herd_types_map.html 
+      filename: elephant_herd_types_map.html
+
+  - name: Create elephant herd size map widget
+    id: ele_herd_size_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Elephant Herd Size Map"
+      data: ${{ workflow.persist_ele_herd_urls.return }}
 
   - name: Apply colormap for elephant herd types
     id: ele_herd_types 
-    task: appply_color_map 
+    task: apply_color_map 
     partial:
       df: ${{ workflow.drop_null_eles.return }}
       input_column_name: herd_composition
       output_column_name: herd_composition_colors
-      colormap: "Set1"
+      colormap: tab10
 
   - name: Generate elephant herd composition point layers
     id: ele_herd_layer
@@ -758,7 +800,17 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_ele_herd_map.return }}
-      filename: elephant_sightings_events.html 
+      filename: elephant_sightings_events.html
+
+  - name: Create elephant herd composition map widget
+    id: ele_herd_comp_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Elephant Herd Composition Map"
+      data: ${{ workflow.persist_elephant_urls.return }}
 
 
   #   Buffalo
@@ -776,7 +828,7 @@ workflow:
     id: process_buffalo_evs 
     task: process_events_details 
     partial: 
-      df: ${{ workflow.retrieve_buffalo_events .return }}
+      df: ${{ workflow.retrieve_buffalo_events.return }}
       client: ${{ workflow.er_client_name.return }}
       map_to_titles: true 
       ordered: true
@@ -875,6 +927,9 @@ workflow:
       label_options: 
         label_ranges: true 
         label_decimals: 0 
+      classification_options:
+        scheme: "equal_interval"
+        k: 5
 
   - name: Order binned herd size for buffalos
     id: order_buff_bins 
@@ -893,14 +948,14 @@ workflow:
       mode: grouped
       y_axis: null 
       stack_column: null 
-      agg_function: sum
+      agg_function: count
       stack_order: null 
       ascending: true 
       color_column: null 
       plot_style: null 
       bar_chart_configs:
         - column: "id"
-          agg_func: sum
+          agg_func: count
           label: "Number of records"
           show_label: false
           style:
@@ -927,13 +982,23 @@ workflow:
           range: null 
       widget_id: null
 
-  - name: Persist buffalo bar chart 
+  - name: Persist buffalo bar chart
     id: persist_buffalo_bar
     task: persist_text
-    partial: 
+    partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_buff_bins.return }}
-      filename: buffalo_herd_size_bar_chart.html  
+      filename: buffalo_herd_size_bar_chart.html
+
+  - name: Create buffalo herd size bar chart widget
+    id: buff_bar_widget
+    task: create_plot_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Buffalo Herd Size Distribution"
+      data: ${{ workflow.persist_buffalo_bar.return }}
 
   - name: Drop null geometry from buffalo events 
     id: drop_null_buff
@@ -992,7 +1057,7 @@ workflow:
       static_layers:
         - ${{ workflow.create_parcels_layer.return }}
         - ${{ workflow.create_conservancy_layer.return }}
-      grouped_layers: ${{ workflow.buff_clusterd_layer.return }}
+      grouped_layers: ${{ workflow.buff_clustered_layer.return }}
 
   - name: Draw buffalo bin map
     id: draw_buff_bin_map
@@ -1013,16 +1078,26 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_buff_bin_map.return }}
-      filename: buffalo_herd_types_map.html 
+      filename: buffalo_herd_types_map.html
+
+  - name: Create buffalo herd size map widget
+    id: buff_herd_size_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Buffalo Herd Size Map"
+      data: ${{ workflow.persist_buff_herd_urls.return }}
 
   - name: Apply colormap for buffalo herd types
-    id: buff_herd_types 
-    task: appply_color_map 
+    id: buff_herd_types
+    task: apply_color_map
     partial:
-      df: ${{ workflow.drop_null_eles.return }}
+      df: ${{ workflow.drop_null_buff.return }}
       input_column_name: herd_composition
       output_column_name: herd_composition_colors
-      colormap: "Set1"
+      colormap: tab10
 
   - name: Generate bufallo herd composition point layers
     id: buff_herd_layer
@@ -1035,7 +1110,7 @@ workflow:
         opacity: 0.55
         stroked: true
       legend:
-        title: Herd Types 
+        title: Herd Types
         label_column: "herd_composition"
         color_column: herd_composition_colors
         sort: ascending
@@ -1071,7 +1146,17 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_buff_herd_map.return }}
-      filename: buffalo_sightings_events.html 
+      filename: buffalo_sightings_events.html
+
+  - name: Create buffalo herd composition map widget
+    id: buff_herd_comp_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Buffalo Herd Composition Map"
+      data: ${{ workflow.persist_buffalo_urls.return }}
 
   # Lion
   - name: Retrieve lion events
@@ -1088,7 +1173,7 @@ workflow:
     id: process_lion_evs 
     task: process_events_details 
     partial: 
-      df: ${{ workflow.retrieve_lion_events .return }}
+      df: ${{ workflow.retrieve_lion_events.return }}
       client: ${{ workflow.er_client_name.return }}
       map_to_titles: true 
       ordered: true
@@ -1166,7 +1251,7 @@ workflow:
     partial:
       input_column_name: mapped_pride
       output_column_name: colors
-      colormap: Set1
+      colormap: tab10
       df: ${{ workflow.map_lion_pride.return }} 
 
   - name: Drop null geometry from recorded lion incidents
@@ -1189,7 +1274,7 @@ workflow:
         stroked: true
       legend:
         title: pride
-        label_column: pride
+        label_column: mapped_pride
         color_column: colors
         sort: ascending
       geodataframe: ${{ workflow.drop_null_lion.return }}
@@ -1222,7 +1307,17 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_lion_map.return }}
-      filename: lion_pride_sightings_map.html 
+      filename: lion_pride_sightings_map.html
+
+  - name: Create lion sightings map widget
+    id: lion_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Lion Sightings Map"
+      data: ${{ workflow.persist_lion_urls.return }}
 
   # Leopard sighting 
   - name: Retrieve leopard events
@@ -1231,7 +1326,7 @@ workflow:
     partial: 
       column_name: event_type
       op: equal 
-      value: leopardsighting_rep
+      value: leopardsightingrep
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
 
@@ -1239,7 +1334,7 @@ workflow:
     id: process_leo_evs 
     task: process_events_details 
     partial: 
-      df: ${{ workflow.retrieve_leo_events .return }}
+      df: ${{ workflow.retrieve_leo_events.return }}
       client: ${{ workflow.er_client_name.return }}
       map_to_titles: true 
       ordered: true
@@ -1316,7 +1411,7 @@ workflow:
     partial:
       input_column_name: "individuals_present_mapped"
       output_column_name: colors
-      colormap: Set1
+      colormap: tab10
       df: ${{ workflow.map_leopards.return }} 
 
   - name: Drop null geometry from recorded leopard incidents
@@ -1372,7 +1467,17 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_leo_map.return }}
-      filename: leopard_sightings_map.html 
+      filename: leopard_sightings_map.html
+
+  - name: Create leopard sightings map widget
+    id: leo_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Leopard Sightings Map"
+      data: ${{ workflow.persist_leo_urls.return }}
 
   # Cheetah 
   - name: Retrieve cheetah events
@@ -1389,7 +1494,7 @@ workflow:
     id: process_chee_evs 
     task: process_events_details 
     partial: 
-      df: ${{ workflow.retrieve_chee_events .return }}
+      df: ${{ workflow.retrieve_chee_events.return }}
       client: ${{ workflow.er_client_name.return }}
       map_to_titles: true 
       ordered: true
@@ -1441,7 +1546,7 @@ workflow:
     id: fill_undefined_chee
     task: fill_missing_values 
     partial: 
-      df: ${{ workflow.map_leopard_cols.return }}
+      df: ${{ workflow.map_chee_cols.return }}
       value:  "Undefined"
       subset: ["individuals_present"]
 
@@ -1449,7 +1554,7 @@ workflow:
     id: map_cheetah
     task: map_column_value 
     partial: 
-      df: ${{ workflow.fill_undefined_leo.return }}
+      df: ${{ workflow.fill_undefined_chee.return }}
       col: "individuals_present"
       mapping: {
         "Undefined":"Undefined",
@@ -1466,7 +1571,7 @@ workflow:
     partial:
       input_column_name: "individuals_present_mapped"
       output_column_name: colors
-      colormap: Set1
+      colormap: tab10
       df: ${{ workflow.map_cheetah.return }} 
 
   - name: Drop null geometry from recorded cheetah incidents
@@ -1522,7 +1627,17 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_chee_map.return }}
-      filename: cheetah_sightings_map.html 
+      filename: cheetah_sightings_map.html
+
+  - name: Create cheetah sightings map widget
+    id: chee_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Cheetah Sightings Map"
+      data: ${{ workflow.persist_chee_urls.return }}
 
   # Giraffe 
   - name: Retrieve giraffe events
@@ -1531,7 +1646,7 @@ workflow:
     partial: 
       column_name: event_type
       op: equal 
-      value: giraffe_sighting_rep
+      value: giraffe_sighting
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
 
@@ -1539,7 +1654,7 @@ workflow:
     id: process_gir_evs 
     task: process_events_details 
     partial: 
-      df: ${{ workflow.retrieve_gir_events .return }}
+      df: ${{ workflow.retrieve_gir_events.return }}
       client: ${{ workflow.er_client_name.return }}
       map_to_titles: true 
       ordered: true
@@ -1614,7 +1729,17 @@ workflow:
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       text: ${{ workflow.draw_gir_map.return }}
-      filename: giraffe_sightings_map.html 
+      filename: giraffe_sightings_map.html
+
+  - name: Create giraffe sightings map widget
+    id: gir_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Giraffe Sightings Map"
+      data: ${{ workflow.persist_gir_urls.return }}
 
   # Rhino
   - name: Retrieve rhino events
@@ -1631,7 +1756,7 @@ workflow:
     id: process_rhi_evs 
     task: process_events_details 
     partial: 
-      df: ${{ workflow.retrieve_rhi_events .return }}
+      df: ${{ workflow.retrieve_rhi_events.return }}
       client: ${{ workflow.er_client_name.return }}
       map_to_titles: true 
       ordered: true
@@ -1672,7 +1797,7 @@ workflow:
         opacity: 0.55
         stroked: true
       legend:
-        title: Rhini Sightings
+        title: Rhino Sightings
         values:
           - label: Sighting
             color: "#483d8b"
@@ -1705,8 +1830,18 @@ workflow:
     task: persist_text
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      text: ${{ workflow.draw_gir_map.return }}
-      filename: rhino_sightings_map.html 
+      text: ${{ workflow.draw_rhi_map.return }}
+      filename: rhino_sightings_map.html
+
+  - name: Create rhino sightings map widget
+    id: rhi_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Rhino Sightings Map"
+      data: ${{ workflow.persist_rhi_urls.return }}
 
   # Hartebeest
   - name: Retrieve hartebeest events
@@ -1715,7 +1850,7 @@ workflow:
     partial: 
       column_name: event_type
       op: equal 
-      value: rhino_sighting_rep
+      value: hartebeest_sighting
       df: ${{ workflow.events_temporal.return }}
       reset_index: false
 
@@ -1723,7 +1858,7 @@ workflow:
     id: process_hart_evs 
     task: process_events_details 
     partial: 
-      df: ${{ workflow.retrieve_hart_events .return }}
+      df: ${{ workflow.retrieve_hart_events.return }}
       client: ${{ workflow.er_client_name.return }}
       map_to_titles: true 
       ordered: true
@@ -1764,7 +1899,7 @@ workflow:
         opacity: 0.55
         stroked: true
       legend:
-        title: Rhini Sightings
+        title: Hartebeest Sightings
         values:
           - label: Sighting
             color: "#483d8b"
@@ -1797,8 +1932,18 @@ workflow:
     task: persist_text
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
-      text: ${{ workflow.draw_gir_map.return }}
-      filename: hartebeest_sightings_map.html 
+      text: ${{ workflow.draw_hart_map.return }}
+      filename: hartebeest_sightings_map.html
+
+  - name: Create hartebeest sightings map widget
+    id: hart_map_widget
+    task: create_map_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Hartebeest Sightings Map"
+      data: ${{ workflow.persist_hart_urls.return }}
 
   # Summary tables
   - name: overall elephant summary table 
@@ -1817,13 +1962,42 @@ workflow:
   
   - name: Persist overall elephant summary table
     id: persist_ele_summary
-    task: persist_df 
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       df: ${{ workflow.overall_ele_table.return }}
-      filename: overall_elephant_summary_table 
+      filename: overall_elephant_summary_table
 
+  - name: Draw overall elephant summary table
+    id: ele_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.overall_ele_table.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+
+  - name: Persist overall elephant summary table (HTML)
+    id: ele_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.ele_table_html.return }}
+      filename: overall_elephant_summary_table.html
+
+  - name: Create elephant summary table widget
+    id: ele_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Elephant Herd Composition Summary"
+      data: ${{ workflow.ele_table_html_url.return }}
 
   # Buffalo
   - name: overall buffalo summary table 
@@ -1842,19 +2016,49 @@ workflow:
   
   - name: Persist overall elephant summary table
     id: persist_buff_summary
-    task: persist_df 
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       df: ${{ workflow.overall_buff_table.return }}
-      filename: overall_buffalo_summary_table  
+      filename: overall_buffalo_summary_table
 
-  # Cheetah 
-  - name: overall cheetah summary table 
-    id: overall_chee_table 
-    task: summarize_df 
-    partial: 
-      df: ${{ workflow.apply_leo_colormap.return }}
+  - name: Draw overall buffalo summary table
+    id: buff_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.overall_buff_table.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+
+  - name: Persist overall buffalo summary table (HTML)
+    id: buff_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.buff_table_html.return }}
+      filename: overall_buffalo_summary_table.html
+
+  - name: Create buffalo summary table widget
+    id: buff_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Buffalo Herd Composition Summary"
+      data: ${{ workflow.buff_table_html_url.return }}
+
+  # Cheetah
+  - name: overall cheetah summary table
+    id: overall_chee_table
+    task: summarize_df
+    partial:
+      df: ${{ workflow.apply_chee_colormap.return }}
       groupby_cols:
         - "individuals_present_mapped"
       summary_params: 
@@ -1866,12 +2070,42 @@ workflow:
   
   - name: Persist overall cheetah summary table
     id: persist_chee_summary
-    task: persist_df 
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       df: ${{ workflow.overall_chee_table.return }}
-      filename: overall_cheetah_summary_table  
+      filename: overall_cheetah_summary_table
+
+  - name: Draw overall cheetah summary table
+    id: chee_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.overall_chee_table.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+
+  - name: Persist overall cheetah summary table (HTML)
+    id: chee_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.chee_table_html.return }}
+      filename: overall_cheetah_summary_table.html
+
+  - name: Create cheetah summary table widget
+    id: chee_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Cheetah Sightings Summary"
+      data: ${{ workflow.chee_table_html_url.return }}
 
   # Lion
   - name: overall lion summary table 
@@ -1890,14 +2124,44 @@ workflow:
   
   - name: Persist overall lion summary table
     id: persist_lion_summary
-    task: persist_df 
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       df: ${{ workflow.overall_lion_table.return }}
-      filename: overall_lion_summary_table  
+      filename: overall_lion_summary_table
 
-  # Leopard 
+  - name: Draw overall lion summary table
+    id: lion_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.overall_lion_table.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+
+  - name: Persist overall lion summary table (HTML)
+    id: lion_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.lion_table_html.return }}
+      filename: overall_lion_summary_table.html
+
+  - name: Create lion summary table widget
+    id: lion_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Lion Sightings Summary"
+      data: ${{ workflow.lion_table_html_url.return }}
+
+  # Leopard
   - name: overall leopard summary table 
     id: overall_leo_table 
     task: summarize_df 
@@ -1914,12 +2178,42 @@ workflow:
   
   - name: Persist overall leopard summary table
     id: persist_leo_summary
-    task: persist_df 
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.overall_lion_table.return }}
-      filename: overall_leopard_summary_table  
+      df: ${{ workflow.overall_leo_table.return }}
+      filename: overall_leopard_summary_table
+
+  - name: Draw overall leopard summary table
+    id: leo_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.overall_leo_table.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+
+  - name: Persist overall leopard summary table (HTML)
+    id: leo_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.leo_table_html.return }}
+      filename: overall_leopard_summary_table.html
+
+  - name: Create leopard summary table widget
+    id: leo_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Leopard Sightings Summary"
+      data: ${{ workflow.leo_table_html_url.return }}
 
   # Giraffe
   - name: overall giraffe summary table 
@@ -1938,12 +2232,42 @@ workflow:
   
   - name: Persist overall giraffe summary table
     id: persist_gir_summary
-    task: persist_df 
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       df: ${{ workflow.overall_gir_table.return }}
-      filename: overall_giraffe_summary_table  
+      filename: overall_giraffe_summary_table
+
+  - name: Draw overall giraffe summary table
+    id: gir_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.overall_gir_table.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+
+  - name: Persist overall giraffe summary table (HTML)
+    id: gir_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.gir_table_html.return }}
+      filename: overall_giraffe_summary_table.html
+
+  - name: Create giraffe summary table widget
+    id: gir_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Giraffe Sightings Summary"
+      data: ${{ workflow.gir_table_html_url.return }}
 
   # Rhino
   - name: overall rhino summary table 
@@ -1962,12 +2286,42 @@ workflow:
   
   - name: Persist overall rhino summary table
     id: persist_rhi_summary
-    task: persist_df 
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       df: ${{ workflow.overall_rhi_table.return }}
-      filename: overall_rhino_summary_table  
+      filename: overall_rhino_summary_table
+
+  - name: Draw overall rhino summary table
+    id: rhi_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.overall_rhi_table.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+
+  - name: Persist overall rhino summary table (HTML)
+    id: rhi_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.rhi_table_html.return }}
+      filename: overall_rhino_summary_table.html
+
+  - name: Create rhino summary table widget
+    id: rhi_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Rhino Sightings Summary"
+      data: ${{ workflow.rhi_table_html_url.return }}
 
   # Hartebeest
   - name: overall hartebeest summary table 
@@ -1986,19 +2340,70 @@ workflow:
   
   - name: Persist overall hartebeest summary table
     id: persist_hart_summary
-    task: persist_df 
+    task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
       df: ${{ workflow.overall_hart_table.return }}
-      filename: overall_hart_summary_table 
+      filename: overall_hart_summary_table
+
+  - name: Draw overall hartebeest summary table
+    id: hart_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.overall_hart_table.return }}
+      columns: null
+      table_config:
+        enable_sorting: true
+        enable_filtering: true
+        enable_download: false
+        hide_header: false
+
+  - name: Persist overall hartebeest summary table (HTML)
+    id: hart_table_html_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.hart_table_html.return }}
+      filename: overall_hart_summary_table.html
+
+  - name: Create hartebeest summary table widget
+    id: hart_table_widget
+    task: create_table_widget_single_view
+    skipif:
+      conditions:
+        - never
+    partial:
+      title: "Hartebeest Sightings Summary"
+      data: ${{ workflow.hart_table_html_url.return }}
 
   - name: MNC event report dashboard
     id: mnc_events_dashboard
     task: gather_dashboard
     partial:
       details: ${{ workflow.workflow_details.return}}
-      widgets: []
+      widgets:
+        - ${{ workflow.wildlife_map_widget.return }}
+        - ${{ workflow.ele_herd_size_map_widget.return }}
+        - ${{ workflow.ele_herd_comp_map_widget.return }}
+        - ${{ workflow.ele_bar_widget.return }}
+        - ${{ workflow.ele_table_widget.return }}
+        - ${{ workflow.buff_herd_size_map_widget.return }}
+        - ${{ workflow.buff_herd_comp_map_widget.return }}
+        - ${{ workflow.buff_bar_widget.return }}
+        - ${{ workflow.buff_table_widget.return }}
+        - ${{ workflow.lion_map_widget.return }}
+        - ${{ workflow.lion_table_widget.return }}
+        - ${{ workflow.leo_map_widget.return }}
+        - ${{ workflow.leo_table_widget.return }}
+        - ${{ workflow.chee_map_widget.return }}
+        - ${{ workflow.chee_table_widget.return }}
+        - ${{ workflow.gir_map_widget.return }}
+        - ${{ workflow.gir_table_widget.return }}
+        - ${{ workflow.rhi_map_widget.return }}
+        - ${{ workflow.rhi_table_widget.return }}
+        - ${{ workflow.hart_map_widget.return }}
+        - ${{ workflow.hart_table_widget.return }}
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}
       

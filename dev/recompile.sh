@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 workflow=$1
 shift
