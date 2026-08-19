@@ -219,7 +219,7 @@ workflow:
     partial: 
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      filename: overall_test_wildlife_events
+      filename: wildlife_events
       df: ${{ workflow.get_events_data.return }}
       
   # Extract date
@@ -1958,22 +1958,34 @@ workflow:
           aggregator: nunique
           column: id 
           decimal_places: 0 
-      reset_index: true 
-  
+      reset_index: true
+
+  - name: Rename elephant summary table columns
+    id: rename_ele_table
+    task: map_columns
+    partial:
+      df: ${{ workflow.overall_ele_table.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns: {
+        "herd_composition_mapped": "Herd Type",
+        }
+      raise_if_not_found: false
+
   - name: Persist overall elephant summary table
     id: persist_ele_summary
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.overall_ele_table.return }}
+      df: ${{ workflow.rename_ele_table.return }}
       filename: overall_elephant_summary_table
 
   - name: Draw overall elephant summary table
     id: ele_table_html
     task: draw_table
     partial:
-      dataframe: ${{ workflow.overall_ele_table.return }}
+      dataframe: ${{ workflow.rename_ele_table.return }}
       columns: null
       table_config:
         enable_sorting: true
@@ -2012,22 +2024,34 @@ workflow:
           aggregator: nunique
           column: id 
           decimal_places: 0 
-      reset_index: true 
-  
+      reset_index: true
+
+  - name: Rename buffalo summary table columns
+    id: rename_buff_table
+    task: map_columns
+    partial:
+      df: ${{ workflow.overall_buff_table.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns: {
+        "herd_composition_mapped": "Herd Type",
+        }
+      raise_if_not_found: false
+
   - name: Persist overall elephant summary table
     id: persist_buff_summary
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.overall_buff_table.return }}
+      df: ${{ workflow.rename_buff_table.return }}
       filename: overall_buffalo_summary_table
 
   - name: Draw overall buffalo summary table
     id: buff_table_html
     task: draw_table
     partial:
-      dataframe: ${{ workflow.overall_buff_table.return }}
+      dataframe: ${{ workflow.rename_buff_table.return }}
       columns: null
       table_config:
         enable_sorting: true
@@ -2066,22 +2090,34 @@ workflow:
           aggregator: nunique
           column: id 
           decimal_places: 0 
-      reset_index: true 
-  
+      reset_index: true
+
+  - name: Rename cheetah summary table columns
+    id: rename_chee_table
+    task: map_columns
+    partial:
+      df: ${{ workflow.overall_chee_table.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns: {
+        "individuals_present_mapped": "Individuals",
+        }
+      raise_if_not_found: false
+
   - name: Persist overall cheetah summary table
     id: persist_chee_summary
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.overall_chee_table.return }}
+      df: ${{ workflow.rename_chee_table.return }}
       filename: overall_cheetah_summary_table
 
   - name: Draw overall cheetah summary table
     id: chee_table_html
     task: draw_table
     partial:
-      dataframe: ${{ workflow.overall_chee_table.return }}
+      dataframe: ${{ workflow.rename_chee_table.return }}
       columns: null
       table_config:
         enable_sorting: true
@@ -2120,22 +2156,34 @@ workflow:
           aggregator: nunique
           column: id 
           decimal_places: 0 
-      reset_index: true 
-  
+      reset_index: true
+
+  - name: Rename lion summary table columns
+    id: rename_lion_table
+    task: map_columns
+    partial:
+      df: ${{ workflow.overall_lion_table.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns: {
+        "mapped_pride": "Pride",
+        }
+      raise_if_not_found: false
+
   - name: Persist overall lion summary table
     id: persist_lion_summary
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.overall_lion_table.return }}
+      df: ${{ workflow.rename_lion_table.return }}
       filename: overall_lion_summary_table
 
   - name: Draw overall lion summary table
     id: lion_table_html
     task: draw_table
     partial:
-      dataframe: ${{ workflow.overall_lion_table.return }}
+      dataframe: ${{ workflow.rename_lion_table.return }}
       columns: null
       table_config:
         enable_sorting: true
@@ -2174,22 +2222,34 @@ workflow:
           aggregator: nunique
           column: id 
           decimal_places: 0 
-      reset_index: true 
-  
+      reset_index: true
+
+  - name: Rename leopard summary table columns
+    id: rename_leo_table
+    task: map_columns
+    partial:
+      df: ${{ workflow.overall_leo_table.return }}
+      drop_columns: []
+      retain_columns: []
+      rename_columns: {
+        "individuals_present_mapped": "Individuals",
+        }
+      raise_if_not_found: false
+
   - name: Persist overall leopard summary table
     id: persist_leo_summary
     task: persist_df
     partial:
       root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
       filetype: csv
-      df: ${{ workflow.overall_leo_table.return }}
+      df: ${{ workflow.rename_leo_table.return }}
       filename: overall_leopard_summary_table
 
   - name: Draw overall leopard summary table
     id: leo_table_html
     task: draw_table
     partial:
-      dataframe: ${{ workflow.overall_leo_table.return }}
+      dataframe: ${{ workflow.rename_leo_table.return }}
       columns: null
       table_config:
         enable_sorting: true
@@ -2400,10 +2460,10 @@ workflow:
         - ${{ workflow.chee_table_widget.return }}
         - ${{ workflow.gir_map_widget.return }}
         - ${{ workflow.gir_table_widget.return }}
-        - ${{ workflow.rhi_map_widget.return }}
-        - ${{ workflow.rhi_table_widget.return }}
         - ${{ workflow.hart_map_widget.return }}
         - ${{ workflow.hart_table_widget.return }}
+        - ${{ workflow.rhi_map_widget.return }}
+        - ${{ workflow.rhi_table_widget.return }}
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}
       

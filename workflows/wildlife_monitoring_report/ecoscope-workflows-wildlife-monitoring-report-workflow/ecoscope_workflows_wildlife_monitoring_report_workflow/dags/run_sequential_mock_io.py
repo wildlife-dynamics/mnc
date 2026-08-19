@@ -42,6 +42,7 @@ get_events = create_func_magicmock(  # 🧪
     anchor="ecoscope.platform.tasks.io",  # 🧪
     func_name="get_events",  # 🧪
 )  # 🧪
+from ecoscope.platform.tasks.io import persist_df as persist_df
 from ecoscope.platform.tasks.transformation import (
     add_temporal_index as add_temporal_index,
 )
@@ -63,7 +64,6 @@ process_events_details = create_func_magicmock(  # 🧪
     func_name="process_events_details",  # 🧪
 )  # 🧪
 from ecoscope.platform.tasks.analysis import summarize_df as summarize_df
-from ecoscope.platform.tasks.io import persist_df as persist_df
 from ecoscope.platform.tasks.io import persist_text as persist_text
 from ecoscope.platform.tasks.results import (
     create_map_widget_single_view as create_map_widget_single_view,
@@ -541,6 +541,29 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             include_display_values=False,
             force_point_geometry=True,
             **(params.get("get_events_data") or {}),
+        )
+        .call()
+    )
+
+    persist_wildlife_evs = (
+        task(persist_df)
+        .validate()
+        .set_task_instance_id("persist_wildlife_evs")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="wildlife_events",
+            df=get_events_data,
+            **(params.get("persist_wildlife_evs") or {}),
         )
         .call()
     )
@@ -4249,6 +4272,30 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_ele_table = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_ele_table")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=overall_ele_table,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={"herd_composition_mapped": "Herd Type"},
+            raise_if_not_found=False,
+            **(params.get("rename_ele_table") or {}),
+        )
+        .call()
+    )
+
     persist_ele_summary = (
         task(persist_df)
         .validate()
@@ -4265,7 +4312,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
-            df=overall_ele_table,
+            df=rename_ele_table,
             filename="overall_elephant_summary_table",
             **(params.get("persist_ele_summary") or {}),
         )
@@ -4286,7 +4333,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=overall_ele_table,
+            dataframe=rename_ele_table,
             columns=None,
             table_config={
                 "enable_sorting": True,
@@ -4371,6 +4418,30 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_buff_table = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_buff_table")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=overall_buff_table,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={"herd_composition_mapped": "Herd Type"},
+            raise_if_not_found=False,
+            **(params.get("rename_buff_table") or {}),
+        )
+        .call()
+    )
+
     persist_buff_summary = (
         task(persist_df)
         .validate()
@@ -4387,7 +4458,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
-            df=overall_buff_table,
+            df=rename_buff_table,
             filename="overall_buffalo_summary_table",
             **(params.get("persist_buff_summary") or {}),
         )
@@ -4408,7 +4479,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=overall_buff_table,
+            dataframe=rename_buff_table,
             columns=None,
             table_config={
                 "enable_sorting": True,
@@ -4493,6 +4564,30 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_chee_table = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_chee_table")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=overall_chee_table,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={"individuals_present_mapped": "Individuals"},
+            raise_if_not_found=False,
+            **(params.get("rename_chee_table") or {}),
+        )
+        .call()
+    )
+
     persist_chee_summary = (
         task(persist_df)
         .validate()
@@ -4509,7 +4604,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
-            df=overall_chee_table,
+            df=rename_chee_table,
             filename="overall_cheetah_summary_table",
             **(params.get("persist_chee_summary") or {}),
         )
@@ -4530,7 +4625,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=overall_chee_table,
+            dataframe=rename_chee_table,
             columns=None,
             table_config={
                 "enable_sorting": True,
@@ -4615,6 +4710,30 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_lion_table = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_lion_table")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=overall_lion_table,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={"mapped_pride": "Pride"},
+            raise_if_not_found=False,
+            **(params.get("rename_lion_table") or {}),
+        )
+        .call()
+    )
+
     persist_lion_summary = (
         task(persist_df)
         .validate()
@@ -4631,7 +4750,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
-            df=overall_lion_table,
+            df=rename_lion_table,
             filename="overall_lion_summary_table",
             **(params.get("persist_lion_summary") or {}),
         )
@@ -4652,7 +4771,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=overall_lion_table,
+            dataframe=rename_lion_table,
             columns=None,
             table_config={
                 "enable_sorting": True,
@@ -4737,6 +4856,30 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    rename_leo_table = (
+        task(map_columns)
+        .validate()
+        .set_task_instance_id("rename_leo_table")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            df=overall_leo_table,
+            drop_columns=[],
+            retain_columns=[],
+            rename_columns={"individuals_present_mapped": "Individuals"},
+            raise_if_not_found=False,
+            **(params.get("rename_leo_table") or {}),
+        )
+        .call()
+    )
+
     persist_leo_summary = (
         task(persist_df)
         .validate()
@@ -4753,7 +4896,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .partial(
             root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
             filetype="csv",
-            df=overall_leo_table,
+            df=rename_leo_table,
             filename="overall_leopard_summary_table",
             **(params.get("persist_leo_summary") or {}),
         )
@@ -4774,7 +4917,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             unpack_depth=1,
         )
         .partial(
-            dataframe=overall_leo_table,
+            dataframe=rename_leo_table,
             columns=None,
             table_config={
                 "enable_sorting": True,
