@@ -314,7 +314,29 @@ workflow:
       text: ${{ workflow.draw_events_chart.return }}
       filename: total_events_recorded.html # -- convert this to .png
 
-  # Patrol Information 
+  - name: Convert total events chart to png
+    id: convert_events_chart_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_total_events.return }}
+      config:
+        width: 1280
+        height: 720
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 10
+        timeout: 0
+        max_concurrent_pages: 5
+
+  - name: Create total events chart widget
+    id: events_chart_widget
+    task: create_plot_widget_single_view
+    partial:
+      title: "Total Events Recorded"
+      data: ${{ workflow.persist_total_events.return }}
+
+  # Patrol Information
   - title: Map Zoom & Extent
     type: task-group
     description: Calculate the geographic extent of the movement tracks and determine an appropriate zoom level and center point for the map. This ensures that all tracks are visible and well-framed when the map is rendered.
@@ -370,20 +392,26 @@ workflow:
       prefix: event_details__
       duplicate_strategy: "keep_original"
 
+  - name: Persist events 
+    id: persist_events 
+    task: persist_df 
+    partial: 
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      filetype: csv
+      filename: patrol_events
+      df: ${{ workflow.drop_patrol_prefix.return }}
+
   - name: Rename patrol information columns 
     id: rename_patrol_info
     task: map_columns
     partial:
       raise_if_not_found: true
       drop_columns: [
-        "index",
-        "time",
-        "event_type",
-        "event_category",
-        "reported_by",
-        "serial_number",
-        "event_type_display",
-        "Person Who Authorised?",
+        # "time",
+        # "event_type",
+        # "event_category",
+        # "reported_by",
+        # "serial_number",
       ]
       retain_columns: []
       rename_columns: {
@@ -420,7 +448,31 @@ workflow:
       filename: patrol_purpose_summary
       df: ${{ workflow.patrol_info_summary.return }}
 
-  # patrol observations 
+  - name: Draw patrol purpose summary table
+    id: patrol_summary_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.patrol_info_summary.return }}
+      columns: null
+      table_config: {enable_sorting: true, enable_filtering: true, enable_download: false, hide_header: false}
+      widget_id: "Patrol Purpose Summary"
+
+  - name: Save patrol purpose summary table (HTML)
+    id: patrol_summary_table_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.patrol_summary_table_html.return }}
+      filename: patrol_purpose_summary_table.html
+
+  - name: Create patrol purpose summary table widget
+    id: patrol_summary_table_widget
+    task: create_table_widget_single_view
+    partial:
+      title: "Patrol Purpose Summary"
+      data: ${{ workflow.patrol_summary_table_url.return }}
+
+  # patrol observations
   - name: Filter null values from patrol id 
     id: filter_null_patrols
     task: filter_notna 
@@ -655,7 +707,6 @@ workflow:
       rename_columns: {
         "extra__created_at":"created_at",
         "extra__id":"id",
-        "extra__index":"index",
         "extra__participants":"participants",
         "extra__patrol_end_time":"patrol_end_time",
         "extra__patrol_id":"patrol_id",
@@ -682,7 +733,6 @@ workflow:
       rename_columns: {
         "extra__created_at":"created_at",
         "extra__id":"id",
-        "extra__index":"index",
         "extra__participants":"participants",
         "extra__patrol_end_time":"patrol_end_time",
         "extra__patrol_id":"patrol_id",
@@ -709,7 +759,6 @@ workflow:
       rename_columns: {
         "extra__created_at":"created_at",
         "extra__id":"id",
-        "extra__index":"index",
         "extra__participants":"participants",
         "extra__patrol_end_time":"patrol_end_time",
         "extra__patrol_id":"patrol_id",
@@ -903,7 +952,7 @@ workflow:
     task: apply_color_map
     partial:
       input_column_name: density_bins
-      colormap: RdYlGn_r
+      colormap: RdYlGn
       output_column_name: density_colors
       df: ${{ workflow.apply_foot_class_grid.return }}
 
@@ -918,7 +967,7 @@ workflow:
         wireframe: false
         get_fill_color: density_colors
         get_line_color: [0, 0, 0]
-        opacity: 0.55 
+        opacity: 0.35
         get_line_width: 0.95
         get_elevation: 0
         get_point_radius: 1
@@ -963,6 +1012,25 @@ workflow:
       text: ${{ workflow.draw_foot_map.return }}
       filename: foot_patrol_map.html
 
+  - name: Convert foot patrol map to png
+    id: convert_foot_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_foot_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 40000
+        max_concurrent_pages: 1
+
+  - name: Create foot patrol map widget
+    id: foot_map_widget
+    task: create_map_widget_single_view
+    partial:
+      title: "Foot Patrol Coverage Map"
+      data: ${{ workflow.persist_foot_urls.return }}
+
   # Vehicle patrol map
   - name: Apply bin classification on vehicle patrol grids
     id: apply_vh_class_grid
@@ -983,7 +1051,7 @@ workflow:
     task: apply_color_map
     partial:
       input_column_name: density_bins
-      colormap: RdYlGn_r
+      colormap: RdYlGn
       output_column_name: density_colors
       df: ${{ workflow.apply_vh_class_grid.return }}
 
@@ -998,7 +1066,7 @@ workflow:
         wireframe: false
         get_fill_color: density_colors
         get_line_color: [0, 0, 0]
-        opacity: 0.55 
+        opacity: 0.35
         get_line_width: 0.95
         get_elevation: 0
         get_point_radius: 1
@@ -1043,6 +1111,25 @@ workflow:
       text: ${{ workflow.draw_vh_map.return }}
       filename: vehicle_patrol_map.html
 
+  - name: Convert vehicle patrol map to png
+    id: convert_vh_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_vh_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 40000
+        max_concurrent_pages: 1
+
+  - name: Create vehicle patrol map widget
+    id: vh_map_widget
+    task: create_map_widget_single_view
+    partial:
+      title: "Vehicle Patrol Coverage Map"
+      data: ${{ workflow.persist_vh_urls.return }}
+
   # Motor patrol map
   - name: Apply bin classification on motor patrol grids
     id: apply_mr_class_grid
@@ -1063,7 +1150,7 @@ workflow:
     task: apply_color_map
     partial:
       input_column_name: density_bins
-      colormap: RdYlGn_r
+      colormap: RdYlGn
       output_column_name: density_colors
       df: ${{ workflow.apply_mr_class_grid.return }}
 
@@ -1078,7 +1165,7 @@ workflow:
         wireframe: false
         get_fill_color: density_colors
         get_line_color: [0, 0, 0]
-        opacity: 0.55 
+        opacity: 0.35 
         get_line_width: 0.95
         get_elevation: 0
         get_point_radius: 1
@@ -1123,7 +1210,26 @@ workflow:
       text: ${{ workflow.draw_mr_map.return }}
       filename: motor_patrol_map.html
 
-  #Overall patrols 
+  - name: Convert motor patrol map to png
+    id: convert_mr_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_mr_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 40000
+        max_concurrent_pages: 1
+
+  - name: Create motor patrol map widget
+    id: mr_map_widget
+    task: create_map_widget_single_view
+    partial:
+      title: "Motorbike Patrol Coverage Map"
+      data: ${{ workflow.persist_mr_urls.return }}
+
+  #Overall patrols
   - name: Concatenate dataframes 
     id: concat_dataframes 
     task: concatenate_dataframes
@@ -1178,7 +1284,7 @@ workflow:
     task: apply_color_map
     partial:
       input_column_name: density_bins
-      colormap: RdYlGn_r
+      colormap: RdYlGn
       output_column_name: density_colors
       df: ${{ workflow.apply_ov_class_grid.return }}
 
@@ -1193,7 +1299,7 @@ workflow:
         wireframe: false
         get_fill_color: density_colors
         get_line_color: [0, 0, 0]
-        opacity: 0.55 
+        opacity: 0.35 
         get_line_width: 0.95
         get_elevation: 0
         get_point_radius: 1
@@ -1238,7 +1344,26 @@ workflow:
       text: ${{ workflow.draw_ov_map.return }}
       filename: overall_patrol_map.html
 
-  - name: Persist combined trajectories data 
+  - name: Convert overall patrol map to png
+    id: convert_ov_png
+    task: html_to_png
+    partial:
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      html_path: ${{ workflow.persist_ov_urls.return }}
+      config:
+        full_page: false
+        device_scale_factor: 2.0
+        wait_for_timeout: 40000
+        max_concurrent_pages: 1
+
+  - name: Create overall patrol map widget
+    id: ov_map_widget
+    task: create_map_widget_single_view
+    partial:
+      title: "Overall Patrol Coverage Map"
+      data: ${{ workflow.persist_ov_urls.return }}
+
+  - name: Persist combined trajectories data
     id: persist_trajectories_data
     task: persist_df
     partial:
@@ -1276,7 +1401,7 @@ workflow:
           decimal_places: 2
 
       reset_index: true
-      df: ${{ workflow.reproject_overall.return }}
+      df: ${{ workflow.concat_dataframes.return }}
 
   - name: Fill missing values with Undefined
     id: fill_participants
@@ -1306,6 +1431,30 @@ workflow:
       df: ${{ workflow.no_of_patrols_int.return }}
       filename: overall_patrol_efforts
 
+  - name: Draw overall patrol efforts table
+    id: patrol_efforts_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.no_of_patrols_int.return }}
+      columns: null
+      table_config: {enable_sorting: true, enable_filtering: true, enable_download: false, hide_header: false}
+      widget_id: "Overall Patrol Efforts"
+
+  - name: Save overall patrol efforts table (HTML)
+    id: patrol_efforts_table_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.patrol_efforts_table_html.return }}
+      filename: overall_patrol_efforts_table.html
+
+  - name: Create overall patrol efforts table widget
+    id: patrol_efforts_table_widget
+    task: create_table_widget_single_view
+    partial:
+      title: "Overall Patrol Efforts"
+      data: ${{ workflow.patrol_efforts_table_url.return }}
+
   - name: Reproject conservancy to epsg:3857
     id: reproject_conservancy
     task: reproject_gdf 
@@ -1329,12 +1478,44 @@ workflow:
       df: ${{ workflow.compute_cons_occupancy.return }}
       filename: patrol_coverage
 
+  - name: Draw patrol occupancy table
+    id: occupancy_table_html
+    task: draw_table
+    partial:
+      dataframe: ${{ workflow.compute_cons_occupancy.return }}
+      columns: null
+      table_config: {enable_sorting: true, enable_filtering: true, enable_download: false, hide_header: false}
+      widget_id: "Conservancy Patrol Occupancy"
+
+  - name: Save patrol occupancy table (HTML)
+    id: occupancy_table_url
+    task: persist_text
+    partial:
+      root_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      text: ${{ workflow.occupancy_table_html.return }}
+      filename: patrol_coverage_table.html
+
+  - name: Create patrol occupancy table widget
+    id: occupancy_table_widget
+    task: create_table_widget_single_view
+    partial:
+      title: "Conservancy Patrol Occupancy"
+      data: ${{ workflow.occupancy_table_url.return }}
+
   - name: MNC event report dashboard
     id: mnc_events_dashboard
     task: gather_dashboard
     partial:
       details: ${{ workflow.workflow_details.return}}
-      widgets: []
+      widgets:
+        - ${{ workflow.foot_map_widget.return }}
+        - ${{ workflow.vh_map_widget.return }}
+        - ${{ workflow.mr_map_widget.return }}
+        - ${{ workflow.ov_map_widget.return }}
+        - ${{ workflow.events_chart_widget.return }}
+        - ${{ workflow.patrol_summary_table_widget.return }}
+        - ${{ workflow.patrol_efforts_table_widget.return }}
+        - ${{ workflow.occupancy_table_widget.return }}
       time_range: ${{ workflow.time_range.return}}
       groupers: ${{ workflow.groupers.return }}
       

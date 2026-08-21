@@ -19,7 +19,17 @@ from ecoscope.platform.tasks.preprocessing import (
 from ecoscope.platform.tasks.preprocessing import (
     relocations_to_trajectory as relocations_to_trajectory,
 )
+from ecoscope.platform.tasks.results import (
+    create_map_widget_single_view as create_map_widget_single_view,
+)
+from ecoscope.platform.tasks.results import (
+    create_plot_widget_single_view as create_plot_widget_single_view,
+)
+from ecoscope.platform.tasks.results import (
+    create_table_widget_single_view as create_table_widget_single_view,
+)
 from ecoscope.platform.tasks.results import draw_line_chart as draw_line_chart
+from ecoscope.platform.tasks.results import draw_table as draw_table
 from ecoscope.platform.tasks.results import gather_dashboard as gather_dashboard
 from ecoscope.platform.tasks.skip import (
     any_dependency_skipped as any_dependency_skipped,
@@ -42,6 +52,7 @@ from ecoscope.platform.tasks.transformation import (
     normalize_json_column as normalize_json_column,
 )
 from ecoscope_workflows_ext_big_life.tasks.results import draw_map as draw_map_2
+from ecoscope_workflows_ext_custom.tasks.io import html_to_png as html_to_png
 from ecoscope_workflows_ext_custom.tasks.io import load_df as load_df
 from ecoscope_workflows_ext_custom.tasks.io import (
     process_events_details as process_events_details,
@@ -711,6 +722,57 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    convert_events_chart_png = (
+        task(html_to_png)
+        .validate()
+        .set_task_instance_id("convert_events_chart_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_total_events,
+            config={
+                "width": 1280,
+                "height": 720,
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 10,
+                "timeout": 0,
+                "max_concurrent_pages": 5,
+            },
+            **(params.get("convert_events_chart_png") or {}),
+        )
+        .call()
+    )
+
+    events_chart_widget = (
+        task(create_plot_widget_single_view)
+        .validate()
+        .set_task_instance_id("events_chart_widget")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Total Events Recorded",
+            data=persist_total_events,
+            **(params.get("events_chart_widget") or {}),
+        )
+        .call()
+    )
+
     zoom_to_envelope = (
         task(envelope_gdf)
         .validate()
@@ -843,6 +905,29 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    persist_events = (
+        task(persist_df)
+        .validate()
+        .set_task_instance_id("persist_events")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            filetype="csv",
+            filename="patrol_events",
+            df=drop_patrol_prefix,
+            **(params.get("persist_events") or {}),
+        )
+        .call()
+    )
+
     rename_patrol_info = (
         task(map_columns)
         .validate()
@@ -858,16 +943,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             raise_if_not_found=True,
-            drop_columns=[
-                "index",
-                "time",
-                "event_type",
-                "event_category",
-                "reported_by",
-                "serial_number",
-                "event_type_display",
-                "Person Who Authorised?",
-            ],
+            drop_columns=[],
             retain_columns=[],
             rename_columns={
                 "patrols": "patrol_id",
@@ -932,6 +1008,77 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             filename="patrol_purpose_summary",
             df=patrol_info_summary,
             **(params.get("persist_patrol_df") or {}),
+        )
+        .call()
+    )
+
+    patrol_summary_table_html = (
+        task(draw_table)
+        .validate()
+        .set_task_instance_id("patrol_summary_table_html")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            dataframe=patrol_info_summary,
+            columns=None,
+            table_config={
+                "enable_sorting": True,
+                "enable_filtering": True,
+                "enable_download": False,
+                "hide_header": False,
+            },
+            widget_id="Patrol Purpose Summary",
+            **(params.get("patrol_summary_table_html") or {}),
+        )
+        .call()
+    )
+
+    patrol_summary_table_url = (
+        task(persist_text)
+        .validate()
+        .set_task_instance_id("patrol_summary_table_url")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=patrol_summary_table_html,
+            filename="patrol_purpose_summary_table.html",
+            **(params.get("patrol_summary_table_url") or {}),
+        )
+        .call()
+    )
+
+    patrol_summary_table_widget = (
+        task(create_table_widget_single_view)
+        .validate()
+        .set_task_instance_id("patrol_summary_table_widget")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Patrol Purpose Summary",
+            data=patrol_summary_table_url,
+            **(params.get("patrol_summary_table_widget") or {}),
         )
         .call()
     )
@@ -1445,7 +1592,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             rename_columns={
                 "extra__created_at": "created_at",
                 "extra__id": "id",
-                "extra__index": "index",
                 "extra__participants": "participants",
                 "extra__patrol_end_time": "patrol_end_time",
                 "extra__patrol_id": "patrol_id",
@@ -1486,7 +1632,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             rename_columns={
                 "extra__created_at": "created_at",
                 "extra__id": "id",
-                "extra__index": "index",
                 "extra__participants": "participants",
                 "extra__patrol_end_time": "patrol_end_time",
                 "extra__patrol_id": "patrol_id",
@@ -1527,7 +1672,6 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             rename_columns={
                 "extra__created_at": "created_at",
                 "extra__id": "id",
-                "extra__index": "index",
                 "extra__participants": "participants",
                 "extra__patrol_end_time": "patrol_end_time",
                 "extra__patrol_id": "patrol_id",
@@ -1932,7 +2076,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             input_column_name="density_bins",
-            colormap="RdYlGn_r",
+            colormap="RdYlGn",
             output_column_name="density_colors",
             df=apply_foot_class_grid,
             **(params.get("apply_foot_grid_colormap") or {}),
@@ -1961,7 +2105,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "wireframe": False,
                 "get_fill_color": "density_colors",
                 "get_line_color": [0, 0, 0],
-                "opacity": 0.55,
+                "opacity": 0.35,
                 "get_line_width": 0.95,
                 "get_elevation": 0,
                 "get_point_radius": 1,
@@ -2051,6 +2195,54 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    convert_foot_png = (
+        task(html_to_png)
+        .validate()
+        .set_task_instance_id("convert_foot_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_foot_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 40000,
+                "max_concurrent_pages": 1,
+            },
+            **(params.get("convert_foot_png") or {}),
+        )
+        .call()
+    )
+
+    foot_map_widget = (
+        task(create_map_widget_single_view)
+        .validate()
+        .set_task_instance_id("foot_map_widget")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Foot Patrol Coverage Map",
+            data=persist_foot_urls,
+            **(params.get("foot_map_widget") or {}),
+        )
+        .call()
+    )
+
     apply_vh_class_grid = (
         task(apply_classification)
         .validate()
@@ -2090,7 +2282,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             input_column_name="density_bins",
-            colormap="RdYlGn_r",
+            colormap="RdYlGn",
             output_column_name="density_colors",
             df=apply_vh_class_grid,
             **(params.get("apply_vh_grid_colormap") or {}),
@@ -2119,7 +2311,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "wireframe": False,
                 "get_fill_color": "density_colors",
                 "get_line_color": [0, 0, 0],
-                "opacity": 0.55,
+                "opacity": 0.35,
                 "get_line_width": 0.95,
                 "get_elevation": 0,
                 "get_point_radius": 1,
@@ -2209,6 +2401,54 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    convert_vh_png = (
+        task(html_to_png)
+        .validate()
+        .set_task_instance_id("convert_vh_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_vh_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 40000,
+                "max_concurrent_pages": 1,
+            },
+            **(params.get("convert_vh_png") or {}),
+        )
+        .call()
+    )
+
+    vh_map_widget = (
+        task(create_map_widget_single_view)
+        .validate()
+        .set_task_instance_id("vh_map_widget")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Vehicle Patrol Coverage Map",
+            data=persist_vh_urls,
+            **(params.get("vh_map_widget") or {}),
+        )
+        .call()
+    )
+
     apply_mr_class_grid = (
         task(apply_classification)
         .validate()
@@ -2248,7 +2488,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             input_column_name="density_bins",
-            colormap="RdYlGn_r",
+            colormap="RdYlGn",
             output_column_name="density_colors",
             df=apply_mr_class_grid,
             **(params.get("apply_mr_grid_colormap") or {}),
@@ -2277,7 +2517,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "wireframe": False,
                 "get_fill_color": "density_colors",
                 "get_line_color": [0, 0, 0],
-                "opacity": 0.55,
+                "opacity": 0.35,
                 "get_line_width": 0.95,
                 "get_elevation": 0,
                 "get_point_radius": 1,
@@ -2363,6 +2603,54 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             text=draw_mr_map,
             filename="motor_patrol_map.html",
             **(params.get("persist_mr_urls") or {}),
+        )
+        .call()
+    )
+
+    convert_mr_png = (
+        task(html_to_png)
+        .validate()
+        .set_task_instance_id("convert_mr_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_mr_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 40000,
+                "max_concurrent_pages": 1,
+            },
+            **(params.get("convert_mr_png") or {}),
+        )
+        .call()
+    )
+
+    mr_map_widget = (
+        task(create_map_widget_single_view)
+        .validate()
+        .set_task_instance_id("mr_map_widget")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Motorbike Patrol Coverage Map",
+            data=persist_mr_urls,
+            **(params.get("mr_map_widget") or {}),
         )
         .call()
     )
@@ -2479,7 +2767,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             input_column_name="density_bins",
-            colormap="RdYlGn_r",
+            colormap="RdYlGn",
             output_column_name="density_colors",
             df=apply_ov_class_grid,
             **(params.get("apply_ov_grid_colormap") or {}),
@@ -2508,7 +2796,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "wireframe": False,
                 "get_fill_color": "density_colors",
                 "get_line_color": [0, 0, 0],
-                "opacity": 0.55,
+                "opacity": 0.35,
                 "get_line_width": 0.95,
                 "get_elevation": 0,
                 "get_point_radius": 1,
@@ -2598,6 +2886,54 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    convert_ov_png = (
+        task(html_to_png)
+        .validate()
+        .set_task_instance_id("convert_ov_png")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            html_path=persist_ov_urls,
+            config={
+                "full_page": False,
+                "device_scale_factor": 2.0,
+                "wait_for_timeout": 40000,
+                "max_concurrent_pages": 1,
+            },
+            **(params.get("convert_ov_png") or {}),
+        )
+        .call()
+    )
+
+    ov_map_widget = (
+        task(create_map_widget_single_view)
+        .validate()
+        .set_task_instance_id("ov_map_widget")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Overall Patrol Coverage Map",
+            data=persist_ov_urls,
+            **(params.get("ov_map_widget") or {}),
+        )
+        .call()
+    )
+
     persist_trajectories_data = (
         task(persist_df)
         .validate()
@@ -2663,7 +2999,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 },
             ],
             reset_index=True,
-            df=reproject_overall,
+            df=concat_dataframes,
             **(params.get("ranger_patrol_metrics") or {}),
         )
         .call()
@@ -2737,6 +3073,77 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    patrol_efforts_table_html = (
+        task(draw_table)
+        .validate()
+        .set_task_instance_id("patrol_efforts_table_html")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            dataframe=no_of_patrols_int,
+            columns=None,
+            table_config={
+                "enable_sorting": True,
+                "enable_filtering": True,
+                "enable_download": False,
+                "hide_header": False,
+            },
+            widget_id="Overall Patrol Efforts",
+            **(params.get("patrol_efforts_table_html") or {}),
+        )
+        .call()
+    )
+
+    patrol_efforts_table_url = (
+        task(persist_text)
+        .validate()
+        .set_task_instance_id("patrol_efforts_table_url")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=patrol_efforts_table_html,
+            filename="overall_patrol_efforts_table.html",
+            **(params.get("patrol_efforts_table_url") or {}),
+        )
+        .call()
+    )
+
+    patrol_efforts_table_widget = (
+        task(create_table_widget_single_view)
+        .validate()
+        .set_task_instance_id("patrol_efforts_table_widget")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Overall Patrol Efforts",
+            data=patrol_efforts_table_url,
+            **(params.get("patrol_efforts_table_widget") or {}),
+        )
+        .call()
+    )
+
     reproject_conservancy = (
         task(reproject_gdf)
         .validate()
@@ -2802,6 +3209,77 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         .call()
     )
 
+    occupancy_table_html = (
+        task(draw_table)
+        .validate()
+        .set_task_instance_id("occupancy_table_html")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            dataframe=compute_cons_occupancy,
+            columns=None,
+            table_config={
+                "enable_sorting": True,
+                "enable_filtering": True,
+                "enable_download": False,
+                "hide_header": False,
+            },
+            widget_id="Conservancy Patrol Occupancy",
+            **(params.get("occupancy_table_html") or {}),
+        )
+        .call()
+    )
+
+    occupancy_table_url = (
+        task(persist_text)
+        .validate()
+        .set_task_instance_id("occupancy_table_url")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            root_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            text=occupancy_table_html,
+            filename="patrol_coverage_table.html",
+            **(params.get("occupancy_table_url") or {}),
+        )
+        .call()
+    )
+
+    occupancy_table_widget = (
+        task(create_table_widget_single_view)
+        .validate()
+        .set_task_instance_id("occupancy_table_widget")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            title="Conservancy Patrol Occupancy",
+            data=occupancy_table_url,
+            **(params.get("occupancy_table_widget") or {}),
+        )
+        .call()
+    )
+
     mnc_events_dashboard = (
         task(gather_dashboard)
         .validate()
@@ -2817,7 +3295,16 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             details=workflow_details,
-            widgets=[],
+            widgets=[
+                foot_map_widget,
+                vh_map_widget,
+                mr_map_widget,
+                ov_map_widget,
+                events_chart_widget,
+                patrol_summary_table_widget,
+                patrol_efforts_table_widget,
+                occupancy_table_widget,
+            ],
             time_range=time_range,
             groupers=groupers,
             **(params.get("mnc_events_dashboard") or {}),
