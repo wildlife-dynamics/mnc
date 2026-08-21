@@ -5,32 +5,35 @@
 
 ```yaml
 # fingerprint:
-artifacts_sha256_basic: 5404d4a9fb461fbd4794ee105325a5b8e3edf2787cc30bef242cf93c089e9123
-artifacts_sha256_strict: b7db06d8b0be4581f5f862388dde82e70765ded83951dacdcc28e4ab8916e054
+artifacts_sha256_basic: 86c2d5e552a95e0b4be02de87e9463308af3a9842315d508b470f82d4f80d820
+artifacts_sha256_strict: 400f30a3957fa2eda8732b54adb54d0a8cadc2ab931e3dd610bb9e9c6e1c54b8
 installed_requirements:
 - channel: https://repo.prefix.dev/ecoscope-workflows/
-  name: ecoscope-workflows-core
-  version: {version: ==0.22.18}
-- channel: https://repo.prefix.dev/ecoscope-workflows/
-  name: ecoscope-workflows-ext-ecoscope
-  version: {version: ==0.22.18}
+  name: ecoscope-platform
+  version: {version: ==2.15.1}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
   name: ecoscope-workflows-ext-custom
-  version: {version: ==0.0.49}
+  version: {version: ==0.1.0rc14}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
   name: ecoscope-workflows-ext-ste
-  version: {version: ==0.0.20}
+  version: {version: ==0.0.0rc1}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
-  name: ecoscope-workflows-ext-mep
-  version: {version: ==0.0.19}
+  name: ecoscope-workflows-ext-wwf-virunga
+  version: {version: ==0.0.0rc9}
 - channel: https://repo.prefix.dev/ecoscope-workflows-custom/
   name: ecoscope-workflows-ext-big-life
-  version: {version: ==0.0.11}
+  version: {version: ==1.0.1}
 - channel: file:///tmp/ecoscope-workflows-custom/release/artifacts/
   name: ecoscope-workflows-ext-mnc
-  version: {version: ==0.0.11.dev0+g422552f0a.d20260513}
-params_sha256: 3ab4c0f59c459fe3feea277da14ef6a8b3d0dfc0f958f3f015ddd4d700bcc5f8
-spec_sha256: fefa8ca8d9ca48a72a71f5a867cebe3a7f65adb709b2b91745ea06c325e3243c
+  version: {version: ==1.0.2.dev0+g337811f42.d20260821}
+- channel: conda-forge
+  name: pydeck
+  version: {version: ==0.9.2}
+- channel: conda-forge
+  name: opentelemetry-sdk
+  version: {version: ==1.44.0}
+params_sha256: 8ec66f689124f09fdc0b9e58fd0668d6d6a9a023df19834cdf059202d17289b4
+spec_sha256: 2cbd4349869b15901d0f19be31bc591d8598d14c3a53a3d54e48f6d8e66a3150
 
 ```
 
