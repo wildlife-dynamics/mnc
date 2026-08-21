@@ -164,3 +164,26 @@ def order_categorical_by_number(
         df[column] = col.cat.reorder_categories(ordered_cats, ordered=True)
 
     return df
+
+
+@register()
+def filter_notna(df: AnyDataFrame, column_names: Union[str, list[str]]) -> AnyDataFrame:
+    """Return rows of ``df`` where the given column(s) are not NA.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame to filter.
+    column_names : str or list of str
+        A single column name, or a list of column names. When a list is
+        given, only rows where **all** listed columns are non-NA are kept.
+
+    Returns
+    -------
+    pandas.DataFrame
+        A filtered view of ``df`` (rows with NA in the given column(s) dropped).
+    """
+    if isinstance(column_names, str):
+        column_names = [column_names]
+
+    return df[df[column_names].notna().all(axis=1)]

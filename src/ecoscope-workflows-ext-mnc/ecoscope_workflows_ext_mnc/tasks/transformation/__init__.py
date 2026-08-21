@@ -4,6 +4,7 @@ from ._tabular import (
     fill_missing_values,
     replace_column_values,
     order_categorical_by_number,
+    filter_notna,
 )
 from ._spatial import fix_invalid_geometries, build_legend_values_from_column
 
@@ -16,4 +17,5 @@ __all__ = [
     "replace_column_values",
     "order_categorical_by_number",
     "build_legend_values_from_column",
+    "filter_notna",
 ]
