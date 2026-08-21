@@ -18,7 +18,7 @@
       ],
       "type": "object",
       "description": "Add information that will help to differentiate this workflow from another.",
-      "title": "Set workflow details"
+      "title": "Set Workflow Details"
     },
     "time_range": {
       "additionalProperties": false,
@@ -58,7 +58,7 @@
       ],
       "type": "object",
       "description": "Choose the period of time to analyze.",
-      "title": "Time range"
+      "title": "Time Range"
     },
     "er_client_name": {
       "additionalProperties": false,
@@ -73,7 +73,22 @@
         "data_source"
       ],
       "type": "object",
-      "title": "Connect to ER"
+      "title": "Connect to EarthRanger"
+    },
+    "zoom_to_envelope": {
+      "additionalProperties": false,
+      "properties": {
+        "expansion_factor": {
+          "default": 1.5,
+          "title": "Expansion Factor",
+          "type": "number",
+          "description": "Factor to expand the bounding box (e.g., 1.2 = 20% larger)",
+          "ecoscope:advanced": true
+        }
+      },
+      "required": [],
+      "type": "object",
+      "title": ""
     }
   },
   "$defs": {
@@ -137,7 +152,8 @@
     "ui:order": [
       "workflow_details",
       "time_range",
-      "er_client_name"
+      "er_client_name",
+      "zoom_to_envelope"
     ]
   },
   "additionalProperties": false
