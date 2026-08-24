@@ -5,7 +5,7 @@ from docx.shared import Cm
 from typing import Optional
 from wt_registry import register
 from docxtpl import DocxTemplate, InlineImage
-from ecoscope_platform.tasks.filter._filter import TimeRange
+from ecoscope.platform.tasks.filter._filter import TimeRange
 from ecoscope_workflows_ext_custom.tasks.io._path_utils import remove_file_scheme
 
 

@@ -265,6 +265,9 @@ from ecoscope_workflows_ext_mnc.tasks.io import (
 from ecoscope_workflows_ext_mnc.tasks.io import (
     create_patrol_coverage_grid as create_patrol_coverage_grid,
 )
+from ecoscope_workflows_ext_mnc.tasks.reporting import (
+    generate_mnc_report as generate_mnc_report,
+)
 from ecoscope_workflows_ext_ste.tasks.transformation import (
     concatenate_dataframes as concatenate_dataframes,
 )
@@ -659,7 +662,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "get_line_color": "zone_color",
                 "get_line_width": 1.5,
             },
-            legend={"title": "Map Layers", "values": grazing_zone_legend_values},
+            legend={"title": "", "values": grazing_zone_legend_values},
             **(params.get("create_grazing_zones_layer") or {}),
         )
         .call()
@@ -689,7 +692,7 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
                 "get_line_width": 1.5,
             },
             legend={
-                "title": "",
+                "title": "Map Layers",
                 "values": [{"label": "Parcels", "color": "#bdb76b"}],
                 "sort": None,
                 "label_suffix": None,
@@ -3292,8 +3295,8 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             static_layers=[
-                create_grazing_zones_layer,
                 create_parcels_layer,
+                create_grazing_zones_layer,
                 create_conservancy_layer,
             ],
             grouped_layers=generate_mobile_layers,
@@ -3898,8 +3901,8 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             static_layers=[
-                create_grazing_zones_layer,
                 create_parcels_layer,
+                create_grazing_zones_layer,
                 create_conservancy_layer,
             ],
             grouped_layers=generate_livestock_layers,
@@ -4230,8 +4233,8 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
         )
         .partial(
             static_layers=[
-                create_grazing_zones_layer,
                 create_parcels_layer,
+                create_grazing_zones_layer,
                 create_conservancy_layer,
             ],
             grouped_layers=generate_illegal_layers,
@@ -12077,6 +12080,55 @@ def main(params: dict[str, Any], validate_params_schema: bool = True):
             title="Conservancy Patrol Occupancy",
             data=occupancy_table_url,
             **(params.get("occupancy_table_widget") or {}),
+        )
+        .call()
+    )
+
+    fetch_mnc_template = (
+        task(fetch_and_persist_file)
+        .validate()
+        .set_task_instance_id("fetch_mnc_template")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            url="https://www.dropbox.com/scl/fi/cd29du0tkel6k74cm96sy/mara_north_event_template.docx?rlkey=q6q01pvxnlfa146eix1ck640n&st=3menrr2d&dl=0",
+            output_path=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            overwrite_existing=False,
+            retries=2,
+            unzip=False,
+            **(params.get("fetch_mnc_template") or {}),
+        )
+        .call()
+    )
+
+    generate_overall_report = (
+        task(generate_mnc_report)
+        .validate()
+        .set_task_instance_id("generate_overall_report")
+        .handle_errors()
+        .with_tracing()
+        .skipif(
+            conditions=[
+                any_is_empty_df,
+                any_dependency_skipped,
+            ],
+            unpack_depth=1,
+        )
+        .partial(
+            template_path=fetch_mnc_template,
+            output_dir=os.environ["ECOSCOPE_WORKFLOWS_RESULTS"],
+            generated_by="Ecoscope",
+            validate_images=True,
+            time_period=time_range,
+            filename="overall_report.docx",
+            **(params.get("generate_overall_report") or {}),
         )
         .call()
     )
