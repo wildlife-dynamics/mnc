@@ -303,21 +303,23 @@ def generate_mnc_report(
     context["no_of_lion_events"] = _safe_int(df["observations"].sum()) if df is not None else 0
 
     context["common_lion_prides"] = "N/A"
-    df = df.rename(columns={"Pride": "pride"})
-    if _has_cols(df, "pride", "observations"):
-        top_prides = df.nlargest(3, "observations")["pride"].dropna().astype(str).tolist()
-        if top_prides:
-            context["common_lion_prides"] = ", ".join(top_prides)
+    if df is not None:
+        df = df.rename(columns={"Pride": "pride"})
+        if _has_cols(df, "pride", "observations"):
+            top_prides = df.nlargest(3, "observations")["pride"].dropna().astype(str).tolist()
+            if top_prides:
+                context["common_lion_prides"] = ", ".join(top_prides)
 
     df = _read_csv_safe(csvs_found, "overall_leopard_summary_table")
     context["no_of_leopard_sightings"] = _safe_int(df["observations"].sum()) if df is not None else 0
 
     context["common_leopard_individuals"] = "N/A"
-    df = df.rename(columns={"Individuals": "individuals"})
-    if _has_cols(df, "individuals", "observations"):
-        top = df.nlargest(3, "observations")["individuals"].dropna().astype(str).tolist()
-        if top:
-            context["common_leopard_individuals"] = ", ".join(top)
+    if df is not None:
+        df = df.rename(columns={"Individuals": "individuals"})
+        if _has_cols(df, "individuals", "observations"):
+            top = df.nlargest(3, "observations")["individuals"].dropna().astype(str).tolist()
+            if top:
+                context["common_leopard_individuals"] = ", ".join(top)
 
     # Cheetah events + common individuals
     df = _read_csv_safe(csvs_found, "overall_cheetah_summary_table")
@@ -325,42 +327,48 @@ def generate_mnc_report(
 
     context["common_cheetah_individuals"] = "N/A"
 
-    df = df.rename(columns={"Individuals": "individuals"})
-    if _has_cols(df, "individuals", "observations"):
-        cheetah_df = df.sort_values(by="observations", ascending=False)
-        top = cheetah_df.nlargest(3, "observations")["individuals"].dropna().astype(str).tolist()
-        if top:
-            context["common_cheetah_individuals"] = ", ".join(top)
-        context["individual_cheetah_summary"] = cheetah_df.fillna(0).to_dict(orient="records")
-    elif cheetah_df is not None and not cheetah_df.empty:
-        context["individual_cheetah_summary"] = cheetah_df.fillna(0).to_dict(orient="records")
+    if df is not None:
+        df = df.rename(columns={"Individuals": "individuals"})
+        if _has_cols(df, "individuals", "observations"):
+            cheetah_df = df.sort_values(by="observations", ascending=False)
+            top = cheetah_df.nlargest(3, "observations")["individuals"].dropna().astype(str).tolist()
+            if top:
+                context["common_cheetah_individuals"] = ", ".join(top)
+            context["individual_cheetah_summary"] = cheetah_df.fillna(0).to_dict(orient="records")
+        elif not df.empty:
+            context["individual_cheetah_summary"] = df.fillna(0).to_dict(orient="records")
 
     # Cattle / cow events
     context["no_of_cow_events"] = 0
+    context["zone_stats"] = []
     df = _read_csv_safe(csvs_found, "total_cattle_count_summary_table")
-    df = df.rename(
-        columns={"Date": "date", "Total": "total", "Zone 1": "zone_1", "Zone 2/3": "zone_2_3", "Zone 4": "zone_4"}
-    )
-    if _has_cols(df, "date"):
-        context["no_of_cow_events"] = int(df["date"].count())
-    context["zone_stats"] = df.to_dict(orient="records")
+    if df is not None:
+        df = df.rename(
+            columns={"Date": "date", "Total": "total", "Zone 1": "zone_1", "Zone 2/3": "zone_2_3", "Zone 4": "zone_4"}
+        )
+        if _has_cols(df, "date"):
+            context["no_of_cow_events"] = int(df["date"].count())
+        context["zone_stats"] = df.to_dict(orient="records")
 
+    context["balloon_observations"] = []
     df = _read_csv_safe(csvs_found, "balloon_landing_summary_table")
-    df = df.rename(
-        columns={
-            "Date": "date",
-            "Balloon Company": "balloon_company",
-            "Where Are Clients Staying": "where_are_clients_staying",
-            "No Of Passengers": "no_of_passengers",
-        }
-    )
-    df = df.fillna({"balloon_company": "Undefined", "where_are_clients_staying": "Undefined"})
+    if df is not None:
+        df = df.rename(
+            columns={
+                "Date": "date",
+                "Balloon Company": "balloon_company",
+                "Where Are Clients Staying": "where_are_clients_staying",
+                "No Of Passengers": "no_of_passengers",
+            }
+        )
+        df = df.fillna({"balloon_company": "Undefined", "where_are_clients_staying": "Undefined"})
+        context["balloon_observations"] = df.to_dict(orient="records")
 
-    context["balloon_observations"] = df.to_dict(orient="records")
-
+    context["airstrip_maintenance_observations"] = []
     df = _read_csv_safe(csvs_found, "airstrip_maintenance_summary_table")
-    df = df.rename(columns={"Date": "date", "Maintenance Type": "activity"})
-    context["airstrip_maintenance_observations"] = df.to_dict(orient="records")
+    if df is not None:
+        df = df.rename(columns={"Date": "date", "Maintenance Type": "activity"})
+        context["airstrip_maintenance_observations"] = df.to_dict(orient="records")
 
     if generated_by:
         context["er_user"] = generated_by

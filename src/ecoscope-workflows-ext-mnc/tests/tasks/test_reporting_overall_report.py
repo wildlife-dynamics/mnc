@@ -37,14 +37,10 @@ def write_csv(output_dir, stem, df):
 
 
 def write_baseline_optional_csvs(output_dir):
-    """Populate the handful of optional CSVs whose code paths call
-    ``.rename()`` on the result of ``_read_csv_safe`` with no ``None``
-    guard (lion/leopard/cheetah/cattle/balloon/airstrip-maintenance).
-    Without these present, generate_mnc_report raises AttributeError
-    before it ever reaches DocxTemplate.render — see
-    TestGenerateMncReportKnownFragility. Tests that exercise other parts
-    of the context need this baseline just to get the function to
-    complete.
+    """Populate the optional CSVs covering lion/leopard/cheetah/cattle/
+    balloon/airstrip-maintenance data, used by tests that want that part
+    of the context populated with real values rather than the "missing
+    CSV" defaults exercised in TestGenerateMncReportOptionalCsvsMissing.
     """
     write_csv(output_dir, "overall_lion_summary_table", pd.DataFrame({"observations": [5], "Pride": ["Some Pride"]}))
     write_csv(output_dir, "overall_leopard_summary_table", pd.DataFrame({"observations": [3], "Individuals": ["Leo"]}))
@@ -77,8 +73,8 @@ def write_baseline_optional_csvs(output_dir):
 
 @pytest.fixture
 def full_output_dir(output_dir):
-    """output_dir pre-seeded with the baseline optional CSVs required to
-    get generate_mnc_report to completion (see write_baseline_optional_csvs).
+    """output_dir pre-seeded with the baseline optional CSVs (see
+    write_baseline_optional_csvs).
     """
     write_baseline_optional_csvs(output_dir)
     return output_dir
@@ -109,11 +105,7 @@ class TestGenerateMncReportValidation:
         new_dir = tmp_path / "brand_new"
         assert not new_dir.exists()
 
-        # The directory is created up front, before any CSV scanning; the
-        # AttributeError below comes later, once report-building reaches the
-        # unguarded optional CSVs documented in TestGenerateMncReportKnownFragility.
-        with pytest.raises(AttributeError):
-            generate_mnc_report(template_path=template_path, output_dir=str(new_dir))
+        generate_mnc_report(template_path=template_path, output_dir=str(new_dir))
 
         assert new_dir.exists()
 
@@ -457,18 +449,131 @@ class TestGenerateMncReportContext:
 
 @patch("ecoscope_workflows_ext_mnc.tasks.reporting._overall_report.InlineImage")
 @patch("ecoscope_workflows_ext_mnc.tasks.reporting._overall_report.DocxTemplate")
-class TestGenerateMncReportKnownFragility:
-    """Documents current crash behavior for optional CSVs that are read
-    without a None-check before use. These are not intentional contracts;
-    they pin down today's (fragile) behavior so a future fix is visible
-    as an intentional test change rather than a silent regression.
+class TestGenerateMncReportOptionalCsvsMissing:
+    """Regression coverage for a real production crash: when the lion,
+    leopard, cheetah, cattle, balloon, or airstrip-maintenance summary CSV
+    is absent (e.g. because that species/activity had no records for the
+    reporting period), `_read_csv_safe` returns None, and the report used
+    to call `.rename()` on that None unconditionally, raising
+    AttributeError before ever reaching DocxTemplate.render. Each of these
+    should instead fall back to sane defaults.
     """
 
-    def test_missing_lion_summary_csv_currently_raises(
-        self, mock_docx_template, mock_inline_image, template_path, output_dir
+    def test_missing_lion_summary_csv_falls_back_to_defaults(
+        self, mock_docx_template, mock_inline_image, template_path, full_output_dir
     ):
+        (Path(full_output_dir) / "overall_lion_summary_table.csv").unlink()
         mock_doc_instance = MagicMock()
         mock_docx_template.return_value = mock_doc_instance
 
-        with pytest.raises(AttributeError):
-            generate_mnc_report(template_path=template_path, output_dir=str(output_dir))
+        generate_mnc_report(template_path=template_path, output_dir=str(full_output_dir))
+
+        ctx = render_context(mock_docx_template, mock_doc_instance)
+        assert ctx["no_of_lion_events"] == 0
+        assert ctx["common_lion_prides"] == "N/A"
+
+    def test_missing_leopard_summary_csv_falls_back_to_defaults(
+        self, mock_docx_template, mock_inline_image, template_path, full_output_dir
+    ):
+        (Path(full_output_dir) / "overall_leopard_summary_table.csv").unlink()
+        mock_doc_instance = MagicMock()
+        mock_docx_template.return_value = mock_doc_instance
+
+        generate_mnc_report(template_path=template_path, output_dir=str(full_output_dir))
+
+        ctx = render_context(mock_docx_template, mock_doc_instance)
+        assert ctx["no_of_leopard_sightings"] == 0
+        assert ctx["common_leopard_individuals"] == "N/A"
+
+    def test_missing_cheetah_summary_csv_falls_back_to_defaults(
+        self, mock_docx_template, mock_inline_image, template_path, full_output_dir
+    ):
+        (Path(full_output_dir) / "overall_cheetah_summary_table.csv").unlink()
+        mock_doc_instance = MagicMock()
+        mock_docx_template.return_value = mock_doc_instance
+
+        generate_mnc_report(template_path=template_path, output_dir=str(full_output_dir))
+
+        ctx = render_context(mock_docx_template, mock_doc_instance)
+        assert ctx["no_of_cheetah_events"] == 0
+        assert ctx["common_cheetah_individuals"] == "N/A"
+        assert ctx["individual_cheetah_summary"] == []
+
+    def test_cheetah_csv_missing_individuals_column_falls_back_to_raw_records(
+        self, mock_docx_template, mock_inline_image, template_path, full_output_dir
+    ):
+        # df exists (and has "observations", so no_of_cheetah_events still
+        # computes) but lacks "Individuals" after rename: should populate
+        # individual_cheetah_summary from the raw rows instead of raising
+        # NameError on an unset `cheetah_df`.
+        write_csv(
+            full_output_dir, "overall_cheetah_summary_table", pd.DataFrame({"observations": [1, 2], "note": ["x", "y"]})
+        )
+        mock_doc_instance = MagicMock()
+        mock_docx_template.return_value = mock_doc_instance
+
+        generate_mnc_report(template_path=template_path, output_dir=str(full_output_dir))
+
+        ctx = render_context(mock_docx_template, mock_doc_instance)
+        assert ctx["no_of_cheetah_events"] == 3
+        assert ctx["common_cheetah_individuals"] == "N/A"
+        assert ctx["individual_cheetah_summary"] == [
+            {"observations": 1, "note": "x"},
+            {"observations": 2, "note": "y"},
+        ]
+
+    def test_missing_cattle_summary_csv_falls_back_to_defaults(
+        self, mock_docx_template, mock_inline_image, template_path, full_output_dir
+    ):
+        (Path(full_output_dir) / "total_cattle_count_summary_table.csv").unlink()
+        mock_doc_instance = MagicMock()
+        mock_docx_template.return_value = mock_doc_instance
+
+        generate_mnc_report(template_path=template_path, output_dir=str(full_output_dir))
+
+        ctx = render_context(mock_docx_template, mock_doc_instance)
+        assert ctx["no_of_cow_events"] == 0
+        assert ctx["zone_stats"] == []
+
+    def test_missing_balloon_summary_csv_falls_back_to_defaults(
+        self, mock_docx_template, mock_inline_image, template_path, full_output_dir
+    ):
+        (Path(full_output_dir) / "balloon_landing_summary_table.csv").unlink()
+        mock_doc_instance = MagicMock()
+        mock_docx_template.return_value = mock_doc_instance
+
+        generate_mnc_report(template_path=template_path, output_dir=str(full_output_dir))
+
+        ctx = render_context(mock_docx_template, mock_doc_instance)
+        assert ctx["balloon_observations"] == []
+
+    def test_missing_airstrip_maintenance_csv_falls_back_to_defaults(
+        self, mock_docx_template, mock_inline_image, template_path, full_output_dir
+    ):
+        (Path(full_output_dir) / "airstrip_maintenance_summary_table.csv").unlink()
+        mock_doc_instance = MagicMock()
+        mock_docx_template.return_value = mock_doc_instance
+
+        generate_mnc_report(template_path=template_path, output_dir=str(full_output_dir))
+
+        ctx = render_context(mock_docx_template, mock_doc_instance)
+        assert ctx["airstrip_maintenance_observations"] == []
+
+    def test_all_six_optional_csvs_missing_at_once(
+        self, mock_docx_template, mock_inline_image, template_path, output_dir
+    ):
+        # output_dir (not full_output_dir) has none of the six optional
+        # CSVs at all -- this is the exact shape of the production crash.
+        mock_doc_instance = MagicMock()
+        mock_docx_template.return_value = mock_doc_instance
+
+        generate_mnc_report(template_path=template_path, output_dir=str(output_dir))
+
+        ctx = render_context(mock_docx_template, mock_doc_instance)
+        assert ctx["no_of_lion_events"] == 0
+        assert ctx["no_of_leopard_sightings"] == 0
+        assert ctx["no_of_cheetah_events"] == 0
+        assert ctx["no_of_cow_events"] == 0
+        assert ctx["zone_stats"] == []
+        assert ctx["balloon_observations"] == []
+        assert ctx["airstrip_maintenance_observations"] == []

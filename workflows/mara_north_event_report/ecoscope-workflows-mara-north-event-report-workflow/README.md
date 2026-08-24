@@ -25,7 +25,7 @@ installed_requirements:
   version: {version: ==1.0.1}
 - channel: file:///tmp/ecoscope-workflows-custom/release/artifacts/
   name: ecoscope-workflows-ext-mnc
-  version: {version: ==1.0.3.dev2+ge1bade35a.d20260824}
+  version: {version: ==1.0.3.dev3+gc0f700d46.d20260824}
 - channel: conda-forge
   name: pydeck
   version: {version: ==0.9.2}
