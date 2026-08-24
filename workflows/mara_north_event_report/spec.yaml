@@ -194,7 +194,7 @@ workflow:
         get_line_color: zone_color
         get_line_width: 1.5
       legend:
-        title: Map Layers
+        title: ""
         values: ${{ workflow.grazing_zone_legend_values.return }}
 
   - name: Create parcels layer
@@ -210,7 +210,7 @@ workflow:
         get_line_color: [189, 183, 107, 255]
         get_line_width: 1.5
       legend:
-        title: ""
+        title: "Map Layers"
         values:
           - label: Parcels
             color: "#bdb76b"
@@ -1603,8 +1603,8 @@ workflow:
         - any_dependency_skipped
     partial:
       static_layers:
-        - ${{ workflow.create_grazing_zones_layer.return }}
         - ${{ workflow.create_parcels_layer.return }}
+        - ${{ workflow.create_grazing_zones_layer.return }}
         - ${{ workflow.create_conservancy_layer.return }}
       grouped_layers: ${{ workflow.generate_mobile_layers.return }}
 
@@ -1892,8 +1892,8 @@ workflow:
     task: ecoscope_workflows_ext_ste.tasks.spatial_operations.combine_deckgl_map_layers
     partial:
       static_layers:
-        - ${{ workflow.create_grazing_zones_layer.return }}
         - ${{ workflow.create_parcels_layer.return }}
+        - ${{ workflow.create_grazing_zones_layer.return }}
         - ${{ workflow.create_conservancy_layer.return }}
       grouped_layers: ${{ workflow.generate_livestock_layers.return }}
 
@@ -2060,8 +2060,8 @@ workflow:
     task: ecoscope_workflows_ext_ste.tasks.spatial_operations.combine_deckgl_map_layers
     partial:
       static_layers:
-        - ${{ workflow.create_grazing_zones_layer.return }}
         - ${{ workflow.create_parcels_layer.return }}
+        - ${{ workflow.create_grazing_zones_layer.return }}
         - ${{ workflow.create_conservancy_layer.return }}
       grouped_layers: ${{ workflow.generate_illegal_layers.return }}
 
@@ -5739,6 +5739,27 @@ workflow:
     partial:
       title: "Conservancy Patrol Occupancy"
       data: ${{ workflow.occupancy_table_url.return }}
+
+  - name: Download MNC Template and persist
+    id: fetch_mnc_template
+    task: ecoscope_workflows_ext_ste.tasks.io.fetch_and_persist_file
+    partial:
+      url: https://www.dropbox.com/scl/fi/cd29du0tkel6k74cm96sy/mara_north_event_template.docx?rlkey=q6q01pvxnlfa146eix1ck640n&st=3menrr2d&dl=0
+      output_path: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      overwrite_existing: false
+      retries: 2
+      unzip: false
+
+  - name: Generate MNC overall report 
+    id: generate_overall_report 
+    task: generate_mnc_report 
+    partial: 
+      template_path: ${{ workflow.fetch_mnc_template.return }}
+      output_dir: ${{ env.ECOSCOPE_WORKFLOWS_RESULTS }}
+      generated_by: "Ecoscope"
+      validate_images: true
+      time_period: ${{ workflow.time_range.return }}
+      filename: "overall_report.docx"
 
   - name: MNC event report dashboard
     id: mnc_events_dashboard

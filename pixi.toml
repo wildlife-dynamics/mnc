@@ -24,7 +24,7 @@ graphviz = "*"
 
 [feature.compile.dependencies]
 # Include this if you add new tasks and the package has been built
-ecoscope-workflows-ext-mnc = "*"
+#ecoscope-workflows-ext-mnc = "*"
 ecoscope-workflows-ext-ste ="0.0.0rc1.*"
 ecoscope-workflows-ext-custom = "0.1.0rc14.*"
 ecoscope-workflows-ext-wwf-virunga="0.0.0rc9.*"
