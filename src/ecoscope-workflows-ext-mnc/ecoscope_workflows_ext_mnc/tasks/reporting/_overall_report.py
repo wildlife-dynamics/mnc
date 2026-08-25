@@ -3,9 +3,9 @@ import pandas as pd
 from pathlib import Path
 from docx.shared import Cm
 from typing import Optional
+from wt_registry import register
 from docxtpl import DocxTemplate, InlineImage
-from ecoscope_workflows_core.decorators import task
-from ecoscope_workflows_core.tasks.filter._filter import TimeRange
+from ecoscope.platform.tasks.filter._filter import TimeRange
 from ecoscope_workflows_ext_custom.tasks.io._path_utils import remove_file_scheme
 
 
@@ -63,21 +63,7 @@ def _total_row_value(df: pd.DataFrame, value_col: str, date_col: str = "date", t
     return total_row[value_col].iloc[0]
 
 
-def _normalize_cols(df: pd.DataFrame, mapping: dict) -> pd.DataFrame:
-    """
-    Case-insensitive rename. mapping is {desired_lowercase_name: desired_lowercase_name}.
-    Any column whose .lower() matches a key gets renamed to that key.
-    """
-    rename_map = {}
-    targets = {k.lower(): k for k in mapping}
-    for col in df.columns:
-        key = col.lower()
-        if key in targets:
-            rename_map[col] = targets[key]
-    return df.rename(columns=rename_map)
-
-
-@task
+@register()
 def generate_mnc_report(
     template_path: str,
     output_dir: str,
@@ -85,7 +71,6 @@ def generate_mnc_report(
     validate_images: bool = True,
     time_period: Optional[TimeRange] = None,
     filename: Optional[str] = None,
-    wait_for: Optional[list] = None,
 ) -> str:
     template_path = remove_file_scheme(template_path)
     output_dir = remove_file_scheme(output_dir)
@@ -119,6 +104,7 @@ def generate_mnc_report(
 
     print(f"Found {len(images_found)} images and {len(csvs_found)} CSV files")
     tpl = DocxTemplate(template_path)
+
     context = {}
 
     # IMAGES
@@ -133,10 +119,10 @@ def generate_mnc_report(
     }
     patrol_images = {
         "total_events_chart": "total_events_recorded",
-        "foot_patrols_map": "foot_patrols_map",
-        "vehicle_patrols_map": "vehicle_patrols_map",
-        "motorbike_patrols_map": "motorbike_patrols_map",
-        "patrols_coverage_map": "patrol_coverage_map",
+        "foot_patrols_map": "foot_patrol_map",
+        "vehicle_patrols_map": "vehicle_patrol_map",
+        "motorbike_patrols_map": "motor_patrol_map",
+        "patrols_coverage_map": "overall_patrol_map",
     }
     livestock_images = {
         "boma_movement_ecomap": "boma_movement_map",
@@ -151,12 +137,12 @@ def generate_mnc_report(
         "buffalo_events_distribution": "buffalo_herd_size_bar_chart",
         "buffalo_sightings_ecomap": "buffalo_sightings_events",
         "buffalo_herd_types_ecomap": "buffalo_herd_types_map",
-        "rhino_events_sightings": "rhino_sighting_events",
-        "lion_sightings_ecomap": "lion_sightings_events",
-        "leopard_sightings_ecomap": "leopard_sightings_events",
-        "cheetah_sightings_ecomap": "cheetah_sightings_events",
-        "giraffe_events_sightings": "giraffe_sightings_events",
-        "hartebeest_events_sightings": "hartebeest_sightings_events",
+        "rhino_events_sightings": "rhino_sightings_map",
+        "lion_sightings_ecomap": "lion_pride_sightings_map",
+        "leopard_sightings_ecomap": "leopard_sightings_map",
+        "cheetah_sightings_ecomap": "cheetah_sightings_map",
+        "giraffe_events_sightings": "giraffe_sightings_map",
+        "hartebeest_events_sightings": "hartebeest_sightings_map",
     }
 
     all_image_mappings = {**weather_images, **patrol_images, **livestock_images, **wildlife_images}
@@ -187,15 +173,15 @@ def generate_mnc_report(
         "livestock_predation_events": "livestock_predation_summary_table",
         # Wildlife tables
         "wildlife_incidents_summary": "wildlife_incidents_summary_table",
-        "lion_events_recorded": "total_lion_events_recorded",
-        "individual_lions_summary": "individual_lions_summary",
-        "individual_leopard_summary": "individual_leopard_summary",
-        "individual_cheetah_summary": "individual_cheetah_summary",
-        "leopard_events_recorded": "total_leopard_events_recorded",
+        # "lion_events_recorded": "total_lion_events_recorded",
+        "individual_lions_summary": "overall_lion_summary_table",
+        "individual_leopard_summary": "overall_leopard_summary_table",
+        "individual_cheetah_summary": "overall_cheetah_summary_table",
+        # "leopard_events_recorded": "total_leopard_events_recorded",
         "cheetah_events_recorded": "total_cheetah_events_recorded",
-        "elephant_events_recorded": "total_elephants_events_recorded",
+        "elephant_events_recorded": "overall_elephant_summary_table",
         "total_events_recorded": "total_events_recorded_by_date",
-        "buffalo_events_recorded": "total_buffalo_events_recorded",
+        "buffalo_events_recorded": "overall_buffalo_summary_table",
         "rhino_events_recorded": "total_rhino_events_recorded",
         # Logistics tables
         "airstrip_observations": "airstrip_operations_summary_table",
@@ -217,7 +203,6 @@ def generate_mnc_report(
             context[template_var] = []
 
     # EXTRACT SPECIFIC VALUES FROM CSVs
-    # Patrol efforts (overall)
     df = _read_csv_safe(csvs_found, "overall_patrol_efforts")
     if df is not None and not df.empty:
         if "no_of_patrols" in df.columns:
@@ -231,44 +216,33 @@ def generate_mnc_report(
     # Airstrip operations
     air_df = _read_csv_safe(csvs_found, "airstrip_operations_summary_table")
     if air_df is not None and not air_df.empty:
-        # air_df = _normalize_cols(air_df, {"arrival": "arrival", "departure": "departure"})
-        air_df = _normalize_cols(
-            air_df,
-            {
-                "no_of_clients_Arrival": "arrival",
-                "no_of_clients_Departure": "departure",
-            },
-        )
+        air_df = air_df.rename(columns={"Arrival": "arrival", "Departure": "departure", "Camp Lodge": "camp_lodge"})
         if "arrival" in air_df.columns:
             air_df["arrival"] = air_df["arrival"].fillna(0).astype(int)
         if "departure" in air_df.columns:
             air_df["departure"] = air_df["departure"].fillna(0).astype(int)
         context["airstrip_observations"] = air_df.to_dict(orient="records")
 
-    # Total events
     df = _read_csv_safe(csvs_found, "total_events_recorded_by_date")
     context["total_events"] = _safe_int(_last(df, "no_of_events")) if df is not None else 0
 
-    # Foot patrol summary
     df = _read_csv_safe(csvs_found, "foot_patrol_efforts")
-    context["no_of_foot_patrols"] = _safe_int(_last(df, "no_of_patrols")) if df is not None else 0
-    context["total_foot_patrol_hours"] = _safe_float(_last(df, "duration_hrs")) if df is not None else 0.0
-    context["total_foot_patrol_distance"] = _safe_float(_last(df, "distance_km")) if df is not None else 0.0
-    context["average_foot_patrol_speed"] = _safe_float(_last(df, "average_speed")) if df is not None else 0.0
+    context["no_of_foot_patrols"] = _safe_int(df["no_of_patrols"].sum()) if df is not None else 0
+    context["total_foot_patrol_hours"] = _safe_float(df["duration_hrs"].sum()) if df is not None else 0.0
+    context["total_foot_patrol_distance"] = _safe_float(df["distance_km"].sum()) if df is not None else 0.0
+    context["average_foot_patrol_speed"] = _safe_float(df["average_speed"].sum()) if df is not None else 0.0
 
-    # Vehicle patrol summary
     df = _read_csv_safe(csvs_found, "vehicle_patrol_efforts")
-    context["no_of_vehicle_patrols"] = _safe_int(_last(df, "no_of_patrols")) if df is not None else 0
-    context["total_vehicle_patrol_hours"] = _safe_float(_last(df, "duration_hrs")) if df is not None else 0.0
-    context["total_vehicle_patrol_distance"] = _safe_float(_last(df, "distance_km")) if df is not None else 0.0
-    context["average_vehicle_patrol_speed"] = _safe_float(_last(df, "average_speed")) if df is not None else 0.0
+    context["no_of_vehicle_patrols"] = _safe_int(df["no_of_patrols"].sum()) if df is not None else 0
+    context["total_vehicle_patrol_hours"] = _safe_float(df["duration_hrs"].sum()) if df is not None else 0.0
+    context["total_vehicle_patrol_distance"] = _safe_float(df["distance_km"].sum()) if df is not None else 0.0
+    context["average_vehicle_patrol_speed"] = _safe_float(df["average_speed"].sum()) if df is not None else 0.0
 
-    # Motorbike patrol summary
     df = _read_csv_safe(csvs_found, "motorbike_patrol_efforts")
-    context["no_of_motor_patrols"] = _safe_int(_last(df, "no_of_patrols")) if df is not None else 0
-    context["total_motor_patrol_distance"] = _safe_float(_last(df, "distance_km")) if df is not None else 0.0
-    context["total_motor_patrol_hours"] = _safe_float(_last(df, "duration_hrs")) if df is not None else 0.0
-    context["average_motor_patrol_speed"] = _safe_float(_last(df, "average_speed")) if df is not None else 0.0
+    context["no_of_motor_patrols"] = _safe_int(df["no_of_patrols"].sum()) if df is not None else 0
+    context["total_motor_patrol_hours"] = _safe_float(df["duration_hrs"].sum()) if df is not None else 0.0
+    context["total_motor_patrol_distance"] = _safe_float(df["distance_km"].sum()) if df is not None else 0.0
+    context["average_motor_patrol_speed"] = _safe_float(df["average_speed"].sum()) if df is not None else 0.0
 
     # Patrol coverage - Mara North Conservancy percentage
     context["mara_conservancy_percentage"] = 0.0
@@ -295,9 +269,8 @@ def generate_mnc_report(
                 if not row.empty:
                     context[key] = float(row["no_of_patrols"].iloc[0]) / total_patrols * 100
 
-    # Boma movements
     df = _read_csv_safe(csvs_found, "mobile_boma_movement_summary_table")
-    context["no_of_boma_movements"] = _safe_int(_total_row_value(df, "boma_events")) if df is not None else 0
+    context["no_of_boma_movements"] = _safe_int(df["boma_events"].sum()) if df is not None else 0
 
     # Livestock predation events
     context["total_livestock_predation_events"] = 0
@@ -315,60 +288,87 @@ def generate_mnc_report(
             print(f"Warning: Could not sum wildlife incidents: {e}")
 
     # Elephant events
-    df = _read_csv_safe(csvs_found, "total_elephants_events_recorded")
-    context["no_of_elephant_events"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
+    df = _read_csv_safe(csvs_found, "overall_elephant_summary_table")
+    context["no_of_elephant_events"] = _safe_int(df["observations"].sum()) if df is not None else 0
 
     # Buffalo events
-    df = _read_csv_safe(csvs_found, "total_buffalo_events_recorded")
-    context["no_of_buffalo_sightings"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
+    df = _read_csv_safe(csvs_found, "overall_buffalo_summary_table")
+    context["no_of_buffalo_sightings"] = _safe_int(df["observations"].sum()) if df is not None else 0
 
     # Rhino events
-    df = _read_csv_safe(csvs_found, "total_rhino_events_recorded")
-    context["no_of_rhino_events"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
+    df = _read_csv_safe(csvs_found, "overall_rhino_summary_table")
+    context["no_of_rhino_events"] = _safe_int(df["observations"].sum()) if df is not None else 0
 
-    # Lion events + top 3 prides
-    df = _read_csv_safe(csvs_found, "total_lion_events_recorded")
-    context["no_of_lion_events"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
+    df = _read_csv_safe(csvs_found, "overall_lion_summary_table")
+    context["no_of_lion_events"] = _safe_int(df["observations"].sum()) if df is not None else 0
 
     context["common_lion_prides"] = "N/A"
-    df = _read_csv_safe(csvs_found, "individual_lions_summary")
-    if _has_cols(df, "pride", "no_of_events"):
-        top_prides = df.nlargest(3, "no_of_events")["pride"].dropna().astype(str).tolist()
-        if top_prides:
-            context["common_lion_prides"] = ", ".join(top_prides)
+    if df is not None:
+        df = df.rename(columns={"Pride": "pride"})
+        if _has_cols(df, "pride", "observations"):
+            top_prides = df.nlargest(3, "observations")["pride"].dropna().astype(str).tolist()
+            if top_prides:
+                context["common_lion_prides"] = ", ".join(top_prides)
 
-    # Leopard sightings + top 3 individuals
-    df = _read_csv_safe(csvs_found, "total_leopard_events_recorded")
-    context["no_of_leopard_sightings"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
+    df = _read_csv_safe(csvs_found, "overall_leopard_summary_table")
+    context["no_of_leopard_sightings"] = _safe_int(df["observations"].sum()) if df is not None else 0
 
     context["common_leopard_individuals"] = "N/A"
-    df = _read_csv_safe(csvs_found, "individual_leopard_summary")
-    if _has_cols(df, "individuals_present", "no_of_events"):
-        top = df.nlargest(3, "no_of_events")["individuals_present"].dropna().astype(str).tolist()
-        if top:
-            context["common_leopard_individuals"] = ", ".join(top)
+    if df is not None:
+        df = df.rename(columns={"Individuals": "individuals"})
+        if _has_cols(df, "individuals", "observations"):
+            top = df.nlargest(3, "observations")["individuals"].dropna().astype(str).tolist()
+            if top:
+                context["common_leopard_individuals"] = ", ".join(top)
 
     # Cheetah events + common individuals
-    df = _read_csv_safe(csvs_found, "total_cheetah_events_recorded")
-    context["no_of_cheetah_events"] = _safe_int(_total_row_value(df, "no_of_events")) if df is not None else 0
+    df = _read_csv_safe(csvs_found, "overall_cheetah_summary_table")
+    context["no_of_cheetah_events"] = _safe_int(df["observations"].sum()) if df is not None else 0
 
     context["common_cheetah_individuals"] = "N/A"
-    context["individual_cheetah_summary"] = []
-    cheetah_df = _read_csv_safe(csvs_found, "individual_cheetah_summary")
-    if _has_cols(cheetah_df, "individuals_present", "no_of_events"):
-        cheetah_df = cheetah_df.sort_values(by="no_of_events", ascending=False)
-        top = cheetah_df.nlargest(3, "no_of_events")["individuals_present"].dropna().astype(str).tolist()
-        if top:
-            context["common_cheetah_individuals"] = ", ".join(top)
-        context["individual_cheetah_summary"] = cheetah_df.fillna(0).to_dict(orient="records")
-    elif cheetah_df is not None and not cheetah_df.empty:
-        context["individual_cheetah_summary"] = cheetah_df.fillna(0).to_dict(orient="records")
+
+    if df is not None:
+        df = df.rename(columns={"Individuals": "individuals"})
+        if _has_cols(df, "individuals", "observations"):
+            cheetah_df = df.sort_values(by="observations", ascending=False)
+            top = cheetah_df.nlargest(3, "observations")["individuals"].dropna().astype(str).tolist()
+            if top:
+                context["common_cheetah_individuals"] = ", ".join(top)
+            context["individual_cheetah_summary"] = cheetah_df.fillna(0).to_dict(orient="records")
+        elif not df.empty:
+            context["individual_cheetah_summary"] = df.fillna(0).to_dict(orient="records")
 
     # Cattle / cow events
     context["no_of_cow_events"] = 0
+    context["zone_stats"] = []
     df = _read_csv_safe(csvs_found, "total_cattle_count_summary_table")
-    if _has_cols(df, "date"):
-        context["no_of_cow_events"] = int(df["date"].count())
+    if df is not None:
+        df = df.rename(
+            columns={"Date": "date", "Total": "total", "Zone 1": "zone_1", "Zone 2/3": "zone_2_3", "Zone 4": "zone_4"}
+        )
+        if _has_cols(df, "date"):
+            context["no_of_cow_events"] = int(df["date"].count())
+        context["zone_stats"] = df.to_dict(orient="records")
+
+    context["balloon_observations"] = []
+    df = _read_csv_safe(csvs_found, "balloon_landing_summary_table")
+    if df is not None:
+        df = df.rename(
+            columns={
+                "Date": "date",
+                "Balloon Company": "balloon_company",
+                "Where Are Clients Staying": "where_are_clients_staying",
+                "No Of Passengers": "no_of_passengers",
+            }
+        )
+        df = df.fillna({"balloon_company": "Undefined", "where_are_clients_staying": "Undefined"})
+        context["balloon_observations"] = df.to_dict(orient="records")
+
+    context["airstrip_maintenance_observations"] = []
+    df = _read_csv_safe(csvs_found, "airstrip_maintenance_summary_table")
+    if df is not None:
+        df = df.rename(columns={"Date": "date", "Maintenance Type": "activity"})
+        context["airstrip_maintenance_observations"] = df.to_dict(orient="records")
 
     if generated_by:
         context["er_user"] = generated_by
@@ -387,7 +387,7 @@ def generate_mnc_report(
     context["time_period"] = time_period_short
     context["generated_on"] = pd.Timestamp.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    output_filename = filename or f"Overall_Report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.docx"
+    output_filename = filename or f"overall_report_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.docx"
     output_path = os.path.join(output_dir, output_filename)
     tpl.render(context)
     tpl.save(output_path)
