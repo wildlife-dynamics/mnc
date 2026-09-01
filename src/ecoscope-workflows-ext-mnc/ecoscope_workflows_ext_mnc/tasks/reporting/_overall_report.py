@@ -224,7 +224,7 @@ def generate_mnc_report(
         context["airstrip_observations"] = air_df.to_dict(orient="records")
 
     df = _read_csv_safe(csvs_found, "total_events_recorded_by_date")
-    context["total_events"] = _safe_int(_last(df, "no_of_events")) if df is not None else 0
+    context["total_events"] = _safe_int(df["no_of_events"].sum()) if df is not None else 0
 
     df = _read_csv_safe(csvs_found, "foot_patrol_efforts")
     context["no_of_foot_patrols"] = _safe_int(df["no_of_patrols"].sum()) if df is not None else 0
