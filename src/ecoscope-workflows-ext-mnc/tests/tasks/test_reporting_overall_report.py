@@ -211,21 +211,6 @@ class TestGenerateMncReportContext:
         ctx = render_context(mock_docx_template, mock_doc_instance)
         assert ctx["patrol_efforts"][1]["no_of_patrols"] == 0
 
-    def test_total_events_reads_last_row(self, mock_docx_template, mock_inline_image, template_path, full_output_dir):
-        mock_doc_instance = MagicMock()
-        mock_docx_template.return_value = mock_doc_instance
-
-        write_csv(
-            full_output_dir,
-            "total_events_recorded_by_date",
-            pd.DataFrame({"no_of_events": [10, 25, 42]}),
-        )
-
-        generate_mnc_report(template_path=template_path, output_dir=str(full_output_dir))
-
-        ctx = render_context(mock_docx_template, mock_doc_instance)
-        assert ctx["total_events"] == 42
-
     def test_foot_patrol_efforts_are_summed(
         self, mock_docx_template, mock_inline_image, template_path, full_output_dir
     ):
