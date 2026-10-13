@@ -168,6 +168,34 @@ workflow:
       output_type: float
       output_column_name: atmospheric_pressure
 
+  # TAHMO reports pressure in kPa; convert to mmHg for display (101.325 kPa = 760 mmHg)
+  - name: Add kPa to mmHg conversion factor
+    id: add_pressure_factor
+    task: assign_value
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.extract_pressure.return }}
+      column_name: kpa_to_mmhg
+      value: 7.50062
+
+  - name: Convert atmospheric pressure to mmHg
+    id: convert_pressure_mmhg
+    task: ecoscope_workflows_ext_mnc.tasks.aggregation.apply_arithmetic_operation_over_rows
+    skipif:
+      conditions:
+        - any_is_empty_df
+        - any_dependency_skipped
+    partial:
+      df: ${{ workflow.add_pressure_factor.return }}
+      columns:
+        - atmospheric_pressure
+        - kpa_to_mmhg
+      operation: multiply
+      output_column: atmospheric_pressure
+
   # Extract date
   - name: Extract date
     id: extract_date
@@ -177,7 +205,7 @@ workflow:
         - any_is_empty_df
         - any_dependency_skipped
     partial:
-      df: ${{ workflow.extract_pressure.return }}
+      df: ${{ workflow.convert_pressure_mmhg.return }}
       column_name: fixtime
       output_type: date
       output_column_name: date
@@ -584,7 +612,7 @@ workflow:
           tickangle: -45
           rangemode: auto
         yaxis:
-          title: "Average pressure"
+          title: "Atmospheric pressure (mmHg)"
           tickformat: ".1f"
         legend_title: "Weather Station"
         hovermode: "x unified"
